@@ -7,14 +7,6 @@ public static partial class Proxy
 {
     public static partial class tempdb
     {
-        public partial class DmDescribeFirstResultSetRow
-        {
-            public System.String? name { get; set; }
-            public System.Int32? systemtypeid { get; set; }
-            public System.Boolean? isnullable { get; set; }
-            public System.Int32? columnordinal { get; set; }
-            public System.String typename { get; set; } = null!;
-        }
     }
 
     private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input)
@@ -60,10 +52,10 @@ public static partial class Proxy
                 {
                     var row = new tempdb.DmDescribeFirstResultSetRow();
                     row.name = (!reader.IsDBNull(ordname) ? reader.GetFieldValue<String>(ordname).Trim() : null);
-                    row.systemtypeid = (!reader.IsDBNull(ordsystemtypeid) ? reader.GetFieldValue<Int32>(ordsystemtypeid) : null);
-                    row.isnullable = (!reader.IsDBNull(ordisnullable) ? reader.GetFieldValue<Boolean>(ordisnullable) : null);
-                    row.columnordinal = (!reader.IsDBNull(ordcolumnordinal) ? reader.GetFieldValue<Int32>(ordcolumnordinal) : null);
-                    row.typename = (!reader.IsDBNull(ordTypeName) ? reader.GetFieldValue<String>(ordTypeName).Trim() : null! /* BUG! */);
+                    row.system_type_id = (!reader.IsDBNull(ordsystemtypeid) ? reader.GetFieldValue<Int32>(ordsystemtypeid) : null);
+                    row.is_nullable = (!reader.IsDBNull(ordisnullable) ? reader.GetFieldValue<Boolean>(ordisnullable) : null);
+                    row.column_ordinal = (!reader.IsDBNull(ordcolumnordinal) ? reader.GetFieldValue<Int32>(ordcolumnordinal) : null);
+                    row.type_name = (!reader.IsDBNull(ordTypeName) ? reader.GetFieldValue<String>(ordTypeName).Trim() : null! /* BUG! */);
                     result.Add(row);
                 } while (await reader.ReadAsync());
             }

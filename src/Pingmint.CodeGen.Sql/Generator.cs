@@ -97,7 +97,7 @@ public class Generator
                         {
                             foreach (var column in statementMemo.Columns)
                             {
-                                code.Line("{0} = reader.IsDBNull({1}) ? null! : reader.GetFieldValue<String>({1}),", column.PropertyName, column.OrdinalVarName);
+                                code.Line("{0} = reader.IsDBNull({1}) ? null! : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.PropertyTypeName);
                             }
                         }
                         code.Line("result.Add(row);");
@@ -139,6 +139,8 @@ public class Generator
 
         SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
 
+        SqlDbType.Bit => typeof(Boolean),
+
         _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
     };
 
@@ -153,6 +155,7 @@ public class Generator
         var x when x == typeof(Int16) => "Int16",
         var x when x == typeof(Int32) => "Int32",
         var x when x == typeof(String) => "String",
+        var x when x == typeof(Boolean) => "Boolean",
         _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
     };
 
