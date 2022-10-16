@@ -1,0 +1,92 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/Pingmint.CodeGen.Sql/Pingmint.CodeGen.Sql.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/src/Pingmint.CodeGen.Sql/Pingmint.CodeGen.Sql.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/src/Pingmint.CodeGen.Sql/Pingmint.CodeGen.Sql.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "dotnet run",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "run",
+                "--",
+                "Proxy.cs"
+            ],
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}/src/Pingmint.CodeGen.Sql"
+            }
+        },
+        {
+            "label": "dotnet pack",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "pack"
+            ],
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}/src/Pingmint.CodeGen.Sql"
+            }
+        },
+        {
+            "label": "dotnet tool install (nupkg)",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "tool",
+                "install",
+                "--add-source",
+                "nupkg",
+                "pingmint.codegen.sql"
+            ],
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}/src/Pingmint.CodeGen.Sql"
+            }
+        },
+        {
+            "label": "build and run",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"build",
+				"dotnet run"
+			],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

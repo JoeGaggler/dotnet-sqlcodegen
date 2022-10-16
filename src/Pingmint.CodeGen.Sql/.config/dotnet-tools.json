@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "pingmint.codegen.sql": {
+      "version": "0.0.0",
+      "commands": [
+        "sqlcodegen"
+      ]
+    }
+  }
+}
