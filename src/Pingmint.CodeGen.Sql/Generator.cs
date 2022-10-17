@@ -32,6 +32,7 @@ public class Generator
                     var name = statement.Name ?? throw new NullReferenceException();
                     var resultSet = statement.ResultSet ?? throw new NullReferenceException();
                     var commandText = statement.Text ?? throw new NullReferenceException();
+                    var columns = statement.ResultSet.Columns ?? throw new NullReferenceException();
 
                     var memo = new StatementMemo()
                     {
@@ -40,12 +41,20 @@ public class Generator
                         RowClassName = $"{name}Row",
                         RowClassRef = $"{databaseName}.{name}Row",
                         DatabaseName = databaseName,
-                        Columns = statement.ResultSet.Columns.Select(i => new ColumnMemo()
+                        Parameters = statement.Parameters?.Items?.Select(i => new ParametersMemo()
                         {
-                            OrdinalVarName = $"ord_{i.Name}",
+                            ParameterType = i.SqlDbType,
+                            ParameterName = i.Name,
+                            ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType)),
+                            ArgumentName = GetCamelCase(i.Name),
+                        })?.ToList() ?? new List<ParametersMemo>(),
+                        Columns = columns.Select(i => new ColumnMemo()
+                        {
+                            OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
                             ColumnName = i.Name,
                             PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
                             PropertyName = i.Name,
+                            FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
                         }).ToList(),
                     };
                     statementMemos.Add(memo);
@@ -72,7 +81,13 @@ public class Generator
         var resultType = String.Format("List<{0}>", rowClassRef);
         var returnType = String.Format("Task<{0}>", resultType);
         var methodName = (statementMemo.MethodName ?? throw new NullReferenceException()) + "Async";
+
         var args = "SqlConnection connection"; // TODO: parameters, then transaction
+        if (statementMemo.Parameters is { } parameters && parameters.Count > 0)
+        {
+            var args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
+            args += ", " + args1;
+        }
 
         using (code.Method("public static async", returnType, methodName, args))
         {
@@ -80,6 +95,16 @@ public class Generator
             code.Line("cmd.CommandType = CommandType.Text;");
             code.Line("cmd.CommandText = \"{0}\";", commandText);
             code.Line();
+
+            if (statementMemo.Parameters is { } parameters2 && parameters2.Count > 0) // TODO: reuse parameters
+            {
+                foreach (var parameter in parameters2)
+                {
+                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ParameterName}, SqlDbType.{parameter.ParameterType}));");
+                }
+                code.Line();
+            }
+
             code.Line("var result = new {0}();", resultType);
             using (code.Using("var reader = await cmd.ExecuteReaderAsync()"))
             {
@@ -97,7 +122,7 @@ public class Generator
                         {
                             foreach (var column in statementMemo.Columns)
                             {
-                                code.Line("{0} = reader.IsDBNull({1}) ? null! : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.PropertyTypeName);
+                                code.Line("{0} = reader.IsDBNull({1}) ? null! : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName);
                             }
                         }
                         code.Line("result.Add(row);");
@@ -159,6 +184,69 @@ public class Generator
         _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
     };
 
+    public static String GetCamelCase(String originalName)
+    {
+        var sb = new System.Text.StringBuilder(originalName.Length);
+
+        bool firstChar = true;
+        bool firstWord = true;
+        foreach (var ch in originalName)
+        {
+            if (firstChar)
+            {
+                if (!Char.IsLetter(ch)) { continue; }
+
+                if (firstWord)
+                {
+                    sb.Append(Char.ToLowerInvariant(ch));
+                    firstWord = false;
+                }
+                else
+                {
+                    sb.Append(Char.ToUpperInvariant(ch));
+                }
+                firstChar = false;
+            }
+            else if (Char.IsLetterOrDigit(ch))
+            {
+                sb.Append(ch);
+            }
+            else
+            {
+                firstChar = true;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public static String GetPascalCase(String originalName)
+    {
+        var sb = new System.Text.StringBuilder(originalName.Length);
+
+        bool firstChar = true;
+        foreach (var ch in originalName)
+        {
+            if (firstChar)
+            {
+                if (!Char.IsLetter(ch)) { continue; }
+
+                sb.Append(Char.ToUpperInvariant(ch));
+                firstChar = false;
+            }
+            else if (Char.IsLetterOrDigit(ch))
+            {
+                sb.Append(ch);
+            }
+            else
+            {
+                firstChar = true;
+            }
+        }
+
+        return sb.ToString();
+    }
+
     private class StatementMemo
     {
         public String CommandText { get; set; }
@@ -168,6 +256,7 @@ public class Generator
         public String DatabaseName { get; set; }
 
         public List<ColumnMemo> Columns { get; set; }
+        public List<ParametersMemo> Parameters { get; set; }
     }
 
     private class ColumnMemo
@@ -176,5 +265,14 @@ public class Generator
         public String ColumnName { get; set; }
         public String PropertyTypeName { get; set; }
         public String PropertyName { get; set; }
+        public String FieldTypeName { get; set; }
+    }
+
+    private class ParametersMemo
+    {
+        public SqlDbType ParameterType { get; set; }
+        public String ParameterName { get; set; }
+        public String ArgumentType { get; set; }
+        public String ArgumentName { get; set; }
     }
 }

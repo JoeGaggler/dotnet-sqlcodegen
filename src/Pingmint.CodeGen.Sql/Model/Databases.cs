@@ -65,6 +65,9 @@ public class Parameter
     public String? Type { get; set; }
 
     // sequence
+
+    // meta
+    public System.Data.SqlDbType SqlDbType { get; set; }
 }
 
 // public class Class

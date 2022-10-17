@@ -38,7 +38,7 @@ internal sealed class Program
                                 new()
                                 {
                                     Name = "DmDescribeFirstResultSet",
-                                    Text = "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id) WHERE T.name <> 'sysname' ORDER BY D.column_ordinal",
+                                    Text = "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id) ORDER BY D.column_ordinal",
                                     Parameters = new()
                                     {
                                         Items = new()
@@ -76,6 +76,7 @@ internal sealed class Program
         sql.ConnectionString = config.Connection?.ConnectionString;
         await sql.OpenAsync();
         var sysTypes = await Proxy.GetSysTypesAsync(sql);
+        var dfrs = await Proxy.DmDescribeFirstResultSetAsync(sql, "SELECT name FROM sys.types where name = @name");
     }
 
     private static async Task<SqlConnection> OpenSqlAsync(Config config)
@@ -107,6 +108,14 @@ internal sealed class Program
                                 IsNullable = i.is_nullable.GetValueOrDefault(true), // nullable by default
                             }).ToList(),
                         };
+
+                        if (statement.Parameters?.Items is { } parameters)
+                        {
+                            foreach (var parameter in parameters)
+                            {
+                                parameter.SqlDbType = GetSqlDbType(parameter.Type);
+                            }
+                        }
                     }
                 }
             }
