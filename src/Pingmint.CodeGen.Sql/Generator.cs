@@ -71,11 +71,16 @@ public static class Generator
                     statementMemos.Add(memo);
 
                     CodeSqlStatement(code, memo);
+                    code.Line();
                 }
 
-                foreach (var memo in statementMemos)
+                using (code.PartialClass("public", databaseMemo.ClassName))
                 {
-                    CodeSqlStatementResultSet(code, databaseMemo, memo);
+                    foreach (var memo in statementMemos.OrderBy(i => i.RowClassName))
+                    {
+                        CodeSqlStatementResultSet(code, memo);
+                        code.Line();
+                    }
                 }
             }
         }
@@ -88,24 +93,25 @@ public static class Generator
     {
         code.Text(
 """
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
     {
-        var parameter = new SqlParameter(parameterName, value ?? DBNull.Value);
-        parameter.Size = size;
-        parameter.Direction = direction;
-        parameter.SqlDbType = sqlDbType;
-        return parameter;
-    }
+        Size = size,
+        Direction = direction,
+        SqlDbType = sqlDbType,
+    };
 
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
     {
-        var parameter = new SqlParameter(parameterName, value ?? DBNull.Value);
-        parameter.Size = size;
-        parameter.Direction = direction;
-        parameter.TypeName = typeName;
-        parameter.SqlDbType = sqlDbType;
-        return parameter;
-    }
+        Size = size,
+        Direction = direction,
+        TypeName = typeName,
+        SqlDbType = sqlDbType,
+    };
+
+    private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T? GetFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T GetNonNullField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T GetNonNullFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 
 """);
     }
@@ -144,26 +150,30 @@ public static class Generator
             }
 
             code.Line("var result = new {0}();", resultType);
-            using (code.Using("var reader = await cmd.ExecuteReaderAsync()"))
+            code.Line("using var reader = await cmd.ExecuteReaderAsync();");
+            using (code.If("await reader.ReadAsync()"))
             {
-                using (code.If("await reader.ReadAsync()"))
+                foreach (var column in statementMemo.Columns)
                 {
-                    foreach (var column in statementMemo.Columns)
+                    code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
+                }
+                code.Line();
+                using (code.DoWhile("await reader.ReadAsync()"))
+                {
+                    code.Line("result.Add(new {0}", rowClassRef);
+                    using (code.CreateBraceScope(null, ");"))
                     {
-                        code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
-                    }
-                    code.Line();
-                    using (code.DoWhile("await reader.ReadAsync()"))
-                    {
-                        code.Line("var row = new {0}", rowClassRef);
-                        using (code.CreateBraceScope(null, ";"))
+                        foreach (var column in statementMemo.Columns)
                         {
-                            foreach (var column in statementMemo.Columns)
+                            var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
                             {
-                                code.Line("{0} = reader.IsDBNull({1}) ? {3} : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName, GetDBNullExpression(column.PropertyType, column.ColumnIsNullable));
-                            }
+                                (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                            };
+                            code.Line(line);
                         }
-                        code.Line("result.Add(row);");
                     }
                 }
             }
@@ -171,19 +181,16 @@ public static class Generator
         }
     }
 
-    private static void CodeSqlStatementResultSet(CodeWriter code, DatabaseMemo databaseMemo, StatementMemo statementMemo)
+    private static void CodeSqlStatementResultSet(CodeWriter code, StatementMemo statementMemo)
     {
         var rowClassName = statementMemo.RowClassName ?? throw new NullReferenceException();
         var columns = statementMemo.Columns ?? throw new NullReferenceException();
 
-        using (code.PartialClass("public", databaseMemo.ClassName))
+        using (code.PartialClass("public", rowClassName))
         {
-            using (code.PartialClass("public", rowClassName))
+            foreach (var column in columns)
             {
-                foreach (var column in columns)
-                {
-                    code.Line($"public {column.PropertyTypeName} {column.PropertyName} {{ get; set; }}");
-                }
+                code.Line($"public {column.PropertyTypeName} {column.PropertyName} {{ get; set; }}");
             }
         }
     }
@@ -205,14 +212,13 @@ public static class Generator
         SqlDbType.TinyInt => typeof(Byte),
         SqlDbType.SmallInt => typeof(Int16),
 
-
         _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
     };
 
     private static String GetDBNullExpression(Type type, Boolean isColumnNullable) => (type.IsValueType, isColumnNullable) switch
     {
         (_, true) => "null",
-        (false, _) => "null!",
+        (false, _) => "throw new NullReferenceException()",
         (true, false) => "default",
     };
 
