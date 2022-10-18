@@ -16,6 +16,7 @@ public class DatabasesItem
 
     // mapping
     public String? Name { get; set; }
+    public String? ClassName { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence

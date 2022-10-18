@@ -3,9 +3,9 @@ using System.Data;
 
 namespace Pingmint.CodeGen.Sql;
 
-public class Generator
+public static class Generator
 {
-    public async Task Generate(Config config, TextWriter textWriter)
+    public static async Task GenerateAsync(Config config, TextWriter textWriter)
     {
         var cs = config.CSharp ?? throw new NullReferenceException();
         var className = cs.ClassName ?? throw new NullReferenceException();
@@ -20,9 +20,18 @@ public class Generator
         code.Line();
         using (code.PartialClass("public static", className))
         {
+            WriteHelperMethods(code);
+            code.Line();
+
             foreach (var database in dbs)
             {
-                var databaseName = database.Name ?? throw new NullReferenceException();
+                var databaseName2 = database.Name ?? throw new NullReferenceException();
+                var databaseMemo = new DatabaseMemo
+                {
+                    Name = databaseName2,
+                    ClassName = GetPascalCase(database.ClassName ?? databaseName2),
+                };
+
                 var statements = database.Statements?.Items ?? throw new NullReferenceException();
 
                 var statementMemos = new List<StatementMemo>();
@@ -36,15 +45,15 @@ public class Generator
 
                     var memo = new StatementMemo()
                     {
-                        CommandText = commandText,
+                        CommandText = commandText.ReplaceLineEndings(" ").Trim(),
                         MethodName = $"{name}",
                         RowClassName = $"{name}Row",
-                        RowClassRef = $"{databaseName}.{name}Row",
-                        DatabaseName = databaseName,
+                        RowClassRef = $"{databaseMemo.ClassName}.{name}Row",
+                        DatabaseName = databaseMemo.Name,
                         Parameters = statement.Parameters?.Items?.Select(i => new ParametersMemo()
                         {
                             ParameterType = i.SqlDbType,
-                            ParameterName = i.Name,
+                            ParameterName = i.Name ?? throw new NullReferenceException(),
                             ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType)),
                             ArgumentName = GetCamelCase(i.Name),
                         })?.ToList() ?? new List<ParametersMemo>(),
@@ -52,8 +61,10 @@ public class Generator
                         {
                             OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
                             ColumnName = i.Name,
+                            ColumnIsNullable = i.IsNullable,
+                            PropertyType = GetDotnetType(i.Type),
                             PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
-                            PropertyName = i.Name,
+                            PropertyName = GetPascalCase(i.Name),
                             FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
                         }).ToList(),
                     };
@@ -64,12 +75,39 @@ public class Generator
 
                 foreach (var memo in statementMemos)
                 {
-                    CodeSqlStatementResultSet(code, memo);
+                    CodeSqlStatementResultSet(code, databaseMemo, memo);
                 }
             }
         }
 
         textWriter.Write(code.ToString());
+        await textWriter.FlushAsync();
+    }
+
+    private static void WriteHelperMethods(CodeWriter code)
+    {
+        code.Text(
+"""
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input)
+    {
+        var parameter = new SqlParameter(parameterName, value ?? DBNull.Value);
+        parameter.Size = size;
+        parameter.Direction = direction;
+        parameter.SqlDbType = sqlDbType;
+        return parameter;
+    }
+
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input)
+    {
+        var parameter = new SqlParameter(parameterName, value ?? DBNull.Value);
+        parameter.Size = size;
+        parameter.Direction = direction;
+        parameter.TypeName = typeName;
+        parameter.SqlDbType = sqlDbType;
+        return parameter;
+    }
+
+""");
     }
 
     private static void CodeSqlStatement(CodeWriter code, StatementMemo statementMemo)
@@ -100,7 +138,7 @@ public class Generator
             {
                 foreach (var parameter in parameters2)
                 {
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ParameterName}, SqlDbType.{parameter.ParameterType}));");
+                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentName}, SqlDbType.{parameter.ParameterType}));");
                 }
                 code.Line();
             }
@@ -122,7 +160,7 @@ public class Generator
                         {
                             foreach (var column in statementMemo.Columns)
                             {
-                                code.Line("{0} = reader.IsDBNull({1}) ? null! : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName);
+                                code.Line("{0} = reader.IsDBNull({1}) ? {3} : reader.GetFieldValue<{2}>({1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName, GetDBNullExpression(column.PropertyType, column.ColumnIsNullable));
                             }
                         }
                         code.Line("result.Add(row);");
@@ -133,12 +171,12 @@ public class Generator
         }
     }
 
-    private static void CodeSqlStatementResultSet(CodeWriter code, StatementMemo statementMemo)
+    private static void CodeSqlStatementResultSet(CodeWriter code, DatabaseMemo databaseMemo, StatementMemo statementMemo)
     {
         var rowClassName = statementMemo.RowClassName ?? throw new NullReferenceException();
         var columns = statementMemo.Columns ?? throw new NullReferenceException();
 
-        using (code.PartialClass("public", statementMemo.DatabaseName))
+        using (code.PartialClass("public", databaseMemo.ClassName))
         {
             using (code.PartialClass("public", rowClassName))
             {
@@ -160,13 +198,22 @@ public class Generator
         SqlDbType.Xml
         => typeof(String),
 
-        SqlDbType.Int => typeof(Int32),
-
         SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
 
         SqlDbType.Bit => typeof(Boolean),
+        SqlDbType.Int => typeof(Int32),
+        SqlDbType.TinyInt => typeof(Byte),
+        SqlDbType.SmallInt => typeof(Int16),
+
 
         _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
+    };
+
+    private static String GetDBNullExpression(Type type, Boolean isColumnNullable) => (type.IsValueType, isColumnNullable) switch
+    {
+        (_, true) => "null",
+        (false, _) => "null!",
+        (true, false) => "default",
     };
 
     public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
@@ -181,6 +228,8 @@ public class Generator
         var x when x == typeof(Int32) => "Int32",
         var x when x == typeof(String) => "String",
         var x when x == typeof(Boolean) => "Boolean",
+        var x when x == typeof(Byte) => "Byte",
+        var x when x == typeof(Int16) => "Int16",
         _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
     };
 
@@ -247,6 +296,12 @@ public class Generator
         return sb.ToString();
     }
 
+    private class DatabaseMemo
+    {
+        public String Name { get; set; }
+        public String ClassName { get; set; }
+    }
+
     private class StatementMemo
     {
         public String CommandText { get; set; }
@@ -263,6 +318,8 @@ public class Generator
     {
         public String OrdinalVarName { get; set; }
         public String ColumnName { get; set; }
+        public Boolean ColumnIsNullable { get; set; }
+        public Type PropertyType { get; set; }
         public String PropertyTypeName { get; set; }
         public String PropertyName { get; set; }
         public String FieldTypeName { get; set; }

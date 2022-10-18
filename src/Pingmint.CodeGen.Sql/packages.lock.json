@@ -27,6 +27,12 @@
           "System.Text.Encodings.Web": "4.7.2"
         }
       },
+      "YamlDotNet": {
+        "type": "Direct",
+        "requested": "[12.0.2, )",
+        "resolved": "12.0.2",
+        "contentHash": "IFj2oDZYJIv5sM8mqaj5edVrpgUyoXk/wCGqZQJrgys/0tBajajpjRSgFM+iA/9ILOfTsPYKtcDcwvqBnBcNIg=="
+      },
       "Azure.Core": {
         "type": "Transitive",
         "resolved": "1.24.0",

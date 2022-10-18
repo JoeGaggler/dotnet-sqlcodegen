@@ -8,67 +8,23 @@ internal sealed class Program
 {
     internal static async Task Main(string[] args)
     {
-        var config = new Config()
+        if (args.Length < 1)
         {
-            Connection = new()
-            {
-                ConnectionString = "Data Source=localhost;Initial Catalog=tempdb;User ID=sa;Password=SqlServerIs#1;Encrypt=False;",
-            },
-            CSharp = new()
-            {
-                Namespace = "Pingmint.CodeGen.Sql",
-                ClassName = "Proxy",
-            },
-            Databases = new()
-            {
-                Items = new()
-                {
-                    new() {
-                        Name = "tempdb",
-                        Statements = new()
-                        {
-                            Items = new()
-                            {
-                                new()
-                                {
-                                    Name = "GetSysTypes",
-                                    Text = "SELECT name FROM sys.types",
-                                    Parameters = new()
-                                },
-                                new()
-                                {
-                                    Name = "DmDescribeFirstResultSet",
-                                    Text = "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id) ORDER BY D.column_ordinal",
-                                    Parameters = new()
-                                    {
-                                        Items = new()
-                                        {
-                                            new()
-                                            {
-                                                Name = "text",
-                                                Type = "varchar",
-                                            },
-                                        }
-                                    }
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        };
+            throw new InvalidOperationException(); // TODO: print help message
+        }
+
+        var yaml = File.ReadAllText(args[0]);
+        var config = ParseYaml(yaml);
 
         await MetaAsync(config);
 
-
         using TextWriter textWriter = args.Length switch
         {
-            > 0 => new StreamWriter(args[0]),
+            > 1 => new StreamWriter(args[1]),
             _ => Console.Out
         };
 
-        var gen = new Generator();
-        await gen.Generate(config, textWriter);
+        await Generator.GenerateAsync(config, textWriter);
         textWriter.Close();
 
         // bootstrap test
@@ -77,6 +33,20 @@ internal sealed class Program
         await sql.OpenAsync();
         var sysTypes = await Proxy.GetSysTypesAsync(sql);
         var dfrs = await Proxy.DmDescribeFirstResultSetAsync(sql, "SELECT name FROM sys.types where name = @name");
+    }
+
+    private static Config ParseYaml(String yaml)
+    {
+        using var stringReader = new StringReader(yaml);
+        var parser = new YamlDotNet.Core.Parser(stringReader);
+        var doc = new Yaml.DocumentYaml();
+        var visitor = new Yaml.YamlVisitor(doc);
+        while (parser.MoveNext())
+        {
+            parser.Current!.Accept(visitor);
+        }
+        var model = doc.Model;
+        return model;
     }
 
     private static async Task<SqlConnection> OpenSqlAsync(Config config)
@@ -95,6 +65,8 @@ internal sealed class Program
         {
             foreach (var database in databases)
             {
+                await sql.ChangeDatabaseAsync(database.Name);
+
                 if (database.Statements?.Items is { } statements)
                 {
                     foreach (var statement in statements)
@@ -103,9 +75,9 @@ internal sealed class Program
                         {
                             Columns = (await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text)).Select(i => new Column()
                             {
-                                Name = i.name ?? throw new NullReferenceException(),
-                                Type = GetSqlDbType(i.type_name),
-                                IsNullable = i.is_nullable.GetValueOrDefault(true), // nullable by default
+                                Name = i.Name ?? throw new NullReferenceException(),
+                                Type = GetSqlDbType(i.TypeName),
+                                IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
                             }).ToList(),
                         };
 
