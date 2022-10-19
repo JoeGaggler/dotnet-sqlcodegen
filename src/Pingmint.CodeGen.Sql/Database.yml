@@ -5,6 +5,9 @@ csharp:
 databases:
   - tempdb:
       class: TempDb
+      procedures:
+        - pingmint.echo_1
+        - pingmint.echo_text
       statements:
         - name: GetSysTypes
           text: SELECT name FROM sys.types
@@ -38,6 +41,19 @@ databases:
               type: varchar
             - name: proc
               type: varchar
+        - name: GetProcedureForSchema
+          text: |
+            SELECT P.name, P.object_id, S.name as [Schema_Name]
+            FROM sys.procedures AS P
+            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+            WHERE S.name = @schema
+            ANd P.name = @proc
+            ORDER BY P.name
+          parameters:
+            - name: schema
+              type: varchar
+            - name: proc
+              type: varchar
         - name: GetProceduresForSchema
           text: |
             SELECT P.name, P.object_id, S.name as [Schema_Name]
@@ -47,14 +63,12 @@ databases:
           parameters:
             - name: schema
               type: varchar
-            - name: proc
-              type: varchar
         - name: DmDescribeFirstResultSetForObject
           text: |
             SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [Type_Name]
             FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D
-            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id)
-            WHERE T.name <> 'sysname' ORDER BY D.column_ordinal
+            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id)
+            ORDER BY D.column_ordinal
           parameters:
             - name: objectid
               type: int

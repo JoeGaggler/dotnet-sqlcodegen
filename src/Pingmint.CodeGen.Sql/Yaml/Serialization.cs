@@ -81,6 +81,8 @@ internal sealed class DatabaseItemMapping : Mapping<List<Model.DatabasesItem>, M
 
     protected override ISequence? StartSequence(String key) => key switch
     {
+        "procs" => new ProceduresSequence(this.Model),
+        "procedures" => new ProceduresSequence(this.Model),
         "statements" => new StatementsSequence(this.Model),
         _ => null,
     };
@@ -95,6 +97,44 @@ internal sealed class DatabaseItemMapping : Mapping<List<Model.DatabasesItem>, M
     }
 
     protected override void Pop(List<Model.DatabasesItem> parentModel, Model.DatabasesItem model) => parentModel.Add(this.Model);
+}
+
+internal sealed class ProceduresSequence : Sequence<Model.DatabasesItem, Model.DatabasesItemProcedures>
+{
+    public ProceduresSequence(Model.DatabasesItem parent) : base(parent, new() { Items = new() }) { }
+
+    protected override IMapping? StartMapping() => new ProcedureMapping(this.Model.Items);
+
+    protected override bool Add(string value)
+    {
+        this.Model.Items!.Add(new() { Text = value }); // TODO: remove null-forgiveness
+        return true;
+    }
+
+    protected override void Pop(Model.DatabasesItem parentModel, Model.DatabasesItemProcedures model) => parentModel.Procedures = model;
+}
+
+internal sealed class ProcedureMapping : Mapping<List<Model.Procedure>, Model.Procedure>
+{
+    public ProcedureMapping(List<Model.Procedure> parent) : base(parent, new()) { }
+
+    protected override ISequence? StartSequence(string key) => key switch
+    {
+        // "parameters" => new ParametersSequence(this.Model.Parameters = new()),
+        _ => null,
+    };
+
+    protected override bool Add(string key, string value)
+    {
+        switch (key)
+        {
+            // case "name": { this.Model.Name = value; return true; }
+            // case "text": { this.Model.Text = value; return true; }
+            default: return false;
+        }
+    }
+
+    protected override void Pop(List<Model.Procedure> parentModel, Model.Procedure model) => parentModel.Add(model);
 }
 
 internal sealed class StatementsSequence : Sequence<Model.DatabasesItem, Model.DatabasesItemStatements>

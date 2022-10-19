@@ -17,9 +17,36 @@ public class DatabasesItem
     // mapping
     public String? Name { get; set; }
     public String? ClassName { get; set; }
+    public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence
+}
+
+public class DatabasesItemProcedures
+{
+    // scalar
+
+    // mapping
+
+    // sequence
+    public List<Procedure>? Items { get; set; }
+}
+
+public class Procedure
+{
+    // scalar
+    public String? Text { get; set; }
+
+    // mapping
+    public Parameters? Parameters { get; set; } // TODO: this is not yet in YAML
+
+    // sequence
+
+    // meta
+    public String? Name { get; set; }
+    public String? Schema { get; set; }
+    public ResultSetMeta ResultSet { get; set; }
 }
 
 public class DatabasesItemStatements

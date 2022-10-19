@@ -28,11 +28,13 @@ internal sealed class Program
         textWriter.Close();
 
         // bootstrap test
-        using var sql = new SqlConnection();
-        sql.ConnectionString = config.Connection?.ConnectionString;
-        await sql.OpenAsync();
-        var sysTypes = await Proxy.GetSysTypesAsync(sql);
-        var dfrs = await Proxy.DmDescribeFirstResultSetAsync(sql, "SELECT name FROM sys.types where name = @name");
+        // using var sql = new SqlConnection();
+        // sql.ConnectionString = config.Connection?.ConnectionString;
+        // await sql.OpenAsync();
+        // var sysTypes = await Proxy.GetSysTypesAsync(sql);
+        // var dfrs = await Proxy.DmDescribeFirstResultSetAsync(sql, "SELECT name FROM sys.types where name = @name");
+        // var echo = (await Proxy.echo_textAsync(sql, "hello, world")).FirstOrDefault();
+        // Console.WriteLine($"Echo: {echo?.Text}");
     }
 
     private static Config ParseYaml(String yaml)
@@ -67,18 +69,35 @@ internal sealed class Program
             {
                 await sql.ChangeDatabaseAsync(database.Name);
 
+                if (database.Procedures?.Items is { } procs)
+                {
+                    foreach (var proc in procs)
+                    {
+                        var (schema, procName) = ParseSchemaItem(proc.Text);
+                        proc.Schema = schema;
+                        proc.Name = procName;
+
+                        if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
+                        {
+                            throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
+                        }
+
+                        proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
+
+                        proc.ResultSet = new ResultSetMeta()
+                        {
+                            Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId)),
+                        };
+                    }
+                }
+
                 if (database.Statements?.Items is { } statements)
                 {
                     foreach (var statement in statements)
                     {
-                        statement.ResultSet = new ResultSetMeta()
+                        statement.ResultSet = new ResultSetMeta() // TODO: same as procedure
                         {
-                            Columns = (await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text)).Select(i => new Column()
-                            {
-                                Name = i.Name ?? throw new NullReferenceException(),
-                                Type = GetSqlDbType(i.TypeName),
-                                IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
-                            }).ToList(),
+                            Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text)),
                         };
 
                         if (statement.Parameters?.Items is { } parameters)
@@ -91,6 +110,36 @@ internal sealed class Program
                     }
                 }
             }
+        }
+    }
+
+    private static List<Parameter> GetParametersForProcedure(List<Proxy.TempDb.GetParametersForObjectRow> parameters) =>
+        parameters.Select(i => new Parameter()
+        {
+            Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
+            Type = i.TypeName,
+            SqlDbType = GetSqlDbType(i.TypeName),
+        }).ToList();
+
+    private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : Proxy.TempDb.IDmDescribeFirstResultSetRow =>
+        resultSet.Select(i => new Column()
+        {
+            Name = i.Name ?? throw new NullReferenceException(),
+            Type = GetSqlDbType(i.TypeName),
+            IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
+        }).ToList();
+
+    private static (String, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text.Substring(0, i);
+            var item = text.Substring(i + 1);
+            return (schema, item);
+        }
+        else
+        {
+            throw new ArgumentException($"Unable to parse schema item: {text}", nameof(text));
         }
     }
 

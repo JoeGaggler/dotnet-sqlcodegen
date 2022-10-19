@@ -86,6 +86,8 @@ internal sealed class YamlVisitor : IParsingEventVisitor
             default: throw new InvalidOperationException("Unexpected pop");
         }
         // Debug($"Pop: {currentMode} <- {old}");
+        this.scalar = null;
+        this.scalarIsKey = true;
     }
 
     private String? scalar = null;
@@ -110,7 +112,7 @@ internal sealed class YamlVisitor : IParsingEventVisitor
     }
     public void Visit(Scalar e)
     {
-        // Debug($"Scalar: {e.Value}", e);
+        Debug($"Scalar: {e.Value}", e);
         switch (this.currentMode)
         {
             case Mode.Mapping:
@@ -134,9 +136,9 @@ internal sealed class YamlVisitor : IParsingEventVisitor
                 }
             case Mode.Sequence:
                 {
-                    if (!this.currentSequence.Add(this.scalar))
+                    if (!this.currentSequence.Add(e.Value))
                     {
-                        throw new NotImplementedException($"{currentSequence.GetType().Name} add scalar: {this.scalar}");
+                        throw new NotImplementedException($"{currentSequence.GetType().Name} add scalar: {e.Value}");
                     }
                     Debug($"({currentSequence.GetType().Name}) Add item: {e.Value}");
                     this.scalar = null;

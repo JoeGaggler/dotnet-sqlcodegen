@@ -32,9 +32,34 @@ public static class Generator
                     ClassName = GetPascalCase(database.ClassName ?? databaseName2),
                 };
 
-                var statements = database.Statements?.Items ?? throw new NullReferenceException();
+                var commandMemos = new List<ICommandMemo>();
 
-                var statementMemos = new List<StatementMemo>();
+                var procs = database.Procedures?.Items ?? new();
+                foreach (var proc in procs)
+                {
+                    var name = proc.Name ?? throw new NullReferenceException();
+                    var resultSet = proc.ResultSet ?? throw new NullReferenceException();
+                    var commandText = proc.Text ?? throw new NullReferenceException();
+                    var parameters = proc.Parameters?.Items ?? throw new NullReferenceException();
+                    var columns = proc.ResultSet.Columns ?? throw new NullReferenceException();
+
+                    var memo = new ProcedureMemo()
+                    {
+                        CommandText = proc.Text,
+                        MethodName = $"{name}",
+                        RowClassName = $"{name}Row",
+                        RowClassRef = $"{databaseMemo.ClassName}.{name}Row",
+                        DatabaseName = databaseMemo.Name,
+                        Parameters = GetCommandParameters(proc.Parameters?.Items ?? new List<Parameter>()),
+                        Columns = GetCommandColumns(columns),
+                    };
+
+                    commandMemos.Add(memo);
+                    CodeSqlStatement(code, memo);
+                    code.Line();
+                }
+
+                var statements = database.Statements?.Items ?? new();
 
                 foreach (var statement in statements)
                 {
@@ -50,25 +75,10 @@ public static class Generator
                         RowClassName = $"{name}Row",
                         RowClassRef = $"{databaseMemo.ClassName}.{name}Row",
                         DatabaseName = databaseMemo.Name,
-                        Parameters = statement.Parameters?.Items?.Select(i => new ParametersMemo()
-                        {
-                            ParameterType = i.SqlDbType,
-                            ParameterName = i.Name ?? throw new NullReferenceException(),
-                            ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType)),
-                            ArgumentName = GetCamelCase(i.Name),
-                        })?.ToList() ?? new List<ParametersMemo>(),
-                        Columns = columns.Select(i => new ColumnMemo()
-                        {
-                            OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
-                            ColumnName = i.Name,
-                            ColumnIsNullable = i.IsNullable,
-                            PropertyType = GetDotnetType(i.Type),
-                            PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
-                            PropertyName = GetPascalCase(i.Name),
-                            FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
-                        }).ToList(),
+                        Parameters = GetCommandParameters(statement.Parameters?.Items ?? new List<Parameter>()),
+                        Columns = GetCommandColumns(columns),
                     };
-                    statementMemos.Add(memo);
+                    commandMemos.Add(memo);
 
                     CodeSqlStatement(code, memo);
                     code.Line();
@@ -76,7 +86,7 @@ public static class Generator
 
                 using (code.PartialClass("public", databaseMemo.ClassName))
                 {
-                    foreach (var memo in statementMemos.OrderBy(i => i.RowClassName))
+                    foreach (var memo in commandMemos.OrderBy(i => i.RowClassName))
                     {
                         CodeSqlStatementResultSet(code, memo);
                         code.Line();
@@ -88,6 +98,27 @@ public static class Generator
         textWriter.Write(code.ToString());
         await textWriter.FlushAsync();
     }
+
+     private static List<ParametersMemo> GetCommandParameters(List<Parameter> parameters) =>
+        parameters.Select(i => new ParametersMemo()
+        {
+            ParameterType = i.SqlDbType,
+            ParameterName = i.Name ?? throw new NullReferenceException(),
+            ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType)),
+            ArgumentName = GetCamelCase(i.Name),
+        }).ToList();
+
+    private static List<ColumnMemo> GetCommandColumns(List<Column> columns) =>
+        columns.Select(i => new ColumnMemo()
+        {
+            OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
+            ColumnName = i.Name,
+            ColumnIsNullable = i.IsNullable,
+            PropertyType = GetDotnetType(i.Type),
+            PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
+            PropertyName = GetPascalCase(i.Name),
+            FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
+        }).ToList();
 
     private static void WriteHelperMethods(CodeWriter code)
     {
@@ -113,21 +144,24 @@ public static class Generator
     private static T GetNonNullField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
     private static T GetNonNullFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 
+    private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
+    private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
+
 """);
     }
 
-    private static void CodeSqlStatement(CodeWriter code, StatementMemo statementMemo)
+    private static void CodeSqlStatement<TCommandMemo>(CodeWriter code, TCommandMemo commandMemo) where TCommandMemo : ICommandMemo
     {
-        var rowClassRef = statementMemo.RowClassRef ?? throw new NullReferenceException();
+        var rowClassRef = commandMemo.RowClassRef ?? throw new NullReferenceException();
 
-        var commandText = statementMemo.CommandText ?? throw new NullReferenceException();
+        var commandText = commandMemo.CommandText ?? throw new NullReferenceException();
 
         var resultType = String.Format("List<{0}>", rowClassRef);
         var returnType = String.Format("Task<{0}>", resultType);
-        var methodName = (statementMemo.MethodName ?? throw new NullReferenceException()) + "Async";
+        var methodName = (commandMemo.MethodName ?? throw new NullReferenceException()) + "Async";
 
         var args = "SqlConnection connection"; // TODO: parameters, then transaction
-        if (statementMemo.Parameters is { } parameters && parameters.Count > 0)
+        if (commandMemo.Parameters is { } parameters && parameters.Count > 0)
         {
             var args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
             args += ", " + args1;
@@ -135,12 +169,23 @@ public static class Generator
 
         using (code.Method("public static async", returnType, methodName, args))
         {
-            code.Line("using SqlCommand cmd = connection.CreateCommand();");
-            code.Line("cmd.CommandType = CommandType.Text;");
-            code.Line("cmd.CommandText = \"{0}\";", commandText);
+            var commandType = commandMemo.CommandType switch
+            {
+                CommandType.Text => CommandType.Text.ToString(),
+                CommandType.StoredProcedure => CommandType.StoredProcedure.ToString(),
+                var x => throw new InvalidOperationException($"unsupported command type: {x}")
+            };
+
+            var commandMethod = commandMemo.CommandType switch {
+                CommandType.Text => "CreateStatement",
+                CommandType.StoredProcedure => "CreateStoredProcedure",
+                var x => throw new InvalidOperationException($"unsupported command type: {x}")
+            };
+
+            code.Line($"using SqlCommand cmd = {commandMethod}(connection, \"{commandText}\");");
             code.Line();
 
-            if (statementMemo.Parameters is { } parameters2 && parameters2.Count > 0) // TODO: reuse parameters
+            if (commandMemo.Parameters is { } parameters2 && parameters2.Count > 0) // TODO: reuse parameters
             {
                 foreach (var parameter in parameters2)
                 {
@@ -153,7 +198,7 @@ public static class Generator
             code.Line("using var reader = await cmd.ExecuteReaderAsync();");
             using (code.If("await reader.ReadAsync()"))
             {
-                foreach (var column in statementMemo.Columns)
+                foreach (var column in commandMemo.Columns)
                 {
                     code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
                 }
@@ -163,7 +208,7 @@ public static class Generator
                     code.Line("result.Add(new {0}", rowClassRef);
                     using (code.CreateBraceScope(null, ");"))
                     {
-                        foreach (var column in statementMemo.Columns)
+                        foreach (var column in commandMemo.Columns)
                         {
                             var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
                             {
@@ -181,10 +226,10 @@ public static class Generator
         }
     }
 
-    private static void CodeSqlStatementResultSet(CodeWriter code, StatementMemo statementMemo)
+    private static void CodeSqlStatementResultSet(CodeWriter code, ICommandMemo commandMemo)
     {
-        var rowClassName = statementMemo.RowClassName ?? throw new NullReferenceException();
-        var columns = statementMemo.Columns ?? throw new NullReferenceException();
+        var rowClassName = commandMemo.RowClassName ?? throw new NullReferenceException();
+        var columns = commandMemo.Columns ?? throw new NullReferenceException();
 
         using (code.PartialClass("public", rowClassName))
         {
@@ -308,8 +353,33 @@ public static class Generator
         public String ClassName { get; set; }
     }
 
-    private class StatementMemo
+    private interface ICommandMemo
     {
+        CommandType CommandType { get; }
+        String CommandText { get; set; }
+        String MethodName { get; set; }
+        String RowClassName { get; set; }
+        String RowClassRef { get; set; }
+        String DatabaseName { get; set; }
+        List<ColumnMemo> Columns { get; set; }
+        List<ParametersMemo> Parameters { get; set; }
+    }
+
+    private class ProcedureMemo : ICommandMemo
+    {
+        public CommandType CommandType => CommandType.StoredProcedure;
+        public String CommandText { get; set; }
+        public String MethodName { get; set; }
+        public String RowClassName { get; set; }
+        public String RowClassRef { get; set; }
+        public String DatabaseName { get; set; }
+        public List<ColumnMemo> Columns { get; set; }
+        public List<ParametersMemo> Parameters { get; set; }
+    }
+
+    private class StatementMemo : ICommandMemo
+    {
+        public CommandType CommandType => CommandType.Text;
         public String CommandText { get; set; }
         public String MethodName { get; set; }
         public String RowClassName { get; set; }
