@@ -31,10 +31,16 @@ internal sealed class Program
         // using var sql = new SqlConnection();
         // sql.ConnectionString = config.Connection?.ConnectionString;
         // await sql.OpenAsync();
-        // var sysTypes = await Proxy.GetSysTypesAsync(sql);
-        // var dfrs = await Proxy.DmDescribeFirstResultSetAsync(sql, "SELECT name FROM sys.types where name = @name");
-        // var echo = (await Proxy.echo_textAsync(sql, "hello, world")).FirstOrDefault();
-        // Console.WriteLine($"Echo: {echo?.Text}");
+        // var arg = new List<Proxy.TempDb.ScopesRow> {
+        //     new Proxy.TempDb.ScopesRow { Scope = "A" },
+        //     new Proxy.TempDb.ScopesRow { Scope = "B" },
+        //     new Proxy.TempDb.ScopesRow { Scope = "C" },
+        // };
+        // var echoScopes = await Proxy.EchoScopes2Async(sql, arg, arg);
+        // foreach (var row in echoScopes)
+        // {
+        //     Console.WriteLine($"Echo Scope: {row.Scope}");
+        // }
     }
 
     private static Config ParseYaml(String yaml)
@@ -68,6 +74,8 @@ internal sealed class Program
             foreach (var database in databases)
             {
                 await sql.ChangeDatabaseAsync(database.Name);
+
+                database.TableTypes = new() { Items = await GetTableTypesForDatabaseAsync(sql) };
 
                 if (database.Procedures?.Items is { } procs)
                 {
@@ -113,12 +121,41 @@ internal sealed class Program
         }
     }
 
+    private static async Task<List<TableType>> GetTableTypesForDatabaseAsync(SqlConnection sql)
+    {
+        var list = new List<TableType>();
+        foreach (var i in await Proxy.GetTableTypesAsync(sql))
+        {
+            var tableType = new TableType
+            {
+                TypeName = i.Name,
+                SchemaName = i.SchemaName,
+                Columns = new List<Column>(),
+            };
+
+            foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, i.TypeTableObjectId))
+            {
+                var column = new Column
+                {
+                    Name = col.Name ?? throw new NullReferenceException(),
+                    Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
+                    IsNullable = col.IsNullable ?? true,
+                    MaxLength = col.MaxLength,
+                };
+                tableType.Columns.Add(column);
+            }
+
+            list.Add(tableType);
+        }
+        return list;
+    }
+
     private static List<Parameter> GetParametersForProcedure(List<Proxy.TempDb.GetParametersForObjectRow> parameters) =>
         parameters.Select(i => new Parameter()
         {
             Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
             Type = i.TypeName,
-            SqlDbType = GetSqlDbType(i.TypeName),
+            SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : Proxy.TempDb.IDmDescribeFirstResultSetRow =>
@@ -126,6 +163,7 @@ internal sealed class Program
         {
             Name = i.Name ?? throw new NullReferenceException(),
             Type = GetSqlDbType(i.TypeName),
+            // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
         }).ToList();
 

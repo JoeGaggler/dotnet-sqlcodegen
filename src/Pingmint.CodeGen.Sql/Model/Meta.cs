@@ -12,4 +12,5 @@ public class Column
     public String Name { get; set; }
     public SqlDbType Type { get; set; }
     public Boolean IsNullable { get; set; }
+    public short? MaxLength { get; set; }
 }

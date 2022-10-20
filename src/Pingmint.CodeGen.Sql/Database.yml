@@ -6,63 +6,8 @@ databases:
   - tempdb:
       class: TempDb
       procedures:
-        - pingmint.echo_1
-        - pingmint.echo_text
+        - pingmint.echo_scopes2
       statements:
-        - name: GetSysTypes
-          text: SELECT name FROM sys.types
-        - name: GetTableTypes
-          text: |
-            SELECT T.name, T.type_table_object_id, S.name as [Schema_Name]
-            FROM sys.table_types AS T
-            INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
-            ORDER BY S.name, T.name
-        - name: GetObsoleteProcedures
-          text: |
-            SELECT E.name, CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
-            FROM sys.procedures AS P
-            INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
-            WHERE E.name = 'Obsolete'
-        - name: GetProcGenHintProcedures
-          text: |
-            SELECT CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
-            FROM sys.procedures AS P
-            INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
-            WHERE E.name = @hint_name
-          parameters:
-            - name: hint_name
-              type: varchar
-        - name: GetExtendedPropertiesForProcedure
-          text: |
-            SELECT CAST(e.value as varchar(max)) as [value]
-            FROM sys.fn_listextendedproperty('ProcGen_ReinterpretColumns', 'SCHEMA', @schema, 'PROCEDURE', @proc, NULL, NULL) AS E
-          parameters:
-            - name: schema
-              type: varchar
-            - name: proc
-              type: varchar
-        - name: GetProcedureForSchema
-          text: |
-            SELECT P.name, P.object_id, S.name as [Schema_Name]
-            FROM sys.procedures AS P
-            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
-            WHERE S.name = @schema
-            ANd P.name = @proc
-            ORDER BY P.name
-          parameters:
-            - name: schema
-              type: varchar
-            - name: proc
-              type: varchar
-        - name: GetProceduresForSchema
-          text: |
-            SELECT P.name, P.object_id, S.name as [Schema_Name]
-            FROM sys.procedures AS P
-            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
-            WHERE S.name = @schema ORDER BY P.name
-          parameters:
-            - name: schema
-              type: varchar
         - name: DmDescribeFirstResultSetForObject
           text: |
             SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [Type_Name]
@@ -81,19 +26,74 @@ databases:
           parameters:
             - name: text
               type: varchar
-        - name: GetSysType
+        - name: GetProcedureForSchema
           text: |
-            SELECT system_type_id, is_table_type, name
-            FROM sys.types where system_type_id = @id
+            SELECT P.name, P.object_id, S.name as [Schema_Name]
+            FROM sys.procedures AS P
+            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+            WHERE S.name = @schema
+            ANd P.name = @proc
+            ORDER BY P.name
           parameters:
-            - name: id
-              type: int
+            - name: schema
+              type: varchar
+            - name: proc
+              type: varchar
         - name: GetParametersForObject
           text: |
             SELECT P.parameter_id, P.system_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name]
             FROM sys.parameters AS P
             JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id)
             WHERE P.object_id = @id
+          parameters:
+            - name: id
+              type: int
+        - name: GetTableTypes
+          text: |
+            SELECT T.name, T.type_table_object_id, S.name as [Schema_Name]
+            FROM sys.table_types AS T
+            INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
+            ORDER BY S.name, T.name
+
+        - name: GetSysTypes
+          text: SELECT name FROM sys.types
+        # - name: GetObsoleteProcedures
+        #   text: |
+        #     SELECT E.name, CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
+        #     FROM sys.procedures AS P
+        #     INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
+        #     WHERE E.name = 'Obsolete'
+        # - name: GetProcGenHintProcedures
+        #   text: |
+        #     SELECT CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
+        #     FROM sys.procedures AS P
+        #     INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
+        #     WHERE E.name = @hint_name
+        #   parameters:
+        #     - name: hint_name
+        #       type: varchar
+        # - name: GetExtendedPropertiesForProcedure
+        #   text: |
+        #     SELECT CAST(e.value as varchar(max)) as [value]
+        #     FROM sys.fn_listextendedproperty('ProcGen_ReinterpretColumns', 'SCHEMA', @schema, 'PROCEDURE', @proc, NULL, NULL) AS E
+        #   parameters:
+        #     - name: schema
+        #       type: varchar
+        #     - name: proc
+        #       type: varchar
+        # - name: GetProceduresForSchema
+        #   text: |
+        #     SELECT P.name, P.object_id, S.name as [Schema_Name]
+        #     FROM sys.procedures AS P
+        #     INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+        #     WHERE S.name = @schema ORDER BY P.name
+        #   parameters:
+        #     - name: schema
+        #       type: varchar
+        - name: GetSysType
+          text: |
+            SELECT system_type_id, is_table_type, name
+            FROM sys.types where system_type_id = @id
           parameters:
             - name: id
               type: int

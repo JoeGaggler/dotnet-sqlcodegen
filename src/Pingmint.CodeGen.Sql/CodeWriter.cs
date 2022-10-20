@@ -113,9 +113,21 @@ public static class CodeWriterExtensions
         return new BraceScope(writer);
     }
 
+    public static IDisposable Class(this CodeWriter writer, String modifiers, String name, String implements)
+    {
+        writer.Line("{0} class {1} : {2}", modifiers, name, implements);
+        return new BraceScope(writer);
+    }
+
     public static IDisposable PartialClass(this CodeWriter writer, String modifiers, String name)
     {
         writer.Line("{0} partial class {1}", modifiers, name);
+        return new BraceScope(writer);
+    }
+
+    public static IDisposable PartialClass(this CodeWriter writer, String modifiers, String name, String implements)
+    {
+        writer.Line("{0} partial class {1} : {2}", modifiers, name, implements);
         return new BraceScope(writer);
     }
 
@@ -149,7 +161,11 @@ public static class CodeWriterExtensions
 
     public static IDisposable Constructor(this CodeWriter writer, String access, String typeName, String parameters = "") => new BraceScope(writer, String.Format("{0} {1}({2})", access, typeName, parameters));
 
-    public static IDisposable ForEach(this CodeWriter writer, String enumerable) => new BraceScope(writer, String.Format("foreach ({0})", enumerable));
+    public static IDisposable ForEach(this CodeWriter writer, String enumerable)
+    {
+        writer.Line("foreach ({0})", enumerable);
+        return new BraceScope(writer);
+    }
 
     public static IDisposable If(this CodeWriter writer, String condition)
     {

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.2</Version>
+    <Version>0.3</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <LangVersion>preview</LangVersion>
@@ -10,7 +10,17 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <Title>Pingmint.CodeGen.Sql</Title>
+    <PackageId>Pingmint.CodeGen.Sql</PackageId>
+    <Authors>Joe Gallagher</Authors>
+    <Description>A dotnet tool that queries a SQL Server for meta data to generate code that executes commands such as stored procedures.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/JoeGaggler/dotnet-sqlcodegen</RepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <PackAsTool>true</PackAsTool>
+    <PackRelease>true</PackRelease>
     <ToolCommandName>sqlcodegen</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>

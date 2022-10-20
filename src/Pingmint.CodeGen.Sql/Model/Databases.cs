@@ -17,10 +17,35 @@ public class DatabasesItem
     // mapping
     public String? Name { get; set; }
     public String? ClassName { get; set; }
+    public DatabaseItemTableTypes? TableTypes { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence
+}
+
+public class DatabaseItemTableTypes
+{
+    // scalar
+
+    // mapping
+
+    // sequence
+    public List<TableType>? Items { get; set; }
+}
+
+public class TableType
+{
+    // scalar
+
+    // mapping
+
+    // sequence
+
+    // meta
+    public String SchemaName { get; set; }
+    public String TypeName { get; set; }
+    public List<Column>? Columns { get; set; }
 }
 
 public class DatabasesItemProcedures

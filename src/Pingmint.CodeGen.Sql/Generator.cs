@@ -25,12 +25,39 @@ public static class Generator
 
             foreach (var database in dbs)
             {
-                var databaseName2 = database.Name ?? throw new NullReferenceException();
+                var databaseName = database.Name ?? throw new NullReferenceException();
                 var databaseMemo = new DatabaseMemo
                 {
-                    Name = databaseName2,
-                    ClassName = GetPascalCase(database.ClassName ?? databaseName2),
+                    Name = databaseName,
+                    ClassName = GetPascalCase(database.ClassName ?? databaseName),
                 };
+
+                var tableTypeMemos = new List<TableTypeMemo>();
+                foreach (var tableType in database.TableTypes?.Items ?? new())
+                {
+                    var memo = new TableTypeMemo()
+                    {
+                        TypeName = tableType.TypeName,
+                        SchemaName = tableType.SchemaName,
+                        DataTableClassName = GetPascalCase(tableType.TypeName),
+                        Columns = tableType.Columns.Select(i => new ColumnMemo()
+                        {
+                            MaxLength = i.MaxLength,
+                            // TODO: these are still just copy-pasted
+                            OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
+                            ColumnName = i.Name,
+                            ColumnIsNullable = i.IsNullable,
+                            PropertyType = GetDotnetType(i.Type),
+                            PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
+                            PropertyName = GetPascalCase(i.Name),
+                            FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
+                        }).ToList(),
+                    };
+                    memo.RowClassName = memo.DataTableClassName + "Row";
+                    memo.RowClassRef = $"{databaseMemo.ClassName}.{memo.RowClassName}";
+                    memo.DataTableClassRef = $"{databaseMemo.ClassName}.{memo.DataTableClassName}";
+                    tableTypeMemos.Add(memo);
+                }
 
                 var commandMemos = new List<ICommandMemo>();
 
@@ -46,13 +73,13 @@ public static class Generator
                     var memo = new ProcedureMemo()
                     {
                         CommandText = proc.Text,
-                        MethodName = $"{name}",
-                        RowClassName = $"{name}Row",
-                        RowClassRef = $"{databaseMemo.ClassName}.{name}Row",
+                        MethodName = GetPascalCase(name),
                         DatabaseName = databaseMemo.Name,
-                        Parameters = GetCommandParameters(proc.Parameters?.Items ?? new List<Parameter>()),
+                        Parameters = GetCommandParameters(proc.Parameters?.Items ?? new List<Parameter>(), tableTypeMemos),
                         Columns = GetCommandColumns(columns),
                     };
+                    memo.RowClassName = $"{memo.MethodName}Row";
+                    memo.RowClassRef = $"{databaseMemo.ClassName}.{memo.RowClassName}";
 
                     commandMemos.Add(memo);
                     CodeSqlStatement(code, memo);
@@ -75,7 +102,7 @@ public static class Generator
                         RowClassName = $"{name}Row",
                         RowClassRef = $"{databaseMemo.ClassName}.{name}Row",
                         DatabaseName = databaseMemo.Name,
-                        Parameters = GetCommandParameters(statement.Parameters?.Items ?? new List<Parameter>()),
+                        Parameters = GetCommandParameters(statement.Parameters?.Items ?? new List<Parameter>(), tableTypeMemos),
                         Columns = GetCommandColumns(columns),
                     };
                     commandMemos.Add(memo);
@@ -88,8 +115,56 @@ public static class Generator
                 {
                     foreach (var memo in commandMemos.OrderBy(i => i.RowClassName))
                     {
-                        CodeSqlStatementResultSet(code, memo);
+                        CodeRowMemo(code, memo);
                         code.Line();
+                    }
+
+                    if (tableTypeMemos.Count > 0)
+                    {
+                        foreach (var memo in tableTypeMemos)
+                        {
+                            var dataTableClassName = memo.DataTableClassName ?? throw new NullReferenceException();
+                            var rowClassName = memo.RowClassName ?? throw new NullReferenceException();
+
+                            using (code.PartialClass("public sealed", dataTableClassName, "DataTable"))
+                            {
+                                code.Line("public {0}() : this(new List<{1}>()) {{ }}", dataTableClassName, rowClassName);
+                                code.Line("public {0}(List<{1}> rows) : base()", dataTableClassName, rowClassName);
+                                using (code.CreateBraceScope())
+                                {
+                                    code.Line("ArgumentNullException.ThrowIfNull(rows);");
+                                    code.Line();
+                                    foreach (var col in memo.Columns)
+                                    {
+                                        var allowDbNull = col.ColumnIsNullable ? "true" : "false";
+                                        var maxLength = (col.MaxLength is short s) ? $", MaxLength = {s}" : String.Empty;
+                                        code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, col.PropertyTypeName, allowDbNull, maxLength);
+                                    }
+                                    using (code.ForEach("var row in rows"))
+                                    {
+                                        var parameterBuilder = String.Empty;
+                                        foreach (var col in memo.Columns)
+                                        {
+                                            var localName = GetCamelCase(col.PropertyName);
+                                            var propName = col.PropertyName;
+
+                                            if (col.PropertyType == typeof(String) && col.MaxLength is { } maxLength && maxLength > 1)
+                                            {
+                                                code.Line("var {0} = String.IsNullOrEmpty(row.{1}) || row.{1}.Length <= {2} ? row.{1} : row.{1}.Remove({2});", localName, propName, maxLength.ToString());
+                                            }
+                                            else
+                                            {
+                                                code.Line("var {0} = row.{1};", localName, propName);
+                                            }
+                                            parameterBuilder += (parameterBuilder == String.Empty) ? localName : ", " + localName;
+                                        }
+                                        code.Line("base.Rows.Add({0});", parameterBuilder);
+                                    }
+                                }
+                            }
+                            code.Line();
+                            CodeRowMemo(code, memo);
+                        }
                     }
                 }
             }
@@ -99,14 +174,37 @@ public static class Generator
         await textWriter.FlushAsync();
     }
 
-     private static List<ParametersMemo> GetCommandParameters(List<Parameter> parameters) =>
-        parameters.Select(i => new ParametersMemo()
+    private static List<ParametersMemo> GetCommandParameters(List<Parameter> parameters, List<TableTypeMemo> tableTypes)
+    {
+        var memos = new List<ParametersMemo>();
+        foreach (var i in parameters)
         {
-            ParameterType = i.SqlDbType,
-            ParameterName = i.Name ?? throw new NullReferenceException(),
-            ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType)),
-            ArgumentName = GetCamelCase(i.Name),
-        }).ToList();
+            var memo = new ParametersMemo()
+            {
+                ParameterName = i.Name ?? throw new NullReferenceException(),
+                ParameterType = i.SqlDbType,
+                ArgumentName = GetCamelCase(i.Name),
+            };
+
+            if (i.SqlDbType == SqlDbType.Structured && GetTableType(i.Type, tableTypes) is { } tableType)
+            {
+                memo.ArgumentType = $"List<{tableType.RowClassRef}>";
+                memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
+                memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
+            }
+            else
+            {
+                memo.ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType));
+                memo.ArgumentExpression = GetCamelCase(i.Name);
+            }
+
+            memos.Add(memo);
+        }
+
+        return memos;
+    }
+
+    private static TableTypeMemo GetTableType(String type, List<TableTypeMemo> tableTypes) => tableTypes.FirstOrDefault(i => i.TypeName == type) ?? throw new InvalidOperationException($"Unable to find table type: {type}");
 
     private static List<ColumnMemo> GetCommandColumns(List<Column> columns) =>
         columns.Select(i => new ColumnMemo()
@@ -176,7 +274,8 @@ public static class Generator
                 var x => throw new InvalidOperationException($"unsupported command type: {x}")
             };
 
-            var commandMethod = commandMemo.CommandType switch {
+            var commandMethod = commandMemo.CommandType switch
+            {
                 CommandType.Text => "CreateStatement",
                 CommandType.StoredProcedure => "CreateStoredProcedure",
                 var x => throw new InvalidOperationException($"unsupported command type: {x}")
@@ -189,7 +288,8 @@ public static class Generator
             {
                 foreach (var parameter in parameters2)
                 {
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentName}, SqlDbType.{parameter.ParameterType}));");
+                    var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}));");
                 }
                 code.Line();
             }
@@ -226,10 +326,10 @@ public static class Generator
         }
     }
 
-    private static void CodeSqlStatementResultSet(CodeWriter code, ICommandMemo commandMemo)
+    private static void CodeRowMemo(CodeWriter code, IRowMemo rowMemo)
     {
-        var rowClassName = commandMemo.RowClassName ?? throw new NullReferenceException();
-        var columns = commandMemo.Columns ?? throw new NullReferenceException();
+        var rowClassName = rowMemo.RowClassName ?? throw new NullReferenceException();
+        var columns = rowMemo.Columns ?? throw new NullReferenceException();
 
         using (code.PartialClass("public", rowClassName))
         {
@@ -353,15 +453,30 @@ public static class Generator
         public String ClassName { get; set; }
     }
 
-    private interface ICommandMemo
+    private class TableTypeMemo : IRowMemo
     {
+        public String TypeName { get; set; }
+        public String SchemaName { get; set; }
+        public String RowClassName { get; set; }
+        public String RowClassRef { get; set; }
+        public String DataTableClassName { get; set; }
+        public String DataTableClassRef { get; set; }
+        public List<ColumnMemo> Columns { get; set; }
+    }
+
+    private interface IRowMemo
+    {
+        String RowClassName { get; set; }
+        String RowClassRef { get; set; }
+        List<ColumnMemo> Columns { get; set; }
+    }
+
+    private interface ICommandMemo : IRowMemo
+    {
+        String DatabaseName { get; set; }
         CommandType CommandType { get; }
         String CommandText { get; set; }
         String MethodName { get; set; }
-        String RowClassName { get; set; }
-        String RowClassRef { get; set; }
-        String DatabaseName { get; set; }
-        List<ColumnMemo> Columns { get; set; }
         List<ParametersMemo> Parameters { get; set; }
     }
 
@@ -399,13 +514,16 @@ public static class Generator
         public String PropertyTypeName { get; set; }
         public String PropertyName { get; set; }
         public String FieldTypeName { get; set; }
+        public short? MaxLength { get; set; }
     }
 
     private class ParametersMemo
     {
-        public SqlDbType ParameterType { get; set; }
         public String ParameterName { get; set; }
+        public SqlDbType ParameterType { get; set; }
+        public String ParameterTableRef { get; set; }
         public String ArgumentType { get; set; }
         public String ArgumentName { get; set; }
+        public String ArgumentExpression { get; set; }
     }
 }

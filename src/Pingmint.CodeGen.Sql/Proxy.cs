@@ -28,219 +28,24 @@ public static partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
-	public static async Task<List<TempDb.echo_1Row>> echo_1Async(SqlConnection connection)
+	public static async Task<List<TempDb.EchoScopes2Row>> EchoScopes2Async(SqlConnection connection, List<TempDb.ScopesRow> scopes1, List<TempDb.ScopesRow> scopes2)
 	{
-		using SqlCommand cmd = CreateStoredProcedure(connection, "pingmint.echo_1");
+		using SqlCommand cmd = CreateStoredProcedure(connection, "pingmint.echo_scopes2");
 
-		var result = new List<TempDb.echo_1Row>();
+		cmd.Parameters.Add(CreateParameter("@scopes1", new TempDb.Scopes(scopes1), SqlDbType.Structured, "pingmint.Scopes"));
+		cmd.Parameters.Add(CreateParameter("@scopes2", new TempDb.Scopes(scopes2), SqlDbType.Structured, "pingmint.Scopes"));
+
+		var result = new List<TempDb.EchoScopes2Row>();
 		using var reader = await cmd.ExecuteReaderAsync();
 		if (await reader.ReadAsync())
 		{
-			int ordOne = reader.GetOrdinal("one");
+			int ordScope = reader.GetOrdinal("Scope");
 
 			do
 			{
-				result.Add(new TempDb.echo_1Row
+				result.Add(new TempDb.EchoScopes2Row
 				{
-					One = GetNonNullFieldValue<Int32>(reader, ordOne),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.echo_textRow>> echo_textAsync(SqlConnection connection, String text)
-	{
-		using SqlCommand cmd = CreateStoredProcedure(connection, "pingmint.echo_text");
-
-		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.VarChar));
-
-		var result = new List<TempDb.echo_textRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordText = reader.GetOrdinal("text");
-
-			do
-			{
-				result.Add(new TempDb.echo_textRow
-				{
-					Text = GetField<String>(reader, ordText),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT name FROM sys.types");
-
-		var result = new List<TempDb.GetSysTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordName = reader.GetOrdinal("name");
-
-			do
-			{
-				result.Add(new TempDb.GetSysTypesRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name] FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
-
-		var result = new List<TempDb.GetTableTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-
-			do
-			{
-				result.Add(new TempDb.GetTableTypesRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetObsoleteProceduresRow>> GetObsoleteProceduresAsync(SqlConnection connection)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT E.name, CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id FROM sys.procedures AS P INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id) WHERE E.name = 'Obsolete'");
-
-		var result = new List<TempDb.GetObsoleteProceduresRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordValue = reader.GetOrdinal("value");
-			int ordMajorId = reader.GetOrdinal("major_id");
-
-			do
-			{
-				result.Add(new TempDb.GetObsoleteProceduresRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					Value = GetField<String>(reader, ordValue),
-					MajorId = GetNonNullFieldValue<Int32>(reader, ordMajorId),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetProcGenHintProceduresRow>> GetProcGenHintProceduresAsync(SqlConnection connection, String hintName)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id FROM sys.procedures AS P INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id) WHERE E.name = @hint_name");
-
-		cmd.Parameters.Add(CreateParameter("@hint_name", hintName, SqlDbType.VarChar));
-
-		var result = new List<TempDb.GetProcGenHintProceduresRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordValue = reader.GetOrdinal("value");
-			int ordMajorId = reader.GetOrdinal("major_id");
-
-			do
-			{
-				result.Add(new TempDb.GetProcGenHintProceduresRow
-				{
-					Value = GetField<String>(reader, ordValue),
-					MajorId = GetNonNullFieldValue<Int32>(reader, ordMajorId),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetExtendedPropertiesForProcedureRow>> GetExtendedPropertiesForProcedureAsync(SqlConnection connection, String schema, String proc)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT CAST(e.value as varchar(max)) as [value] FROM sys.fn_listextendedproperty('ProcGen_ReinterpretColumns', 'SCHEMA', @schema, 'PROCEDURE', @proc, NULL, NULL) AS E");
-
-		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
-		cmd.Parameters.Add(CreateParameter("@proc", proc, SqlDbType.VarChar));
-
-		var result = new List<TempDb.GetExtendedPropertiesForProcedureRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordValue = reader.GetOrdinal("value");
-
-			do
-			{
-				result.Add(new TempDb.GetExtendedPropertiesForProcedureRow
-				{
-					Value = GetField<String>(reader, ordValue),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) WHERE S.name = @schema ANd P.name = @proc ORDER BY P.name");
-
-		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
-		cmd.Parameters.Add(CreateParameter("@proc", proc, SqlDbType.VarChar));
-
-		var result = new List<TempDb.GetProcedureForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordObjectId = reader.GetOrdinal("object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-
-			do
-			{
-				result.Add(new TempDb.GetProcedureForSchemaRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
-	public static async Task<List<TempDb.GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String schema)
-	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) WHERE S.name = @schema ORDER BY P.name");
-
-		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
-
-		var result = new List<TempDb.GetProceduresForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordObjectId = reader.GetOrdinal("object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-
-			do
-			{
-				result.Add(new TempDb.GetProceduresForSchemaRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+					Scope = GetNonNullField<String>(reader, ordScope),
 				});
 			} while (await reader.ReadAsync());
 		}
@@ -309,27 +114,28 @@ public static partial class Proxy
 		return result;
 	}
 
-	public static async Task<List<TempDb.GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32 id)
+	public static async Task<List<TempDb.GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) WHERE S.name = @schema ANd P.name = @proc ORDER BY P.name");
 
-		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
+		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
+		cmd.Parameters.Add(CreateParameter("@proc", proc, SqlDbType.VarChar));
 
-		var result = new List<TempDb.GetSysTypeRow>();
+		var result = new List<TempDb.GetProcedureForSchemaRow>();
 		using var reader = await cmd.ExecuteReaderAsync();
 		if (await reader.ReadAsync())
 		{
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordIsTableType = reader.GetOrdinal("is_table_type");
 			int ordName = reader.GetOrdinal("name");
+			int ordObjectId = reader.GetOrdinal("object_id");
+			int ordSchemaName = reader.GetOrdinal("Schema_Name");
 
 			do
 			{
-				result.Add(new TempDb.GetSysTypeRow
+				result.Add(new TempDb.GetProcedureForSchemaRow
 				{
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
 					Name = GetNonNullField<String>(reader, ordName),
+					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
+					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
 				});
 			} while (await reader.ReadAsync());
 		}
@@ -365,6 +171,79 @@ public static partial class Proxy
 					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
 					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
 					TypeName = GetNonNullField<String>(reader, ordTypeName),
+				});
+			} while (await reader.ReadAsync());
+		}
+		return result;
+	}
+
+	public static async Task<List<TempDb.GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name] FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
+
+		var result = new List<TempDb.GetTableTypesRow>();
+		using var reader = await cmd.ExecuteReaderAsync();
+		if (await reader.ReadAsync())
+		{
+			int ordName = reader.GetOrdinal("name");
+			int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
+			int ordSchemaName = reader.GetOrdinal("Schema_Name");
+
+			do
+			{
+				result.Add(new TempDb.GetTableTypesRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
+					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+				});
+			} while (await reader.ReadAsync());
+		}
+		return result;
+	}
+
+	public static async Task<List<TempDb.GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name FROM sys.types");
+
+		var result = new List<TempDb.GetSysTypesRow>();
+		using var reader = await cmd.ExecuteReaderAsync();
+		if (await reader.ReadAsync())
+		{
+			int ordName = reader.GetOrdinal("name");
+
+			do
+			{
+				result.Add(new TempDb.GetSysTypesRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+				});
+			} while (await reader.ReadAsync());
+		}
+		return result;
+	}
+
+	public static async Task<List<TempDb.GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32 id)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id");
+
+		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
+
+		var result = new List<TempDb.GetSysTypeRow>();
+		using var reader = await cmd.ExecuteReaderAsync();
+		if (await reader.ReadAsync())
+		{
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordIsTableType = reader.GetOrdinal("is_table_type");
+			int ordName = reader.GetOrdinal("name");
+
+			do
+			{
+				result.Add(new TempDb.GetSysTypeRow
+				{
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
+					Name = GetNonNullField<String>(reader, ordName),
 				});
 			} while (await reader.ReadAsync());
 		}
@@ -420,26 +299,9 @@ public static partial class Proxy
 			public String TypeName { get; set; }
 		}
 
-		public partial class echo_1Row
+		public partial class EchoScopes2Row
 		{
-			public Int32 One { get; set; }
-		}
-
-		public partial class echo_textRow
-		{
-			public String? Text { get; set; }
-		}
-
-		public partial class GetExtendedPropertiesForProcedureRow
-		{
-			public String? Value { get; set; }
-		}
-
-		public partial class GetObsoleteProceduresRow
-		{
-			public String Name { get; set; }
-			public String? Value { get; set; }
-			public Int32 MajorId { get; set; }
+			public String Scope { get; set; }
 		}
 
 		public partial class GetParametersForObjectRow
@@ -458,19 +320,6 @@ public static partial class Proxy
 			public String Name { get; set; }
 			public Int32 ObjectId { get; set; }
 			public String SchemaName { get; set; }
-		}
-
-		public partial class GetProceduresForSchemaRow
-		{
-			public String Name { get; set; }
-			public Int32 ObjectId { get; set; }
-			public String SchemaName { get; set; }
-		}
-
-		public partial class GetProcGenHintProceduresRow
-		{
-			public String? Value { get; set; }
-			public Int32 MajorId { get; set; }
 		}
 
 		public partial class GetSysTypeRow
@@ -500,5 +349,25 @@ public static partial class Proxy
 			public String SchemaName { get; set; }
 		}
 
+		public sealed partial class Scopes : DataTable
+		{
+			public Scopes() : this(new List<ScopesRow>()) { }
+			public Scopes(List<ScopesRow> rows) : base()
+			{
+				ArgumentNullException.ThrowIfNull(rows);
+
+				base.Columns.Add(new DataColumn() { ColumnName = "Scope", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
+				foreach (var row in rows)
+				{
+					var scope = String.IsNullOrEmpty(row.Scope) || row.Scope.Length <= 50 ? row.Scope : row.Scope.Remove(50);
+					base.Rows.Add(scope);
+				}
+			}
+		}
+
+		public partial class ScopesRow
+		{
+			public String Scope { get; set; }
+		}
 	}
 }
