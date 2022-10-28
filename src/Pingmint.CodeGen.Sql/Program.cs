@@ -18,13 +18,16 @@ internal sealed class Program
 
         await MetaAsync(config);
 
+        var code = new CodeWriter();
+        await Generator.GenerateAsync(config, code);
+
         using TextWriter textWriter = args.Length switch
         {
             > 1 => new StreamWriter(args[1]),
             _ => Console.Out
         };
-
-        await Generator.GenerateAsync(config, textWriter);
+        textWriter.Write(code.ToString());
+        await textWriter.FlushAsync();
         textWriter.Close();
 
         // bootstrap test
@@ -82,6 +85,7 @@ internal sealed class Program
                     foreach (var proc in procs)
                     {
                         var (schema, procName) = ParseSchemaItem(proc.Text);
+                        if (schema is null) { throw new InvalidOperationException($"Unable to parse schema item: {proc.Text}"); }
                         proc.Schema = schema;
                         proc.Name = procName;
 
@@ -167,7 +171,7 @@ internal sealed class Program
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
         }).ToList();
 
-    private static (String, String) ParseSchemaItem(String text)
+    public static (String?, String) ParseSchemaItem(String text)
     {
         if (text.IndexOf('.') is int i and > 0)
         {
@@ -177,31 +181,38 @@ internal sealed class Program
         }
         else
         {
-            throw new ArgumentException($"Unable to parse schema item: {text}", nameof(text));
+            return (null, text); // schema-less
         }
     }
 
     private static SqlDbType GetSqlDbType(String sqlTypeName) => sqlTypeName switch
     {
+        // ints
         "bit" => SqlDbType.Bit,
+        "tinyint" => SqlDbType.TinyInt,
+        "smallint" => SqlDbType.SmallInt,
+        "int" => SqlDbType.Int,
         "bigint" => SqlDbType.BigInt,
-        "datetime" => SqlDbType.DateTime,
+
+        // chars
         "char" => SqlDbType.Char,
+        "nvarchar" => SqlDbType.NVarChar,
+        "ntext" => SqlDbType.NText,
+        "text" => SqlDbType.Text,
+
+        // dates
         "date" => SqlDbType.Date,
+        "datetime" => SqlDbType.DateTime,
         "datetime2" => SqlDbType.DateTime2,
         "datetimeoffset" => SqlDbType.DateTimeOffset,
+
+        // other
         "decimal" => SqlDbType.Decimal,
         "float" => SqlDbType.Float,
-        "int" => SqlDbType.Int,
         "money" => SqlDbType.Money,
-        "ntext" => SqlDbType.NText,
         "numeric" => SqlDbType.Decimal,
-        "nvarchar" => SqlDbType.NVarChar,
         "real" => SqlDbType.Real,
-        "smallint" => SqlDbType.SmallInt,
-        "text" => SqlDbType.Text,
         "time" => SqlDbType.Time,
-        "tinyint" => SqlDbType.TinyInt,
         "sysname" => SqlDbType.VarChar,
         "varchar" => SqlDbType.VarChar,
         "xml" => SqlDbType.Xml,

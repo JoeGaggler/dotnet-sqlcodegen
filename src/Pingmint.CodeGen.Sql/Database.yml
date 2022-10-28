@@ -5,8 +5,8 @@ csharp:
 databases:
   - tempdb:
       class: TempDb
-      procedures:
-        - pingmint.echo_scopes2
+      # procedures:
+      #   - pingmint.echo_scopes2
       statements:
         - name: DmDescribeFirstResultSetForObject
           text: |

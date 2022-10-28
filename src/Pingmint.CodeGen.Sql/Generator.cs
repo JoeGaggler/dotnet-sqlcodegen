@@ -57,17 +57,20 @@ public static class Generator
 
                 foreach (var record in schema.Records.Values)
                 {
+                    if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
                     CodeRecord(code, record);
                 }
 
                 foreach (var tableType in schema.TableTypes.Values)
                 {
+                    if (!tableType.IsReferenced) { continue; }
                     CodeRecord(code, tableType);
                 }
             }
             foreach (var recordItem in db.Records)
             {
                 var record = recordItem.Value;
+                if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
                 CodeRecord(code, record);
             }
         }
@@ -128,7 +131,7 @@ public static class Generator
         }
     }
 
-    public static async Task GenerateAsync(Config config, TextWriter textWriter)
+    public static async Task GenerateAsync(Config config, CodeWriter code)
     {
         var cs = config.CSharp ?? throw new NullReferenceException();
         var className = cs.ClassName ?? throw new NullReferenceException();
@@ -137,7 +140,6 @@ public static class Generator
 
         var databaseMemos = PopulateDatabaseScopeMemos(dbs);
 
-        var code = new CodeWriter();
         code.UsingNamespace("System.Data");
         code.UsingNamespace("Microsoft.Data.SqlClient");
         code.Line();
@@ -168,9 +170,6 @@ public static class Generator
         }
 
         CodeRecords(code, databaseMemos);
-
-        textWriter.Write(code.ToString());
-        await textWriter.FlushAsync();
     }
 
     private static void PopulateProcedures(DatabasesItem database, DatabaseMemo databaseMemo)
@@ -196,7 +195,7 @@ public static class Generator
                 CommandType = CommandType.StoredProcedure,
                 CommandText = text,
                 MethodName = GetPascalCase(name),
-                Parameters = GetCommandParameters(proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
+                Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                 Columns = GetCommandColumns(columns),
                 RowClassName = rowClassName,
                 // RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{rowClassName}",
@@ -232,7 +231,8 @@ public static class Generator
 
             var recordMemo = new RecordMemo
             {
-                Name = memo.RowClassName,
+                Name = memo.RowClassName + $" // {schemaName}.{tableTypeName}",
+                ParentTableType = memo,
             };
             PopulateRecordProperties(recordMemo, tableType.Columns);
             schemaMemo.Records[memo.RowClassName] = recordMemo;
@@ -263,14 +263,14 @@ public static class Generator
                 RowClassName = rowClassName,
                 // RowClassRef = $"{databaseMemo.ClassName}.{rowClassName}",
                 RowClassRef = rowClassName,
-                Parameters = GetCommandParameters(statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
+                Parameters = GetCommandParameters(null, statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                 Columns = GetCommandColumns(columns),
             };
             databaseMemo.Statements[name] = memo;
         }
     }
 
-    private static List<ParametersMemo> GetCommandParameters(List<Parameter> parameters, DatabaseMemo databaseMemo)
+    private static List<ParametersMemo> GetCommandParameters(String? hostSchema, List<Parameter> parameters, DatabaseMemo databaseMemo)
     {
         var memos = new List<ParametersMemo>();
         foreach (var i in parameters)
@@ -284,15 +284,20 @@ public static class Generator
 
             if (i.SqlDbType == SqlDbType.Structured)
             {
+                var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
+                schemaName ??= hostSchema;
                 foreach (var schema in databaseMemo.Schemas.Values)
                 {
+                    if (schema.SqlName != schemaName) { continue; }
                     if (schema.TableTypes.Values.FirstOrDefault(j => j.TypeName == i.Type) is not { } tableType)
                     {
-                        throw new InvalidOperationException($"Unable to find table type: {i.Type}");
+                        throw new InvalidOperationException($"Unable to find table type: {i.Type} {schema.SqlName}");
                     }
+                    tableType.IsReferenced = true;
                     memo.ArgumentType = $"List<{tableType.RowClassRef}>";
                     memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
                     memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
+                    break;
                 }
             }
             else
@@ -440,10 +445,19 @@ public static class Generator
 
         SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
 
+        SqlDbType.DateTime or
+        SqlDbType.DateTime2
+        => typeof(DateTime),
+
         SqlDbType.Bit => typeof(Boolean),
         SqlDbType.Int => typeof(Int32),
         SqlDbType.TinyInt => typeof(Byte),
         SqlDbType.SmallInt => typeof(Int16),
+        SqlDbType.BigInt => typeof(Int64),
+
+        SqlDbType.UniqueIdentifier => typeof(Guid),
+
+        SqlDbType.VarBinary => typeof(Byte[]),
 
         _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
     };
@@ -458,10 +472,12 @@ public static class Generator
         var x when x == typeof(DateTimeOffset) => "DateTimeOffset",
         var x when x == typeof(Int16) => "Int16",
         var x when x == typeof(Int32) => "Int32",
+        var x when x == typeof(Int64) => "Int64",
         var x when x == typeof(String) => "String",
         var x when x == typeof(Boolean) => "Boolean",
         var x when x == typeof(Byte) => "Byte",
-        var x when x == typeof(Int16) => "Int16",
+        var x when x == typeof(Guid) => "Guid",
+        var x when x == typeof(Byte[]) => "Byte[]",
         _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
     };
 
@@ -510,7 +526,18 @@ public static class Generator
         {
             if (firstChar)
             {
-                if (!Char.IsLetter(ch)) { continue; }
+                if (!Char.IsLetter(ch))
+                {
+                    if (sb.Length == 0)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        sb.Append(Char.ToUpperInvariant(ch));
+                        continue;
+                    }
+                }
 
                 sb.Append(Char.ToUpperInvariant(ch));
                 firstChar = false;
@@ -553,6 +580,7 @@ public static class Generator
         public String Name { get; set; }
 
         public List<PropertyMemo> Properties { get; } = new();
+        public TableTypeMemo? ParentTableType { get; set; } = null;
     }
 
     private class PropertyMemo
@@ -571,6 +599,7 @@ public static class Generator
         public String DataTableClassName { get; set; }
         public String DataTableClassRef { get; set; }
         public List<ColumnMemo> Columns { get; set; }
+        public Boolean IsReferenced { get; set; } = false;
     }
 
     private class CommandMemo

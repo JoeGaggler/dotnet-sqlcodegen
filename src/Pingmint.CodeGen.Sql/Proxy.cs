@@ -28,30 +28,6 @@ public static partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
-	public static async Task<List<EchoScopes2Row>> EchoScopes2Async(SqlConnection connection, List<ScopesRow> scopes1, List<ScopesRow> scopes2)
-	{
-		using SqlCommand cmd = CreateStoredProcedure(connection, "pingmint.echo_scopes2");
-
-		cmd.Parameters.Add(CreateParameter("@scopes1", new ScopesRowDataTable(scopes1), SqlDbType.Structured, "pingmint.Scopes"));
-		cmd.Parameters.Add(CreateParameter("@scopes2", new ScopesRowDataTable(scopes2), SqlDbType.Structured, "pingmint.Scopes"));
-
-		var result = new List<EchoScopes2Row>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
-		{
-			int ordScope = reader.GetOrdinal("Scope");
-
-			do
-			{
-				result.Add(new EchoScopes2Row
-				{
-					Scope = GetNonNullField<String>(reader, ordScope),
-				});
-			} while (await reader.ReadAsync());
-		}
-		return result;
-	}
-
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id) ORDER BY D.column_ordinal");
@@ -281,29 +257,6 @@ public static partial class Proxy
 		return result;
 	}
 
-}
-public partial class EchoScopes2Row
-{
-	public String Scope { get; set; }
-}
-public partial class ScopesRow
-{
-	public String Scope { get; set; }
-}
-public sealed partial class ScopesRowDataTable : DataTable
-{
-	public ScopesRowDataTable() : this(new List<ScopesRow>()) { }
-	public ScopesRowDataTable(List<ScopesRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Scope", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
-		foreach (var row in rows)
-		{
-			var scope = String.IsNullOrEmpty(row.Scope) || row.Scope.Length <= 50 ? row.Scope : row.Scope.Remove(50);
-			base.Rows.Add(scope);
-		}
-	}
 }
 public partial class DmDescribeFirstResultSetForObjectRow
 {
