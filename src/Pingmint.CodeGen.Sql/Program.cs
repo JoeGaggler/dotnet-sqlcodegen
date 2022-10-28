@@ -166,7 +166,7 @@ internal sealed class Program
         resultSet.Select(i => new Column()
         {
             Name = i.Name ?? throw new NullReferenceException(),
-            Type = GetSqlDbType(i.TypeName),
+            Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
         }).ToList();

@@ -10,18 +10,18 @@ databases:
       statements:
         - name: DmDescribeFirstResultSetForObject
           text: |
-            SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [Type_Name]
+            SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
             FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D
-            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id)
+            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
             ORDER BY D.column_ordinal
           parameters:
             - name: objectid
               type: int
         - name: DmDescribeFirstResultSet
           text: |
-            SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name]
+            SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
             FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D
-            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id)
+            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
             ORDER BY D.column_ordinal
           parameters:
             - name: text

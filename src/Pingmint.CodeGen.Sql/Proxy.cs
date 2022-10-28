@@ -30,7 +30,7 @@ public static partial class Proxy
 
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id) ORDER BY D.column_ordinal");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
 		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.VarChar));
 
@@ -40,19 +40,21 @@ public static partial class Proxy
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 			int ordIsNullable = reader.GetOrdinal("is_nullable");
 			int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-			int ordTypeName = reader.GetOrdinal("type_name");
+			int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
 
 			do
 			{
 				result.Add(new DmDescribeFirstResultSetRow
 				{
 					Name = GetField<String>(reader, ordName),
-					SystemTypeId = GetFieldValue<Int32>(reader, ordSystemTypeId),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
 					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
-					TypeName = GetNonNullField<String>(reader, ordTypeName),
+					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
 				});
 			} while (await reader.ReadAsync());
 		}
@@ -61,7 +63,7 @@ public static partial class Proxy
 
 	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32 objectid)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, D.system_type_id, D.is_nullable, D.column_ordinal, T.name as [Type_Name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = D.system_type_id) ORDER BY D.column_ordinal");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
 		cmd.Parameters.Add(CreateParameter("@objectid", objectid, SqlDbType.Int));
 
@@ -71,19 +73,21 @@ public static partial class Proxy
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 			int ordIsNullable = reader.GetOrdinal("is_nullable");
 			int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-			int ordTypeName = reader.GetOrdinal("Type_Name");
+			int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
 
 			do
 			{
 				result.Add(new DmDescribeFirstResultSetForObjectRow
 				{
 					Name = GetField<String>(reader, ordName),
-					SystemTypeId = GetFieldValue<Int32>(reader, ordSystemTypeId),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
 					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
-					TypeName = GetNonNullField<String>(reader, ordTypeName),
+					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
 				});
 			} while (await reader.ReadAsync());
 		}
@@ -261,18 +265,20 @@ public static partial class Proxy
 public partial class DmDescribeFirstResultSetForObjectRow
 {
 	public String? Name { get; set; }
-	public Int32? SystemTypeId { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 	public Boolean? IsNullable { get; set; }
 	public Int32? ColumnOrdinal { get; set; }
-	public String TypeName { get; set; }
+	public String SqlTypeName { get; set; }
 }
 public partial class DmDescribeFirstResultSetRow
 {
 	public String? Name { get; set; }
-	public Int32? SystemTypeId { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 	public Boolean? IsNullable { get; set; }
 	public Int32? ColumnOrdinal { get; set; }
-	public String TypeName { get; set; }
+	public String SqlTypeName { get; set; }
 }
 public partial class GetParametersForObjectRow
 {
