@@ -9,6 +9,7 @@ trim_trailing_whitespace = true
 [*.cs]
 indent_size = 4
 indent_style = space
+csharp_indent_case_contents_when_block = false
 
 [*.yml]
 indent_size = 2

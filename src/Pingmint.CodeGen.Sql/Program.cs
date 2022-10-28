@@ -31,10 +31,10 @@ internal sealed class Program
         // using var sql = new SqlConnection();
         // sql.ConnectionString = config.Connection?.ConnectionString;
         // await sql.OpenAsync();
-        // var arg = new List<Proxy.TempDb.ScopesRow> {
-        //     new Proxy.TempDb.ScopesRow { Scope = "A" },
-        //     new Proxy.TempDb.ScopesRow { Scope = "B" },
-        //     new Proxy.TempDb.ScopesRow { Scope = "C" },
+        // var arg = new List<ScopesRow> {
+        //     new ScopesRow { Scope = "A" },
+        //     new ScopesRow { Scope = "B" },
+        //     new ScopesRow { Scope = "C" },
         // };
         // var echoScopes = await Proxy.EchoScopes2Async(sql, arg, arg);
         // foreach (var row in echoScopes)
@@ -150,7 +150,7 @@ internal sealed class Program
         return list;
     }
 
-    private static List<Parameter> GetParametersForProcedure(List<Proxy.TempDb.GetParametersForObjectRow> parameters) =>
+    private static List<Parameter> GetParametersForProcedure(List<GetParametersForObjectRow> parameters) =>
         parameters.Select(i => new Parameter()
         {
             Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
@@ -158,7 +158,7 @@ internal sealed class Program
             SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
         }).ToList();
 
-    private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : Proxy.TempDb.IDmDescribeFirstResultSetRow =>
+    private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
         resultSet.Select(i => new Column()
         {
             Name = i.Name ?? throw new NullReferenceException(),

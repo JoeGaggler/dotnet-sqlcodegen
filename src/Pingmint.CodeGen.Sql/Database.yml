@@ -28,9 +28,10 @@ databases:
               type: varchar
         - name: GetProcedureForSchema
           text: |
-            SELECT P.name, P.object_id, S.name as [Schema_Name]
+            SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
             FROM sys.procedures AS P
             INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+            LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
             WHERE S.name = @schema
             ANd P.name = @proc
             ORDER BY P.name
@@ -57,39 +58,6 @@ databases:
 
         - name: GetSysTypes
           text: SELECT name FROM sys.types
-        # - name: GetObsoleteProcedures
-        #   text: |
-        #     SELECT E.name, CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
-        #     FROM sys.procedures AS P
-        #     INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
-        #     WHERE E.name = 'Obsolete'
-        # - name: GetProcGenHintProcedures
-        #   text: |
-        #     SELECT CAST(E.value as VARCHAR(MAX)) AS [value], E.major_id
-        #     FROM sys.procedures AS P
-        #     INNER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id)
-        #     WHERE E.name = @hint_name
-        #   parameters:
-        #     - name: hint_name
-        #       type: varchar
-        # - name: GetExtendedPropertiesForProcedure
-        #   text: |
-        #     SELECT CAST(e.value as varchar(max)) as [value]
-        #     FROM sys.fn_listextendedproperty('ProcGen_ReinterpretColumns', 'SCHEMA', @schema, 'PROCEDURE', @proc, NULL, NULL) AS E
-        #   parameters:
-        #     - name: schema
-        #       type: varchar
-        #     - name: proc
-        #       type: varchar
-        # - name: GetProceduresForSchema
-        #   text: |
-        #     SELECT P.name, P.object_id, S.name as [Schema_Name]
-        #     FROM sys.procedures AS P
-        #     INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
-        #     WHERE S.name = @schema ORDER BY P.name
-        #   parameters:
-        #     - name: schema
-        #       type: varchar
         - name: GetSysType
           text: |
             SELECT system_type_id, is_table_type, name
