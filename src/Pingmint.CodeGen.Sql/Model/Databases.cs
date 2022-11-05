@@ -121,6 +121,7 @@ public class Parameter
 
     // meta
     public System.Data.SqlDbType SqlDbType { get; set; }
+    public Int32? MaxLength { get; set; }
 }
 
 // public class Class

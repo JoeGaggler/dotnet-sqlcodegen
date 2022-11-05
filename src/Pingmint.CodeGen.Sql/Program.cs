@@ -160,12 +160,13 @@ internal sealed class Program
             Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
             Type = i.TypeName,
             SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
+            MaxLength = i.MaxLength,
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
         resultSet.Select(i => new Column()
         {
-            Name = i.Name ?? throw new NullReferenceException(),
+            Name = i.Name ?? throw new NullReferenceException("missing column name"),
             Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
