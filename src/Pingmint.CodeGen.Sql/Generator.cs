@@ -182,12 +182,23 @@ public static class Generator
             var name = proc.Name ?? throw new NullReferenceException();
             var columns = proc.ResultSet.Columns ?? throw new NullReferenceException();
 
-            var rowClassName = GetPascalCase(name + "_Row");
-            var recordMemo = schemaMemo.Records[rowClassName] = new RecordMemo()
+            Boolean isNonQuery;
+            String? rowClassName;
+            if (columns.Count != 0)
             {
-                Name = rowClassName,
-            };
-            PopulateRecordProperties(recordMemo, proc.ResultSet.Columns);
+                isNonQuery = false;
+                rowClassName = GetPascalCase(name + "_Row");
+                var recordMemo = schemaMemo.Records[rowClassName] = new RecordMemo()
+                {
+                    Name = rowClassName,
+                };
+                PopulateRecordProperties(recordMemo, proc.ResultSet.Columns);
+            }
+            else
+            {
+                isNonQuery = true;
+                rowClassName = null;
+            }
 
             var memo = new CommandMemo()
             {
@@ -199,6 +210,7 @@ public static class Generator
                 RowClassName = rowClassName,
                 // RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{rowClassName}",
                 RowClassRef = rowClassName,
+                IsNonQuery = isNonQuery,
             };
 
             schemaMemo.Procedures[name] = memo;
@@ -247,12 +259,23 @@ public static class Generator
             var commandText = statement.Text ?? throw new NullReferenceException();
             var columns = statement.ResultSet.Columns ?? throw new NullReferenceException();
 
-            var rowClassName = GetPascalCase(statement.Name + "_Row");
-            var recordMemo = databaseMemo.Records[rowClassName] = new RecordMemo()
+            Boolean isNonQuery;
+            String? rowClassName;
+            if (columns.Count != 0)
             {
-                Name = rowClassName,
-            };
-            PopulateRecordProperties(recordMemo, statement.ResultSet.Columns);
+                isNonQuery = false;
+                rowClassName = GetPascalCase(name + "_Row");
+                var recordMemo = databaseMemo.Records[rowClassName] = new RecordMemo()
+                {
+                    Name = rowClassName,
+                };
+                PopulateRecordProperties(recordMemo, statement.ResultSet.Columns);
+            }
+            else
+            {
+                isNonQuery = true;
+                rowClassName = null;
+            }
 
             var memo = new CommandMemo()
             {
@@ -264,6 +287,7 @@ public static class Generator
                 RowClassRef = rowClassName,
                 Parameters = GetCommandParameters(null, statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                 Columns = GetCommandColumns(columns),
+                IsNonQuery = isNonQuery,
             };
             databaseMemo.Statements[name] = memo;
         }
@@ -357,11 +381,18 @@ public static class Generator
 
     private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
     {
-        var rowClassRef = commandMemo.RowClassRef ?? throw new NullReferenceException();
-
         var commandText = commandMemo.CommandText ?? throw new NullReferenceException();
 
-        var resultType = String.Format("List<{0}>", rowClassRef);
+        String resultType;
+        if (!commandMemo.IsNonQuery && commandMemo.RowClassRef is { } rowClassRef)
+        {
+            resultType = String.Format("List<{0}>", rowClassRef);
+        }
+        else
+        {
+            resultType = "Int32";
+            rowClassRef = null;
+        }
         var returnType = String.Format("Task<{0}>", resultType);
         var methodName = (commandMemo.MethodName ?? throw new NullReferenceException()) + "Async";
 
@@ -402,35 +433,46 @@ public static class Generator
                 code.Line();
             }
 
-            code.Line("var result = new {0}();", resultType);
-            code.Line("using var reader = await cmd.ExecuteReaderAsync();");
-            using (code.If("await reader.ReadAsync()"))
+            if (commandMemo.IsNonQuery)
             {
-                foreach (var column in commandMemo.Columns)
+                code.Return("await cmd.ExecuteNonQueryAsync()");
+            }
+            else if (commandMemo.Columns is { } columns && columns.Count > 0 && rowClassRef is { } rowClassRef2)
+            {
+                code.Line("var result = new {0}();", resultType);
+                code.Line("using var reader = await cmd.ExecuteReaderAsync();");
+                using (code.If("await reader.ReadAsync()"))
                 {
-                    code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
-                }
-                code.Line();
-                using (code.DoWhile("await reader.ReadAsync()"))
-                {
-                    code.Line("result.Add(new {0}", rowClassRef);
-                    using (code.CreateBraceScope(null, ");"))
+                    foreach (var column in commandMemo.Columns)
                     {
-                        foreach (var column in commandMemo.Columns)
+                        code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
+                    }
+                    code.Line();
+                    using (code.DoWhile("await reader.ReadAsync()"))
+                    {
+                        code.Line("result.Add(new {0}", rowClassRef2);
+                        using (code.CreateBraceScope(null, ");"))
                         {
-                            var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
+                            foreach (var column in commandMemo.Columns)
                             {
-                                (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                            };
-                            code.Line(line);
+                                var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
+                                {
+                                    (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                    (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                    (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                    (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                };
+                                code.Line(line);
+                            }
                         }
                     }
                 }
+                code.Return("result");
             }
-            code.Return("result");
+            else
+            {
+                throw new InvalidOperationException("unable to determine expected results");
+            }
         }
     }
 
@@ -610,6 +652,7 @@ public static class Generator
         public String MethodName { get; set; }
         public String RowClassName { get; set; }
         public String RowClassRef { get; set; }
+        public Boolean IsNonQuery { get; set; }
         public List<ColumnMemo> Columns { get; set; }
         public List<ParametersMemo> Parameters { get; set; }
     }
