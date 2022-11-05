@@ -280,6 +280,7 @@ public static class Generator
                 ParameterName = i.Name ?? throw new NullReferenceException(),
                 ParameterType = i.SqlDbType,
                 ArgumentName = GetCamelCase(i.Name),
+                MaxLength = i.MaxLength,
             };
 
             if (i.SqlDbType == SqlDbType.Structured)
@@ -396,7 +397,8 @@ public static class Generator
                 foreach (var parameter in parameters2)
                 {
                     var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}));");
+                    var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
                 }
                 code.Line();
             }
@@ -633,5 +635,6 @@ public static class Generator
         public String ArgumentType { get; set; }
         public String ArgumentName { get; set; }
         public String ArgumentExpression { get; set; }
+        public Int32? MaxLength { get; set; }
     }
 }

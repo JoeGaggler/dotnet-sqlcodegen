@@ -6,6 +6,7 @@ databases:
   - tempdb:
       class: TempDb
       # procedures:
+      #   - pingmint.echo_text
       #   - pingmint.echo_scopes2
       statements:
         - name: DmDescribeFirstResultSetForObject
