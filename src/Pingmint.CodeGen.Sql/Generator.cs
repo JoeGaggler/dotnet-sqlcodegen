@@ -180,7 +180,6 @@ public static class Generator
             if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
 
             var name = proc.Name ?? throw new NullReferenceException();
-            var text = proc.Text ?? throw new NullReferenceException();
             var columns = proc.ResultSet.Columns ?? throw new NullReferenceException();
 
             var rowClassName = GetPascalCase(name + "_Row");
@@ -193,7 +192,7 @@ public static class Generator
             var memo = new CommandMemo()
             {
                 CommandType = CommandType.StoredProcedure,
-                CommandText = text,
+                CommandText = $"{database.Name}.{schemaName}.{name}",
                 MethodName = GetPascalCase(name),
                 Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                 Columns = GetCommandColumns(columns),
