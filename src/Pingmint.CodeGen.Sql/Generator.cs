@@ -180,7 +180,7 @@ public static class Generator
             if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
 
             var name = proc.Name ?? throw new NullReferenceException();
-            var columns = proc.ResultSet.Columns ?? throw new NullReferenceException();
+            var columns = proc.ResultSet?.Columns ?? throw new NullReferenceException();
 
             Boolean isNonQuery;
             String? rowClassName;

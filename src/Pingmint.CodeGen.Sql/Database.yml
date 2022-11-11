@@ -9,6 +9,7 @@ databases:
       #   - pingmint.insert_foo
       #   - pingmint.echo_text
       #   - pingmint.echo_scopes2
+      #   - pingmint.*
       statements:
         - name: DmDescribeFirstResultSetForObject
           text: |
@@ -35,12 +36,23 @@ databases:
             INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
             LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
             WHERE S.name = @schema
-            ANd P.name = @proc
+            AND P.name = @proc
             ORDER BY P.name
           parameters:
             - name: schema
               type: varchar
             - name: proc
+              type: varchar
+        - name: GetProceduresForSchema
+          text: |
+            SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
+            FROM sys.procedures AS P
+            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+            LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
+            WHERE S.name = @schema
+            ORDER BY P.name
+          parameters:
+            - name: schema
               type: varchar
         - name: GetParametersForObject
           text: |
@@ -57,7 +69,6 @@ databases:
             FROM sys.table_types AS T
             INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
             ORDER BY S.name, T.name
-
         - name: GetSysTypes
           text: SELECT name FROM sys.types
         - name: GetSysType
