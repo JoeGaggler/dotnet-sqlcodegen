@@ -82,25 +82,48 @@ internal sealed class Program
 
                 if (database.Procedures?.Items is { } procs)
                 {
+                    var insert = new List<Procedure>();
+                    var remove = new List<Procedure>();
                     foreach (var proc in procs)
                     {
                         var (schema, procName) = ParseSchemaItem(proc.Text);
                         if (schema is null) { throw new InvalidOperationException($"Unable to parse schema item: {proc.Text}"); }
-                        proc.Schema = schema;
-                        proc.Name = procName;
 
-                        if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
+                        if (procName == "*")
                         {
-                            throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
+                            remove.Add(proc);
+                            foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
+                            {
+                                var newProc = new Procedure();
+                                await MetaProcAsync(sql, newProc, schema, row.Name);
+                                insert.Add(newProc);
+                            }
+                        }
+                        else
+                        {
+                            await MetaProcAsync(sql, proc, schema, procName);
                         }
 
-                        proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
-
-                        proc.ResultSet = new ResultSetMeta()
+                        static async Task MetaProcAsync(SqlConnection sql, Procedure proc, string schema, string procName)
                         {
-                            Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId)),
-                        };
+                            proc.Schema = schema;
+                            proc.Name = procName;
+
+                            if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
+                            {
+                                throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
+                            }
+
+                            proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
+
+                            proc.ResultSet = new ResultSetMeta()
+                            {
+                                Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId)),
+                            };
+                        }
                     }
+                    foreach (var item in remove) { procs.Remove(item); }
+                    procs.AddRange(insert);
                 }
 
                 if (database.Statements?.Items is { } statements)

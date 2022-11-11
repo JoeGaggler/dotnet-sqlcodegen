@@ -131,7 +131,7 @@ public static partial class Proxy
 
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ANd P.name = @proc ORDER BY P.name");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name");
 
 		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
 		cmd.Parameters.Add(CreateParameter("@proc", proc, SqlDbType.VarChar));
@@ -148,6 +148,35 @@ public static partial class Proxy
 			do
 			{
 				result.Add(new GetProcedureForSchemaRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
+					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
+				});
+			} while (await reader.ReadAsync());
+		}
+		return result;
+	}
+
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String schema)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name");
+
+		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
+
+		var result = new List<GetProceduresForSchemaRow>();
+		using var reader = await cmd.ExecuteReaderAsync();
+		if (await reader.ReadAsync())
+		{
+			int ordName = reader.GetOrdinal("name");
+			int ordObjectId = reader.GetOrdinal("object_id");
+			int ordSchemaName = reader.GetOrdinal("Schema_Name");
+			int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
+
+			do
+			{
+				result.Add(new GetProceduresForSchemaRow
 				{
 					Name = GetNonNullField<String>(reader, ordName),
 					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
@@ -291,6 +320,13 @@ public partial class GetParametersForObjectRow
 	public String TypeName { get; set; }
 }
 public partial class GetProcedureForSchemaRow
+{
+	public String Name { get; set; }
+	public Int32 ObjectId { get; set; }
+	public String SchemaName { get; set; }
+	public String? ObsoleteMessage { get; set; }
+}
+public partial class GetProceduresForSchemaRow
 {
 	public String Name { get; set; }
 	public Int32 ObjectId { get; set; }
