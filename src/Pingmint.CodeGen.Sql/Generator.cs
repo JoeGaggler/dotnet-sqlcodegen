@@ -149,8 +149,53 @@ public static class Generator
         code.Line();
         code.FileNamespace(fileNs);
         code.Line();
-        using (code.PartialClass("public static", className))
+
+        code.Line("public partial interface I{0}", className);
+        using (code.CreateBraceScope())
         {
+            foreach (var databaseMemo in databaseMemos.Values)
+            {
+                foreach (var schemaMemo in databaseMemo.Schemas.Values)
+                {
+                    foreach (var procMemo in schemaMemo.Procedures.Values)
+                    {
+                        CodeSqlStatementInterface(code, procMemo);
+                    }
+                }
+
+                foreach (var memo in databaseMemo.Statements)
+                {
+                    CodeSqlStatementInterface(code, memo.Value);
+                }
+            }
+        }
+        code.Line();
+
+        CodeRecords(code, databaseMemos);
+        code.Line();
+
+        using (code.PartialClass("public", className, "I" + className))
+        {
+            WriteConstructor(code, className);
+            code.Line();
+
+            foreach (var databaseMemo in databaseMemos.Values)
+            {
+                foreach (var schemaMemo in databaseMemo.Schemas.Values)
+                {
+                    foreach (var procMemo in schemaMemo.Procedures.Values)
+                    {
+                        CodeSqlStatementInstance(code, procMemo);
+                    }
+                }
+
+                foreach (var memo in databaseMemo.Statements)
+                {
+                    CodeSqlStatementInstance(code, memo.Value);
+                }
+            }
+            code.Line();
+
             WriteHelperMethods(code);
             code.Line();
 
@@ -172,8 +217,6 @@ public static class Generator
                 }
             }
         }
-
-        CodeRecords(code, databaseMemos);
     }
 
     private static void PopulateProcedures(DatabasesItem database, DatabaseMemo databaseMemo)
@@ -353,6 +396,17 @@ public static class Generator
             FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
         }).ToList();
 
+    private static void WriteConstructor(CodeWriter code, String className)
+    {
+        code.Line("private readonly Func<Task<SqlConnection>> connectionFunc;");
+        code.Line();
+        code.Line("public {0}({1})", className, "Func<Task<SqlConnection>> connectionFunc");
+        using (code.CreateBraceScope())
+        {
+            code.Line("this.connectionFunc = connectionFunc;");
+        }
+    }
+
     private static void WriteHelperMethods(CodeWriter code)
     {
         code.Text(
@@ -383,10 +437,20 @@ public static class Generator
 """);
     }
 
-    private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
+    private struct StatementSignature
     {
-        var commandText = commandMemo.CommandText ?? throw new NullReferenceException();
+        public String MethodName;
+        public String ReturnType;
+        public String ResultType;
+        public String ParametersRaw;
+        public String Parameters;
+        public String ArgumentsRaw;
+        public String Arguments;
+        public String? RowClassRef;
+    }
 
+    private static StatementSignature GetStatementSignature(CommandMemo commandMemo)
+    {
         String resultType;
         if (!commandMemo.IsNonQuery && commandMemo.RowClassRef is { } rowClassRef)
         {
@@ -400,13 +464,54 @@ public static class Generator
         var returnType = String.Format("Task<{0}>", resultType);
         var methodName = (commandMemo.MethodName ?? throw new NullReferenceException()) + "Async";
 
+        var prms1 = "";
+        var args1 = "";
         var prms = "connection";
         var args = "SqlConnection connection"; // TODO: parameters, then transaction
         if (commandMemo.Parameters is { } parameters && parameters.Count > 0)
         {
-            prms += ", " + String.Join(", ", parameters?.Select(i => $"{i.ArgumentName}"));
-            args += ", " + String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
+            prms1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentName}"));
+            args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
+            prms += ", " + prms1;
+            args += ", " + args1;
         }
+
+        return new()
+        {
+            MethodName = methodName,
+            ReturnType = returnType,
+            ResultType = resultType,
+            Parameters = prms,
+            ParametersRaw = prms1,
+            Arguments = args,
+            ArgumentsRaw = args1,
+            RowClassRef = rowClassRef,
+        };
+    }
+
+    private static void CodeSqlStatementInterface(CodeWriter code, CommandMemo commandMemo)
+    {
+        var sig = GetStatementSignature(commandMemo);
+        code.Line("{0} {1}({2});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw);
+    }
+
+    private static void CodeSqlStatementInstance(CodeWriter code, CommandMemo commandMemo)
+    {
+        var sig = GetStatementSignature(commandMemo);
+        code.Line("public async {0} {1}({2}) => await {1}(await connectionFunc(){3});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw, sig.ParametersRaw is {} raw && raw.Length > 0 ? ", " + raw : "");
+    }
+
+    private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
+    {
+        var commandText = commandMemo.CommandText ?? throw new NullReferenceException();
+
+        var sig = GetStatementSignature(commandMemo);
+        var methodName = sig.MethodName;
+        var returnType = sig.ReturnType;
+        var resultType = sig.ResultType;
+        var args = sig.Arguments;
+        var prms = sig.Parameters;
+        var rowClassRef = sig.RowClassRef;
 
         // args += ", CancellationToken cancellationToken";
 
