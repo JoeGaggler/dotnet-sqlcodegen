@@ -19,7 +19,7 @@ internal sealed class Program
         await MetaAsync(config);
 
         var code = new CodeWriter();
-        await Generator.GenerateAsync(config, code);
+        Generator.Generate(config, code);
 
         using TextWriter textWriter = args.Length switch
         {
