@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 
 namespace Pingmint.CodeGen.Sql;
@@ -28,15 +32,16 @@ public static partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
-	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text)
+	public static Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text) => DmDescribeFirstResultSetAsync(connection, text, CancellationToken.None);
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
 		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.VarChar));
 
 		var result = new List<DmDescribeFirstResultSetRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
@@ -56,20 +61,21 @@ public static partial class Proxy
 					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
 					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32 objectid)
+	public static Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32 objectid) => DmDescribeFirstResultSetForObjectAsync(connection, objectid, CancellationToken.None);
+	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32 objectid, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
 		cmd.Parameters.Add(CreateParameter("@objectid", objectid, SqlDbType.Int));
 
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
@@ -89,20 +95,21 @@ public static partial class Proxy
 					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
 					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32 id)
+	public static Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32 id) => GetParametersForObjectAsync(connection, id, CancellationToken.None);
+	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32 id, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT P.parameter_id, P.system_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id");
 
 		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
 
 		var result = new List<GetParametersForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordParameterId = reader.GetOrdinal("parameter_id");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
@@ -124,12 +131,13 @@ public static partial class Proxy
 					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
 					TypeName = GetNonNullField<String>(reader, ordTypeName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc)
+	public static Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc) => GetProcedureForSchemaAsync(connection, schema, proc, CancellationToken.None);
+	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String schema, String proc, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name");
 
@@ -137,8 +145,8 @@ public static partial class Proxy
 		cmd.Parameters.Add(CreateParameter("@proc", proc, SqlDbType.VarChar));
 
 		var result = new List<GetProcedureForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordObjectId = reader.GetOrdinal("object_id");
@@ -154,20 +162,21 @@ public static partial class Proxy
 					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
 					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String schema)
+	public static Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String schema) => GetProceduresForSchemaAsync(connection, schema, CancellationToken.None);
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String schema, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name");
 
 		cmd.Parameters.Add(CreateParameter("@schema", schema, SqlDbType.VarChar));
 
 		var result = new List<GetProceduresForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordObjectId = reader.GetOrdinal("object_id");
@@ -183,20 +192,21 @@ public static partial class Proxy
 					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
 					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32 id)
+	public static Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32 id) => GetSysTypeAsync(connection, id, CancellationToken.None);
+	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32 id, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id");
 
 		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
 
 		var result = new List<GetSysTypeRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
 			int ordIsTableType = reader.GetOrdinal("is_table_type");
@@ -210,18 +220,19 @@ public static partial class Proxy
 					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
 					Name = GetNonNullField<String>(reader, ordName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
+	public static Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection) => GetSysTypesAsync(connection, CancellationToken.None);
+	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT name FROM sys.types");
 
 		var result = new List<GetSysTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 
@@ -231,20 +242,21 @@ public static partial class Proxy
 				{
 					Name = GetNonNullField<String>(reader, ordName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32 id)
+	public static Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32 id) => GetTableTypeColumnsAsync(connection, id, CancellationToken.None);
+	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32 id, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name] from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id");
 
 		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
 
 		var result = new List<GetTableTypeColumnsRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordIsNullable = reader.GetOrdinal("is_nullable");
 			int ordMaxLength = reader.GetOrdinal("max_length");
@@ -260,18 +272,19 @@ public static partial class Proxy
 					Name = GetField<String>(reader, ordName),
 					TypeName = GetNonNullField<String>(reader, ordTypeName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}
 
-	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
+	public static Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection) => GetTableTypesAsync(connection, CancellationToken.None);
+	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name] FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
 
 		var result = new List<GetTableTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (await reader.ReadAsync())
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
 			int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
@@ -285,7 +298,7 @@ public static partial class Proxy
 					TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
 					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
 				});
-			} while (await reader.ReadAsync());
+			} while (await reader.ReadAsync(cancellationToken));
 		}
 		return result;
 	}

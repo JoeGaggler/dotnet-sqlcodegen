@@ -131,7 +131,7 @@ public static class Generator
         }
     }
 
-    public static async Task GenerateAsync(Config config, CodeWriter code)
+    public static void Generate(Config config, CodeWriter code)
     {
         var cs = config.CSharp ?? throw new NullReferenceException();
         var className = cs.ClassName ?? throw new NullReferenceException();
@@ -140,7 +140,11 @@ public static class Generator
 
         var databaseMemos = PopulateDatabaseScopeMemos(dbs);
 
+        code.UsingNamespace("System");
+        code.UsingNamespace("System.Collections.Generic");
         code.UsingNamespace("System.Data");
+        code.UsingNamespace("System.Threading");
+        code.UsingNamespace("System.Threading.Tasks");
         code.UsingNamespace("Microsoft.Data.SqlClient");
         code.Line();
         code.FileNamespace(fileNs);
@@ -396,14 +400,18 @@ public static class Generator
         var returnType = String.Format("Task<{0}>", resultType);
         var methodName = (commandMemo.MethodName ?? throw new NullReferenceException()) + "Async";
 
+        var prms = "connection";
         var args = "SqlConnection connection"; // TODO: parameters, then transaction
         if (commandMemo.Parameters is { } parameters && parameters.Count > 0)
         {
-            var args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
-            args += ", " + args1;
+            prms += ", " + String.Join(", ", parameters?.Select(i => $"{i.ArgumentName}"));
+            args += ", " + String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
         }
 
-        using (code.Method("public static async", returnType, methodName, args))
+        // args += ", CancellationToken cancellationToken";
+
+        code.Line("public static {0} {1}({2}) => {1}({3}, CancellationToken.None);", returnType, methodName, args, prms);
+        using (code.Method("public static async", returnType, methodName, args + ", CancellationToken cancellationToken"))
         {
             var commandType = commandMemo.CommandType switch
             {
@@ -435,20 +443,20 @@ public static class Generator
 
             if (commandMemo.IsNonQuery)
             {
-                code.Return("await cmd.ExecuteNonQueryAsync()");
+                code.Return("await cmd.ExecuteNonQueryAsync(cancellationToken)");
             }
             else if (commandMemo.Columns is { } columns && columns.Count > 0 && rowClassRef is { } rowClassRef2)
             {
                 code.Line("var result = new {0}();", resultType);
-                code.Line("using var reader = await cmd.ExecuteReaderAsync();");
-                using (code.If("await reader.ReadAsync()"))
+                code.Line("using var reader = await cmd.ExecuteReaderAsync(cancellationToken);");
+                using (code.If("await reader.ReadAsync(cancellationToken)"))
                 {
                     foreach (var column in commandMemo.Columns)
                     {
                         code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
                     }
                     code.Line();
-                    using (code.DoWhile("await reader.ReadAsync()"))
+                    using (code.DoWhile("await reader.ReadAsync(cancellationToken)"))
                     {
                         code.Line("result.Add(new {0}", rowClassRef2);
                         using (code.CreateBraceScope(null, ");"))
@@ -650,8 +658,8 @@ public static class Generator
         public CommandType CommandType { get; set; }
         public String CommandText { get; set; }
         public String MethodName { get; set; }
-        public String RowClassName { get; set; }
-        public String RowClassRef { get; set; }
+        public String? RowClassName { get; set; }
+        public String? RowClassRef { get; set; }
         public Boolean IsNonQuery { get; set; }
         public List<ColumnMemo> Columns { get; set; }
         public List<ParametersMemo> Parameters { get; set; }

@@ -3,7 +3,7 @@
   "isRoot": true,
   "tools": {
     "pingmint.codegen.sql": {
-      "version": "0.2.0",
+      "version": "0.5.7",
       "commands": [
         "sqlcodegen"
       ]
