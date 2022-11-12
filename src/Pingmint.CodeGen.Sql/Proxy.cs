@@ -7,8 +7,97 @@ using Microsoft.Data.SqlClient;
 
 namespace Pingmint.CodeGen.Sql;
 
-public static partial class Proxy
+public partial interface IProxy
 {
+	Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text);
+	Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid);
+	Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id);
+	Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc);
+	Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema);
+	Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id);
+	Task<List<GetSysTypesRow>> GetSysTypesAsync();
+	Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id);
+	Task<List<GetTableTypesRow>> GetTableTypesAsync();
+}
+
+public partial class DmDescribeFirstResultSetForObjectRow
+{
+	public String? Name { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
+	public Boolean? IsNullable { get; set; }
+	public Int32? ColumnOrdinal { get; set; }
+	public String SqlTypeName { get; set; }
+}
+public partial class DmDescribeFirstResultSetRow
+{
+	public String? Name { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
+	public Boolean? IsNullable { get; set; }
+	public Int32? ColumnOrdinal { get; set; }
+	public String SqlTypeName { get; set; }
+}
+public partial class GetParametersForObjectRow
+{
+	public Int32 ParameterId { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public String? Name { get; set; }
+	public Boolean IsOutput { get; set; }
+	public Int16 MaxLength { get; set; }
+	public Boolean IsTableType { get; set; }
+	public String TypeName { get; set; }
+}
+public partial class GetProcedureForSchemaRow
+{
+	public String Name { get; set; }
+	public Int32 ObjectId { get; set; }
+	public String SchemaName { get; set; }
+	public String? ObsoleteMessage { get; set; }
+}
+public partial class GetProceduresForSchemaRow
+{
+	public String Name { get; set; }
+	public Int32 ObjectId { get; set; }
+	public String SchemaName { get; set; }
+	public String? ObsoleteMessage { get; set; }
+}
+public partial class GetSysTypeRow
+{
+	public Byte SystemTypeId { get; set; }
+	public Boolean IsTableType { get; set; }
+	public String Name { get; set; }
+}
+public partial class GetSysTypesRow
+{
+	public String Name { get; set; }
+}
+public partial class GetTableTypeColumnsRow
+{
+	public Boolean? IsNullable { get; set; }
+	public Int16 MaxLength { get; set; }
+	public String? Name { get; set; }
+	public String TypeName { get; set; }
+}
+public partial class GetTableTypesRow
+{
+	public String Name { get; set; }
+	public Int32 TypeTableObjectId { get; set; }
+	public String SchemaName { get; set; }
+}
+
+public partial class Proxy : IProxy
+{
+	public Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text) => throw new NotImplementedException();
+	public Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid) => throw new NotImplementedException();
+	public Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id) => throw new NotImplementedException();
+	public Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc) => throw new NotImplementedException();
+	public Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema) => throw new NotImplementedException();
+	public Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id) => throw new NotImplementedException();
+	public Task<List<GetSysTypesRow>> GetSysTypesAsync() => throw new NotImplementedException();
+	public Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id) => throw new NotImplementedException();
+	public Task<List<GetTableTypesRow>> GetTableTypesAsync() => throw new NotImplementedException();
+
     private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
     {
         Size = size,
@@ -303,69 +392,4 @@ public static partial class Proxy
 		return result;
 	}
 
-}
-public partial class DmDescribeFirstResultSetForObjectRow
-{
-	public String? Name { get; set; }
-	public Byte SystemTypeId { get; set; }
-	public Int32 UserTypeId { get; set; }
-	public Boolean? IsNullable { get; set; }
-	public Int32? ColumnOrdinal { get; set; }
-	public String SqlTypeName { get; set; }
-}
-public partial class DmDescribeFirstResultSetRow
-{
-	public String? Name { get; set; }
-	public Byte SystemTypeId { get; set; }
-	public Int32 UserTypeId { get; set; }
-	public Boolean? IsNullable { get; set; }
-	public Int32? ColumnOrdinal { get; set; }
-	public String SqlTypeName { get; set; }
-}
-public partial class GetParametersForObjectRow
-{
-	public Int32 ParameterId { get; set; }
-	public Byte SystemTypeId { get; set; }
-	public String? Name { get; set; }
-	public Boolean IsOutput { get; set; }
-	public Int16 MaxLength { get; set; }
-	public Boolean IsTableType { get; set; }
-	public String TypeName { get; set; }
-}
-public partial class GetProcedureForSchemaRow
-{
-	public String Name { get; set; }
-	public Int32 ObjectId { get; set; }
-	public String SchemaName { get; set; }
-	public String? ObsoleteMessage { get; set; }
-}
-public partial class GetProceduresForSchemaRow
-{
-	public String Name { get; set; }
-	public Int32 ObjectId { get; set; }
-	public String SchemaName { get; set; }
-	public String? ObsoleteMessage { get; set; }
-}
-public partial class GetSysTypeRow
-{
-	public Byte SystemTypeId { get; set; }
-	public Boolean IsTableType { get; set; }
-	public String Name { get; set; }
-}
-public partial class GetSysTypesRow
-{
-	public String Name { get; set; }
-}
-public partial class GetTableTypeColumnsRow
-{
-	public Boolean? IsNullable { get; set; }
-	public Int16 MaxLength { get; set; }
-	public String? Name { get; set; }
-	public String TypeName { get; set; }
-}
-public partial class GetTableTypesRow
-{
-	public String Name { get; set; }
-	public Int32 TypeTableObjectId { get; set; }
-	public String SchemaName { get; set; }
 }
