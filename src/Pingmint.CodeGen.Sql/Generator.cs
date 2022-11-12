@@ -176,6 +176,9 @@ public static class Generator
 
         using (code.PartialClass("public", className, "I" + className))
         {
+            WriteConstructor(code, className);
+            code.Line();
+
             foreach (var databaseMemo in databaseMemos.Values)
             {
                 foreach (var schemaMemo in databaseMemo.Schemas.Values)
@@ -393,6 +396,17 @@ public static class Generator
             FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
         }).ToList();
 
+    private static void WriteConstructor(CodeWriter code, String className)
+    {
+        code.Line("private readonly Func<Task<SqlConnection>> connectionFunc;");
+        code.Line();
+        code.Line("public {0}({1})", className, "Func<Task<SqlConnection>> connectionFunc");
+        using (code.CreateBraceScope())
+        {
+            code.Line("this.connectionFunc = connectionFunc;");
+        }
+    }
+
     private static void WriteHelperMethods(CodeWriter code)
     {
         code.Text(
@@ -484,7 +498,7 @@ public static class Generator
     private static void CodeSqlStatementInstance(CodeWriter code, CommandMemo commandMemo)
     {
         var sig = GetStatementSignature(commandMemo);
-        code.Line("public {0} {1}({2}) => throw new NotImplementedException();", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw);
+        code.Line("public async {0} {1}({2}) => await {1}(await connectionFunc(){3});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw, sig.ParametersRaw is {} raw && raw.Length > 0 ? ", " + raw : "");
     }
 
     private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
