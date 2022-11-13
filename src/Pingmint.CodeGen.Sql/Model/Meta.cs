@@ -13,4 +13,6 @@ public class Column
     public SqlDbType Type { get; set; }
     public Boolean IsNullable { get; set; }
     public short? MaxLength { get; set; }
+    public Int32 SqlSystemTypeId { get; set; }
+    public Int32 SqlUserTypeId { get; set; }
 }

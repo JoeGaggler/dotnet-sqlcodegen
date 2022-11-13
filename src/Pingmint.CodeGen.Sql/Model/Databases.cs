@@ -46,6 +46,8 @@ public class TableType
     public String SchemaName { get; set; }
     public String TypeName { get; set; }
     public List<Column>? Columns { get; set; }
+    public Int32 SqlSystemTypeId { get; set; }
+    public Int32 SqlUserTypeId { get; set; }
 }
 
 public class DatabasesItemProcedures
@@ -122,6 +124,8 @@ public class Parameter
     // meta
     public System.Data.SqlDbType SqlDbType { get; set; }
     public Int32? MaxLength { get; set; }
+    public Int32 SqlSystemTypeId { get; set; }
+    public Int32 SqlUserTypeId { get; set; }
 }
 
 // public class Class
