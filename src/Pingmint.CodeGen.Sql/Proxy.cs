@@ -72,6 +72,8 @@ public partial class GetSysTypeRow
 public partial class GetSysTypesRow
 {
 	public String Name { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 }
 public partial class GetTableTypeColumnsRow
 {
@@ -331,19 +333,23 @@ public partial class Proxy : IProxy
 	public static Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection) => GetSysTypesAsync(connection, CancellationToken.None);
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT name FROM sys.types");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name, system_type_id, user_type_id FROM sys.types");
 
 		var result = new List<GetSysTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 		if (await reader.ReadAsync(cancellationToken))
 		{
 			int ordName = reader.GetOrdinal("name");
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 
 			do
 			{
 				result.Add(new GetSysTypesRow
 				{
 					Name = GetNonNullField<String>(reader, ordName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 				});
 			} while (await reader.ReadAsync(cancellationToken));
 		}

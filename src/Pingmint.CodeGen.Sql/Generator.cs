@@ -23,6 +23,7 @@ public static class Generator
                 ClassName = database.ClassName ?? GetPascalCase(sqlDatabaseName),
             };
 
+            PopulateTypes(database, databaseMemo);
             PopulateTableTypes(database, databaseMemo);
             PopulateStatements(database, databaseMemo);
             PopulateProcedures(database, databaseMemo);
@@ -30,7 +31,21 @@ public static class Generator
         return databaseMemos;
     }
 
-    private static void PopulateRecordProperties(RecordMemo recordMemo, List<Column> columns)
+    private static void PopulateTypes(DatabasesItem database, DatabaseMemo databaseMemo)
+    {
+        foreach (var type in database.AllTypes.Types)
+        {
+            databaseMemo.Types.Add(type.SqlTypeId, new()
+            {
+                SqlName = type.SqlName,
+                SqlDbType = type.SqlDbType,
+                SqlTypeId = type.SqlTypeId,
+                DotnetType = type.DotnetType,
+            });
+        }
+    }
+
+    private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Column> columns)
     {
         var props = recordMemo.Properties;
         foreach (var column in columns)
@@ -39,7 +54,7 @@ public static class Generator
             {
                 IsNullable = column.IsNullable,
                 Name = GetPascalCase(column.Name),
-                Type = GetDotnetType(column.Type),
+                Type = GetDotnetType(databaseMemo, column.SqlTypeId),
             };
             props.Add(prop);
         }
@@ -105,7 +120,7 @@ public static class Generator
                 {
                     var allowDbNull = col.ColumnIsNullable ? "true" : "false";
                     var maxLength = (col.MaxLength is short s) ? $", MaxLength = {s}" : String.Empty; // the default is already "-1", so we do not have to emit this in code.
-                    code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, col.PropertyTypeName, allowDbNull, maxLength);
+                    code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, col.PropertyTypeName.TrimEnd('?'), allowDbNull, maxLength);
                 }
                 using (code.ForEach("var row in rows"))
                 {
@@ -239,7 +254,7 @@ public static class Generator
                 {
                     Name = rowClassName,
                 };
-                PopulateRecordProperties(recordMemo, proc.ResultSet.Columns);
+                PopulateRecordProperties(databaseMemo, recordMemo, proc.ResultSet.Columns);
             }
             else
             {
@@ -253,7 +268,7 @@ public static class Generator
                 CommandText = $"{database.Name}.{schemaName}.{name}",
                 MethodName = GetPascalCase(name),
                 Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
-                Columns = GetCommandColumns(columns),
+                Columns = GetCommandColumns(databaseMemo, columns),
                 RowClassName = rowClassName,
                 // RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{rowClassName}",
                 RowClassRef = rowClassName,
@@ -276,9 +291,8 @@ public static class Generator
             {
                 TypeName = tableType.TypeName,
                 SchemaName = tableType.SchemaName,
-                Columns = GetCommandColumns(tableType.Columns),
-                SqlSystemTypeId = tableType.SqlSystemTypeId,
-                SqlUserTypeId = tableType.SqlUserTypeId,
+                Columns = GetCommandColumns(databaseMemo, tableType.Columns),
+                SqlTypeId = new() { SystemTypeId = tableType.SqlSystemTypeId, UserTypeId = tableType.SqlUserTypeId },
             };
             memo.RowClassName = GetPascalCase(tableType.TypeName) + "Row";
             memo.DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable";
@@ -294,7 +308,7 @@ public static class Generator
                 Name = memo.RowClassName + $" // {schemaName}.{tableTypeName}",
                 ParentTableType = memo,
             };
-            PopulateRecordProperties(recordMemo, tableType.Columns);
+            PopulateRecordProperties(databaseMemo, recordMemo, tableType.Columns);
             schemaMemo.Records[memo.RowClassName] = recordMemo;
         }
     }
@@ -318,7 +332,7 @@ public static class Generator
                 {
                     Name = rowClassName,
                 };
-                PopulateRecordProperties(recordMemo, statement.ResultSet.Columns);
+                PopulateRecordProperties(databaseMemo, recordMemo, statement.ResultSet.Columns);
             }
             else
             {
@@ -335,7 +349,7 @@ public static class Generator
                 // RowClassRef = $"{databaseMemo.ClassName}.{rowClassName}",
                 RowClassRef = rowClassName,
                 Parameters = GetCommandParameters(null, statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
-                Columns = GetCommandColumns(columns),
+                Columns = GetCommandColumns(databaseMemo, columns),
                 IsNonQuery = isNonQuery,
             };
             databaseMemo.Statements[name] = memo;
@@ -353,8 +367,7 @@ public static class Generator
                 ParameterType = i.SqlDbType,
                 ArgumentName = GetCamelCase(i.Name),
                 MaxLength = i.MaxLength,
-                SqlSystemTypeId = i.SqlSystemTypeId,
-                SqlUserTypeId = i.SqlUserTypeId,
+                SqlTypeId = i.SqlTypeId,
             };
 
             if (i.SqlDbType == SqlDbType.Structured)
@@ -366,7 +379,7 @@ public static class Generator
                 {
                     foreach (var schema in databaseMemo.Schemas.Values)
                     {
-                        if (schema.TableTypes.Values.FirstOrDefault(j => j.SqlSystemTypeId == i.SqlSystemTypeId && j.SqlUserTypeId == i.SqlUserTypeId) is { } tableType)
+                        if (schema.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
                         {
                             return tableType;
                         }
@@ -376,7 +389,7 @@ public static class Generator
 
                 if (FindMatch(databaseMemo, schemaName, i) is not { } tableType)
                 {
-                    throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlSystemTypeId}, {i.SqlUserTypeId})");
+                    throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlTypeId})");
                 }
 
                 tableType.IsReferenced = true;
@@ -386,7 +399,7 @@ public static class Generator
             }
             else
             {
-                memo.ArgumentType = GetShortestNameForType(GetDotnetType(i.SqlDbType));
+                memo.ArgumentType = GetShortestNameForType(GetDotnetType(databaseMemo, memo.SqlTypeId));
                 memo.ArgumentExpression = GetCamelCase(i.Name);
             }
 
@@ -396,17 +409,17 @@ public static class Generator
         return memos;
     }
 
-    private static List<ColumnMemo> GetCommandColumns(List<Column> columns) =>
-        columns.Select(i => new ColumnMemo()
+    private static List<ColumnMemo> GetCommandColumns(DatabaseMemo database, List<Column> columns) =>
+        columns.Select(i => (column: i, dotnetType: GetDotnetType(database, i.SqlTypeId))).Select(i => new ColumnMemo()
         {
-            MaxLength = i.MaxLength,
-            OrdinalVarName = $"ord{GetPascalCase(i.Name)}",
-            ColumnName = i.Name,
-            ColumnIsNullable = i.IsNullable,
-            PropertyType = GetDotnetType(i.Type),
-            PropertyTypeName = GetStringForType(GetDotnetType(i.Type), i.IsNullable),
-            PropertyName = GetPascalCase(i.Name),
-            FieldTypeName = GetShortestNameForType(GetDotnetType(i.Type)),
+            MaxLength = i.column.MaxLength,
+            OrdinalVarName = $"ord{GetPascalCase(i.column.Name)}",
+            ColumnName = i.column.Name,
+            ColumnIsNullable = i.column.IsNullable,
+            PropertyType = i.dotnetType,
+            PropertyTypeName = GetStringForType(i.dotnetType, i.column.IsNullable),
+            PropertyName = GetPascalCase(i.column.Name),
+            FieldTypeName = GetShortestNameForType(i.dotnetType),
         }).ToList();
 
     private static void WriteConstructor(CodeWriter code, String className)
@@ -602,34 +615,14 @@ public static class Generator
         }
     }
 
-    public static Type GetDotnetType(SqlDbType type) => type switch
+    private static Type GetDotnetType(DatabaseMemo database, SqlTypeId type)
     {
-        SqlDbType.Char or
-        SqlDbType.NText or
-        SqlDbType.NVarChar or
-        SqlDbType.Text or
-        SqlDbType.VarChar or
-        SqlDbType.Xml
-        => typeof(String),
-
-        SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
-
-        SqlDbType.DateTime or
-        SqlDbType.DateTime2
-        => typeof(DateTime),
-
-        SqlDbType.Bit => typeof(Boolean),
-        SqlDbType.Int => typeof(Int32),
-        SqlDbType.TinyInt => typeof(Byte),
-        SqlDbType.SmallInt => typeof(Int16),
-        SqlDbType.BigInt => typeof(Int64),
-
-        SqlDbType.UniqueIdentifier => typeof(Guid),
-
-        SqlDbType.VarBinary => typeof(Byte[]),
-
-        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
-    };
+        if (!database.Types.TryGetValue(type, out var found))
+        {
+            throw new InvalidOperationException($"SQL Type not found: {type.SystemTypeId}, {type.UserTypeId}");
+        }
+        return found.DotnetType;
+    }
 
     public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
         $"{GetShortestNameForType(type)}?" :
@@ -639,9 +632,13 @@ public static class Generator
     {
         var x when x == typeof(DateTime) => "DateTime",
         var x when x == typeof(DateTimeOffset) => "DateTimeOffset",
+        var x when x == typeof(TimeSpan) => "TimeSpan",
         var x when x == typeof(Int16) => "Int16",
         var x when x == typeof(Int32) => "Int32",
         var x when x == typeof(Int64) => "Int64",
+        var x when x == typeof(Single) => "Single",
+        var x when x == typeof(Double) => "Double",
+        var x when x == typeof(Decimal) => "Decimal",
         var x when x == typeof(String) => "String",
         var x when x == typeof(Boolean) => "Boolean",
         var x when x == typeof(Byte) => "Byte",
@@ -721,91 +718,5 @@ public static class Generator
         }
 
         return sb.ToString();
-    }
-
-    private class DatabaseMemo
-    {
-        public String SqlName { get; set; }
-        public String ClassName { get; set; }
-
-        public SortedDictionary<String, RecordMemo> Records { get; } = new();
-        public SortedDictionary<String, SchemaMemo> Schemas { get; } = new();
-        public SortedDictionary<String, CommandMemo> Statements { get; } = new();
-    }
-
-    private class SchemaMemo
-    {
-        public String SqlName { get; set; }
-        public String ClassName { get; set; }
-
-        public SortedDictionary<String, CommandMemo> Procedures { get; } = new();
-        public SortedDictionary<String, RecordMemo> Records { get; } = new();
-        public SortedDictionary<String, TableTypeMemo> TableTypes { get; } = new();
-    }
-
-    private class RecordMemo
-    {
-        public String Name { get; set; }
-
-        public List<PropertyMemo> Properties { get; } = new();
-        public TableTypeMemo? ParentTableType { get; set; } = null;
-    }
-
-    private class PropertyMemo
-    {
-        public Boolean IsNullable { get; set; }
-        public Type Type { get; set; }
-        public String Name { get; set; }
-    }
-
-    private class TableTypeMemo
-    {
-        public String TypeName { get; set; }
-        public String SchemaName { get; set; }
-        public String RowClassName { get; set; }
-        public String RowClassRef { get; set; }
-        public String DataTableClassName { get; set; }
-        public String DataTableClassRef { get; set; }
-        public List<ColumnMemo> Columns { get; set; }
-        public Boolean IsReferenced { get; set; } = false;
-        public Int32 SqlSystemTypeId { get; set; }
-        public Int32 SqlUserTypeId { get; set; }
-    }
-
-    private class CommandMemo
-    {
-        public CommandType CommandType { get; set; }
-        public String CommandText { get; set; }
-        public String MethodName { get; set; }
-        public String? RowClassName { get; set; }
-        public String? RowClassRef { get; set; }
-        public Boolean IsNonQuery { get; set; }
-        public List<ColumnMemo> Columns { get; set; }
-        public List<ParametersMemo> Parameters { get; set; }
-    }
-
-    private class ColumnMemo
-    {
-        public String OrdinalVarName { get; set; }
-        public String ColumnName { get; set; }
-        public Boolean ColumnIsNullable { get; set; }
-        public Type PropertyType { get; set; }
-        public String PropertyTypeName { get; set; }
-        public String PropertyName { get; set; }
-        public String FieldTypeName { get; set; }
-        public short? MaxLength { get; set; }
-    }
-
-    private class ParametersMemo
-    {
-        public String ParameterName { get; set; }
-        public SqlDbType ParameterType { get; set; }
-        public String ParameterTableRef { get; set; }
-        public String ArgumentType { get; set; }
-        public String ArgumentName { get; set; }
-        public String ArgumentExpression { get; set; }
-        public Int32? MaxLength { get; set; }
-        public Int32 SqlSystemTypeId { get; set; }
-        public Int32 SqlUserTypeId { get; set; }
     }
 }

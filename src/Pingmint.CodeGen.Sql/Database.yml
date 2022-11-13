@@ -70,7 +70,7 @@ databases:
             INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
             ORDER BY S.name, T.name
         - name: GetSysTypes
-          text: SELECT name FROM sys.types
+          text: SELECT name, system_type_id, user_type_id FROM sys.types
         - name: GetSysType
           text: |
             SELECT system_type_id, is_table_type, name

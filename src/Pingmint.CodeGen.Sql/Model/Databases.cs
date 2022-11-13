@@ -22,6 +22,9 @@ public class DatabasesItem
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence
+
+    // meta
+    public DatabaseTypesMeta AllTypes { get; set; }
 }
 
 public class DatabaseItemTableTypes
@@ -124,8 +127,7 @@ public class Parameter
     // meta
     public System.Data.SqlDbType SqlDbType { get; set; }
     public Int32? MaxLength { get; set; }
-    public Int32 SqlSystemTypeId { get; set; }
-    public Int32 SqlUserTypeId { get; set; }
+    public SqlTypeId SqlTypeId { get; set; }
 }
 
 // public class Class

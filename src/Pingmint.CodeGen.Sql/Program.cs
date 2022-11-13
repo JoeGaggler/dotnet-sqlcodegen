@@ -78,6 +78,31 @@ internal sealed class Program
             {
                 await sql.ChangeDatabaseAsync(database.Name);
 
+                var allTypes = database.AllTypes = new();
+                foreach (var type in await Proxy.GetSysTypesAsync(sql))
+                {
+                    SqlDbType sqlDbType;
+                    try
+                    {
+                        sqlDbType = GetSqlDbType(type.Name);
+                    }
+                    catch
+                    {
+                        continue; // TODO: type not supported
+                    }
+
+                    var newType = new DatabaseTypeMeta()
+                    {
+                        SqlName = type.Name,
+                        SqlTypeId = new() { SystemTypeId = type.SystemTypeId, UserTypeId = type.UserTypeId },
+                        SqlDbType = sqlDbType,
+                    };
+
+                    newType.DotnetType = GetDotnetType(newType.SqlDbType);
+
+                    allTypes.Types.Add(newType);
+                }
+
                 database.TableTypes = new() { Items = await GetTableTypesForDatabaseAsync(sql) };
 
                 if (database.Procedures?.Items is { } procs)
@@ -139,7 +164,9 @@ internal sealed class Program
                         {
                             foreach (var parameter in parameters)
                             {
-                                parameter.SqlDbType = GetSqlDbType(parameter.Type);
+                                var found = database.AllTypes.Types.First(i => i.SqlName == parameter.Type);
+                                parameter.SqlDbType = found.SqlDbType;
+                                parameter.SqlTypeId = found.SqlTypeId;
                             }
                         }
                     }
@@ -147,6 +174,55 @@ internal sealed class Program
             }
         }
     }
+
+    private static Type GetDotnetType(SqlDbType type) => type switch
+    {
+        SqlDbType.Char or
+        SqlDbType.NChar or
+        SqlDbType.NText or
+        SqlDbType.NVarChar or
+        SqlDbType.Text or
+        SqlDbType.VarChar or
+        SqlDbType.Xml
+        => typeof(String),
+
+        SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
+
+        SqlDbType.Date or
+        SqlDbType.DateTime or
+        SqlDbType.DateTime2 or
+        SqlDbType.SmallDateTime
+        => typeof(DateTime),
+
+        SqlDbType.Time => typeof(TimeSpan),
+
+        SqlDbType.Bit => typeof(Boolean),
+        SqlDbType.Int => typeof(Int32),
+        SqlDbType.TinyInt => typeof(Byte),
+        SqlDbType.SmallInt => typeof(Int16),
+        SqlDbType.BigInt => typeof(Int64),
+
+        SqlDbType.Money or
+        SqlDbType.SmallMoney or
+        SqlDbType.Decimal => typeof(Decimal),
+
+        SqlDbType.Real => typeof(Single),
+        SqlDbType.Float => typeof(Double),
+
+        SqlDbType.UniqueIdentifier => typeof(Guid),
+
+        SqlDbType.Binary or
+        SqlDbType.Image or
+        SqlDbType.Timestamp or
+        SqlDbType.VarBinary => typeof(Byte[]),
+
+        // TODO:
+        // SqlDbType.Variant => throw new NotImplementedException(),
+        // SqlDbType.Udt => throw new NotImplementedException(),
+        // SqlDbType.Structured => throw new NotImplementedException(),
+
+        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
+    };
 
     private static async Task<List<TableType>> GetTableTypesForDatabaseAsync(SqlConnection sql)
     {
@@ -170,8 +246,7 @@ internal sealed class Program
                     Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
                     IsNullable = col.IsNullable ?? true,
                     MaxLength = col.MaxLength,
-                    SqlSystemTypeId = col.SystemTypeId,
-                    SqlUserTypeId = col.UserTypeId,
+                    SqlTypeId = new() { SystemTypeId = col.SystemTypeId, UserTypeId = col.UserTypeId },
                 };
                 tableType.Columns.Add(column);
             }
@@ -188,8 +263,7 @@ internal sealed class Program
             Type = i.TypeName,
             SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             MaxLength = i.MaxLength,
-            SqlSystemTypeId = i.SystemTypeId,
-            SqlUserTypeId = i.UserTypeId,
+            SqlTypeId = new() { SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
@@ -199,8 +273,7 @@ internal sealed class Program
             Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
-            SqlSystemTypeId = i.SystemTypeId,
-            SqlUserTypeId = i.UserTypeId,
+            SqlTypeId = new() { SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
         }).ToList();
 
     public static (String?, String) ParseSchemaItem(String text)
