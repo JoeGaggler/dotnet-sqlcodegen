@@ -1,4 +1,56 @@
-namespace Pingmint.CodeGen.Sql.Model;
+namespace Pingmint.CodeGen.Sql.Model.Yaml;
+
+public class Config
+{
+    // scalar
+
+    // mapping
+    public Connection? Connection { get; set; }
+    public CSharp? CSharp { get; set; }
+    public Databases? Databases { get; set; }
+
+    // sequence
+}
+
+public class Connection
+{
+    // scalar
+    public String? ConnectionString { get; set; }
+
+    // mapping
+
+    // sequence
+}
+
+public class CSharp
+{
+    // scalar
+
+    // mapping
+    public String? Namespace { get; set; }
+    public String? ClassName { get; set; }
+
+    // sequence
+}
+
+// public class Class
+// {
+//     // scalar
+
+//     // mapping
+
+//     // sequence
+// }
+
+
+// public class Class
+// {
+//     // scalar
+
+//     // mapping
+
+//     // sequence
+// }
 
 public class Databases
 {
@@ -15,7 +67,7 @@ public class DatabasesItem
     // scalar
 
     // mapping
-    public String? Name { get; set; }
+    public String? SqlName { get; set; }
     public String? ClassName { get; set; }
     public DatabaseItemTableTypes? TableTypes { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
@@ -24,7 +76,7 @@ public class DatabasesItem
     // sequence
 
     // meta
-    public DatabaseTypesMeta AllTypes { get; set; }
+    public DatabaseTypesMeta TODO_AllTypes { get; set; }
 }
 
 public class DatabaseItemTableTypes

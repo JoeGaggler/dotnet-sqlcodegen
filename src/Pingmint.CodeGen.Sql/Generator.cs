@@ -1,65 +1,12 @@
 using Pingmint.CodeGen.Sql.Model;
 using System.Data;
 
-namespace Pingmint.CodeGen.Sql;
+using static Pingmint.CodeGen.Sql.Globals;
 
-file static class Ext
-{
-    public static T NotNull<T>(this T? obj) where T : class => obj ?? throw new NullReferenceException();
-}
+namespace Pingmint.CodeGen.Sql;
 
 public static class Generator
 {
-    private static SortedDictionary<String, DatabaseMemo> PopulateDatabaseScopeMemos(List<DatabasesItem> databases)
-    {
-        var databaseMemos = new SortedDictionary<String, DatabaseMemo>();
-        foreach (var database in databases)
-        {
-            var sqlDatabaseName = database.Name.NotNull();
-
-            var databaseMemo = databaseMemos[database.Name] = new DatabaseMemo()
-            {
-                SqlName = sqlDatabaseName,
-                ClassName = database.ClassName ?? GetPascalCase(sqlDatabaseName),
-            };
-
-            PopulateTypes(database, databaseMemo);
-            PopulateTableTypes(database, databaseMemo);
-            PopulateStatements(database, databaseMemo);
-            PopulateProcedures(database, databaseMemo);
-        }
-        return databaseMemos;
-    }
-
-    private static void PopulateTypes(DatabasesItem database, DatabaseMemo databaseMemo)
-    {
-        foreach (var type in database.AllTypes.Types)
-        {
-            databaseMemo.Types.Add(type.SqlTypeId, new()
-            {
-                SqlName = type.SqlName,
-                SqlDbType = type.SqlDbType,
-                SqlTypeId = type.SqlTypeId,
-                DotnetType = type.DotnetType,
-            });
-        }
-    }
-
-    private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Column> columns)
-    {
-        var props = recordMemo.Properties;
-        foreach (var column in columns)
-        {
-            var prop = new PropertyMemo
-            {
-                IsNullable = column.IsNullable,
-                Name = GetPascalCase(column.Name),
-                Type = GetDotnetType(databaseMemo, column.SqlTypeId),
-            };
-            props.Add(prop);
-        }
-    }
-
     private static void CodeRecords(CodeWriter code, SortedDictionary<String, DatabaseMemo> databaseScopeMemos)
     {
         foreach (var dbItem in databaseScopeMemos)
@@ -146,14 +93,15 @@ public static class Generator
         }
     }
 
-    public static void Generate(Config config, CodeWriter code)
+    // TODO: remove YAML Config parameter
+    public static void Generate(Model.Yaml.Config config, ConfigMemo configMemo, CodeWriter code)
     {
         var cs = config.CSharp ?? throw new NullReferenceException();
         var className = cs.ClassName ?? throw new NullReferenceException();
         var fileNs = cs.Namespace ?? throw new NullReferenceException();
         var dbs = config.Databases?.Items ?? throw new NullReferenceException();
 
-        var databaseMemos = PopulateDatabaseScopeMemos(dbs);
+        var databaseMemos = configMemo.Databases;
 
         code.UsingNamespace("System");
         code.UsingNamespace("System.Collections.Generic");
@@ -234,193 +182,7 @@ public static class Generator
         }
     }
 
-    private static void PopulateProcedures(DatabasesItem database, DatabaseMemo databaseMemo)
-    {
-        foreach (var proc in database.Procedures?.Items ?? new())
-        {
-            var schemaName = proc.Schema;
-            if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
 
-            var name = proc.Name ?? throw new NullReferenceException();
-            var columns = proc.ResultSet?.Columns ?? throw new NullReferenceException();
-
-            Boolean isNonQuery;
-            String? rowClassName;
-            if (columns.Count != 0)
-            {
-                isNonQuery = false;
-                rowClassName = GetPascalCase(name + "_Row");
-                var recordMemo = schemaMemo.Records[rowClassName] = new RecordMemo()
-                {
-                    Name = rowClassName,
-                };
-                PopulateRecordProperties(databaseMemo, recordMemo, proc.ResultSet.Columns);
-            }
-            else
-            {
-                isNonQuery = true;
-                rowClassName = null;
-            }
-
-            var memo = new CommandMemo()
-            {
-                CommandType = CommandType.StoredProcedure,
-                CommandText = $"{database.Name}.{schemaName}.{name}",
-                MethodName = GetPascalCase(name),
-                Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
-                Columns = GetCommandColumns(databaseMemo, columns),
-                RowClassName = rowClassName,
-                // RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{rowClassName}",
-                RowClassRef = rowClassName,
-                IsNonQuery = isNonQuery,
-            };
-
-            schemaMemo.Procedures[name] = memo;
-        }
-    }
-
-    private static void PopulateTableTypes(DatabasesItem database, DatabaseMemo databaseMemo)
-    {
-        foreach (var tableType in database.TableTypes?.Items ?? new())
-        {
-            var schemaName = tableType.SchemaName;
-            if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
-            var tableTypeName = tableType.TypeName;
-
-            var memo = new TableTypeMemo()
-            {
-                TypeName = tableType.TypeName,
-                SchemaName = tableType.SchemaName,
-                Columns = GetCommandColumns(databaseMemo, tableType.Columns),
-                SqlTypeId = new() { SystemTypeId = tableType.SqlSystemTypeId, UserTypeId = tableType.SqlUserTypeId },
-            };
-            memo.RowClassName = GetPascalCase(tableType.TypeName) + "Row";
-            memo.DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable";
-            // memo.RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{memo.RowClassName}";
-            memo.RowClassRef = memo.RowClassName;
-            // memo.DataTableClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{memo.DataTableClassName}";
-            memo.DataTableClassRef = memo.DataTableClassName;
-
-            schemaMemo.TableTypes[tableTypeName] = memo;
-
-            var recordMemo = new RecordMemo
-            {
-                Name = memo.RowClassName + $" // {schemaName}.{tableTypeName}",
-                ParentTableType = memo,
-            };
-            PopulateRecordProperties(databaseMemo, recordMemo, tableType.Columns);
-            schemaMemo.Records[memo.RowClassName] = recordMemo;
-        }
-    }
-
-    private static void PopulateStatements(DatabasesItem database, DatabaseMemo databaseMemo)
-    {
-        foreach (var statement in database.Statements?.Items ?? new())
-        {
-            var name = statement.Name ?? throw new NullReferenceException();
-            var resultSet = statement.ResultSet ?? throw new NullReferenceException();
-            var commandText = statement.Text ?? throw new NullReferenceException();
-            var columns = statement.ResultSet.Columns ?? throw new NullReferenceException();
-
-            Boolean isNonQuery;
-            String? rowClassName;
-            if (columns.Count != 0)
-            {
-                isNonQuery = false;
-                rowClassName = GetPascalCase(name + "_Row");
-                var recordMemo = databaseMemo.Records[rowClassName] = new RecordMemo()
-                {
-                    Name = rowClassName,
-                };
-                PopulateRecordProperties(databaseMemo, recordMemo, statement.ResultSet.Columns);
-            }
-            else
-            {
-                isNonQuery = true;
-                rowClassName = null;
-            }
-
-            var memo = new CommandMemo()
-            {
-                CommandType = CommandType.Text,
-                CommandText = commandText.ReplaceLineEndings(" ").Trim(),
-                MethodName = $"{name}",
-                RowClassName = rowClassName,
-                // RowClassRef = $"{databaseMemo.ClassName}.{rowClassName}",
-                RowClassRef = rowClassName,
-                Parameters = GetCommandParameters(null, statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
-                Columns = GetCommandColumns(databaseMemo, columns),
-                IsNonQuery = isNonQuery,
-            };
-            databaseMemo.Statements[name] = memo;
-        }
-    }
-
-    private static List<ParametersMemo> GetCommandParameters(String? hostSchema, List<Parameter> parameters, DatabaseMemo databaseMemo)
-    {
-        var memos = new List<ParametersMemo>();
-        foreach (var i in parameters)
-        {
-            var memo = new ParametersMemo()
-            {
-                ParameterName = i.Name ?? throw new NullReferenceException(),
-                ParameterType = i.SqlDbType,
-                ArgumentName = GetCamelCase(i.Name),
-                MaxLength = i.MaxLength,
-                SqlTypeId = i.SqlTypeId,
-            };
-
-            if (i.SqlDbType == SqlDbType.Structured)
-            {
-                var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
-                schemaName ??= hostSchema;
-
-                static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter i)
-                {
-                    foreach (var schema in databaseMemo.Schemas.Values)
-                    {
-                        if (schema.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
-                        {
-                            return tableType;
-                        }
-                    }
-                    return null;
-                }
-
-                if (FindMatch(databaseMemo, schemaName, i) is not { } tableType)
-                {
-                    throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlTypeId})");
-                }
-
-                tableType.IsReferenced = true;
-                memo.ArgumentType = $"List<{tableType.RowClassRef}>";
-                memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
-                memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
-            }
-            else
-            {
-                memo.ArgumentType = GetShortestNameForType(GetDotnetType(databaseMemo, memo.SqlTypeId));
-                memo.ArgumentExpression = GetCamelCase(i.Name);
-            }
-
-            memos.Add(memo);
-        }
-
-        return memos;
-    }
-
-    private static List<ColumnMemo> GetCommandColumns(DatabaseMemo database, List<Column> columns) =>
-        columns.Select(i => (column: i, dotnetType: GetDotnetType(database, i.SqlTypeId))).Select(i => new ColumnMemo()
-        {
-            MaxLength = i.column.MaxLength,
-            OrdinalVarName = $"ord{GetPascalCase(i.column.Name)}",
-            ColumnName = i.column.Name,
-            ColumnIsNullable = i.column.IsNullable,
-            PropertyType = i.dotnetType,
-            PropertyTypeName = GetStringForType(i.dotnetType, i.column.IsNullable),
-            PropertyName = GetPascalCase(i.column.Name),
-            FieldTypeName = GetShortestNameForType(i.dotnetType),
-        }).ToList();
 
     private static void WriteConstructor(CodeWriter code, String className)
     {
@@ -613,110 +375,5 @@ public static class Generator
                 throw new InvalidOperationException("unable to determine expected results");
             }
         }
-    }
-
-    private static Type GetDotnetType(DatabaseMemo database, SqlTypeId type)
-    {
-        if (!database.Types.TryGetValue(type, out var found))
-        {
-            throw new InvalidOperationException($"SQL Type not found: {type.SystemTypeId}, {type.UserTypeId}");
-        }
-        return found.DotnetType;
-    }
-
-    public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
-        $"{GetShortestNameForType(type)}?" :
-        $"{GetShortestNameForType(type)}";
-
-    public static String GetShortestNameForType(Type type) => type switch
-    {
-        var x when x == typeof(DateTime) => "DateTime",
-        var x when x == typeof(DateTimeOffset) => "DateTimeOffset",
-        var x when x == typeof(TimeSpan) => "TimeSpan",
-        var x when x == typeof(Int16) => "Int16",
-        var x when x == typeof(Int32) => "Int32",
-        var x when x == typeof(Int64) => "Int64",
-        var x when x == typeof(Single) => "Single",
-        var x when x == typeof(Double) => "Double",
-        var x when x == typeof(Decimal) => "Decimal",
-        var x when x == typeof(String) => "String",
-        var x when x == typeof(Boolean) => "Boolean",
-        var x when x == typeof(Byte) => "Byte",
-        var x when x == typeof(Guid) => "Guid",
-        var x when x == typeof(Byte[]) => "Byte[]",
-        _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
-    };
-
-    public static String GetCamelCase(String originalName)
-    {
-        var sb = new System.Text.StringBuilder(originalName.Length);
-
-        bool firstChar = true;
-        bool firstWord = true;
-        foreach (var ch in originalName)
-        {
-            if (firstChar)
-            {
-                if (firstWord)
-                {
-                    if (!Char.IsLetter(ch)) { continue; }
-                    sb.Append(Char.ToLowerInvariant(ch));
-                    firstWord = false;
-                }
-                else
-                {
-                    sb.Append(Char.ToUpperInvariant(ch));
-                }
-                firstChar = false;
-            }
-            else if (Char.IsLetterOrDigit(ch))
-            {
-                sb.Append(ch);
-            }
-            else
-            {
-                firstChar = true;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    public static String GetPascalCase(String originalName)
-    {
-        var sb = new System.Text.StringBuilder(originalName.Length);
-
-        bool firstChar = true;
-        foreach (var ch in originalName)
-        {
-            if (firstChar)
-            {
-                if (!Char.IsLetter(ch))
-                {
-                    if (sb.Length == 0)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        sb.Append(Char.ToUpperInvariant(ch));
-                        continue;
-                    }
-                }
-
-                sb.Append(Char.ToUpperInvariant(ch));
-                firstChar = false;
-            }
-            else if (Char.IsLetterOrDigit(ch))
-            {
-                sb.Append(ch);
-            }
-            else
-            {
-                firstChar = true;
-            }
-        }
-
-        return sb.ToString();
     }
 }

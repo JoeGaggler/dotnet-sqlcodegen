@@ -41,7 +41,10 @@ public class Column
     public SqlTypeId SqlTypeId { get; set; }
 }
 
-
+public class ConfigMemo
+{
+    public SortedDictionary<String, DatabaseMemo> Databases { get; } = new();
+}
 
 public class DatabaseMemo
 {

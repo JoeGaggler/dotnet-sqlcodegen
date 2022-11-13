@@ -1,5 +1,5 @@
 using Pingmint.Yaml;
-using Model = Pingmint.CodeGen.Sql.Model;
+using Model = Pingmint.CodeGen.Sql.Model.Yaml;
 
 namespace Pingmint.Yaml;
 
@@ -77,7 +77,7 @@ internal sealed class DatabaseMapping : Mapping<Model.Databases, List<Model.Data
 
 internal sealed class DatabaseItemMapping : Mapping<List<Model.DatabasesItem>, Model.DatabasesItem>
 {
-    public DatabaseItemMapping(List<Model.DatabasesItem> parent, String key) : base(parent, new() { Name = key }) { }
+    public DatabaseItemMapping(List<Model.DatabasesItem> parent, String key) : base(parent, new() { SqlName = key }) { }
 
     protected override ISequence? StartSequence(String key) => key switch
     {
