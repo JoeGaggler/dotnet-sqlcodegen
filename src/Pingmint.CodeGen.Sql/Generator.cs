@@ -277,6 +277,8 @@ public static class Generator
                 TypeName = tableType.TypeName,
                 SchemaName = tableType.SchemaName,
                 Columns = GetCommandColumns(tableType.Columns),
+                SqlSystemTypeId = tableType.SqlSystemTypeId,
+                SqlUserTypeId = tableType.SqlUserTypeId,
             };
             memo.RowClassName = GetPascalCase(tableType.TypeName) + "Row";
             memo.DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable";
@@ -351,25 +353,36 @@ public static class Generator
                 ParameterType = i.SqlDbType,
                 ArgumentName = GetCamelCase(i.Name),
                 MaxLength = i.MaxLength,
+                SqlSystemTypeId = i.SqlSystemTypeId,
+                SqlUserTypeId = i.SqlUserTypeId,
             };
 
             if (i.SqlDbType == SqlDbType.Structured)
             {
                 var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
                 schemaName ??= hostSchema;
-                foreach (var schema in databaseMemo.Schemas.Values)
+
+                static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter i)
                 {
-                    if (schema.SqlName != schemaName) { continue; }
-                    if (schema.TableTypes.Values.FirstOrDefault(j => j.TypeName == i.Type) is not { } tableType)
+                    foreach (var schema in databaseMemo.Schemas.Values)
                     {
-                        throw new InvalidOperationException($"Unable to find table type: {i.Type} {schema.SqlName}");
+                        if (schema.TableTypes.Values.FirstOrDefault(j => j.SqlSystemTypeId == i.SqlSystemTypeId && j.SqlUserTypeId == i.SqlUserTypeId) is { } tableType)
+                        {
+                            return tableType;
+                        }
                     }
-                    tableType.IsReferenced = true;
-                    memo.ArgumentType = $"List<{tableType.RowClassRef}>";
-                    memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
-                    memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
-                    break;
+                    return null;
                 }
+
+                if (FindMatch(databaseMemo, schemaName, i) is not { } tableType)
+                {
+                    throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlSystemTypeId}, {i.SqlUserTypeId})");
+                }
+
+                tableType.IsReferenced = true;
+                memo.ArgumentType = $"List<{tableType.RowClassRef}>";
+                memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
+                memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
             }
             else
             {
@@ -498,7 +511,7 @@ public static class Generator
     private static void CodeSqlStatementInstance(CodeWriter code, CommandMemo commandMemo)
     {
         var sig = GetStatementSignature(commandMemo);
-        code.Line("public async {0} {1}({2}) => await {1}(await connectionFunc(){3});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw, sig.ParametersRaw is {} raw && raw.Length > 0 ? ", " + raw : "");
+        code.Line("public async {0} {1}({2}) => await {1}(await connectionFunc(){3});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw, sig.ParametersRaw is { } raw && raw.Length > 0 ? ", " + raw : "");
     }
 
     private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
@@ -647,10 +660,9 @@ public static class Generator
         {
             if (firstChar)
             {
-                if (!Char.IsLetter(ch)) { continue; }
-
                 if (firstWord)
                 {
+                    if (!Char.IsLetter(ch)) { continue; }
                     sb.Append(Char.ToLowerInvariant(ch));
                     firstWord = false;
                 }
@@ -756,6 +768,8 @@ public static class Generator
         public String DataTableClassRef { get; set; }
         public List<ColumnMemo> Columns { get; set; }
         public Boolean IsReferenced { get; set; } = false;
+        public Int32 SqlSystemTypeId { get; set; }
+        public Int32 SqlUserTypeId { get; set; }
     }
 
     private class CommandMemo
@@ -791,5 +805,7 @@ public static class Generator
         public String ArgumentName { get; set; }
         public String ArgumentExpression { get; set; }
         public Int32? MaxLength { get; set; }
+        public Int32 SqlSystemTypeId { get; set; }
+        public Int32 SqlUserTypeId { get; set; }
     }
 }

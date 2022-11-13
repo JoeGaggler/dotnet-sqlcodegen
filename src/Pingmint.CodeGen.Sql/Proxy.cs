@@ -42,6 +42,7 @@ public partial class GetParametersForObjectRow
 {
 	public Int32 ParameterId { get; set; }
 	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 	public String? Name { get; set; }
 	public Boolean IsOutput { get; set; }
 	public Int16 MaxLength { get; set; }
@@ -78,12 +79,16 @@ public partial class GetTableTypeColumnsRow
 	public Int16 MaxLength { get; set; }
 	public String? Name { get; set; }
 	public String TypeName { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 }
 public partial class GetTableTypesRow
 {
 	public String Name { get; set; }
 	public Int32 TypeTableObjectId { get; set; }
 	public String SchemaName { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
 }
 
 public partial class Proxy : IProxy
@@ -199,7 +204,7 @@ public partial class Proxy : IProxy
 	public static Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32 id) => GetParametersForObjectAsync(connection, id, CancellationToken.None);
 	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32 id, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT P.parameter_id, P.system_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT P.parameter_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id");
 
 		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
 
@@ -209,6 +214,7 @@ public partial class Proxy : IProxy
 		{
 			int ordParameterId = reader.GetOrdinal("parameter_id");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 			int ordName = reader.GetOrdinal("name");
 			int ordIsOutput = reader.GetOrdinal("is_output");
 			int ordMaxLength = reader.GetOrdinal("max_length");
@@ -221,6 +227,7 @@ public partial class Proxy : IProxy
 				{
 					ParameterId = GetNonNullFieldValue<Int32>(reader, ordParameterId),
 					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 					Name = GetField<String>(reader, ordName),
 					IsOutput = GetNonNullFieldValue<Boolean>(reader, ordIsOutput),
 					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
@@ -346,7 +353,7 @@ public partial class Proxy : IProxy
 	public static Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32 id) => GetTableTypeColumnsAsync(connection, id, CancellationToken.None);
 	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32 id, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name] from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.system_type_id, T.user_type_id from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id");
 
 		cmd.Parameters.Add(CreateParameter("@id", id, SqlDbType.Int));
 
@@ -358,6 +365,8 @@ public partial class Proxy : IProxy
 			int ordMaxLength = reader.GetOrdinal("max_length");
 			int ordName = reader.GetOrdinal("name");
 			int ordTypeName = reader.GetOrdinal("Type_Name");
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 
 			do
 			{
@@ -367,6 +376,8 @@ public partial class Proxy : IProxy
 					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
 					Name = GetField<String>(reader, ordName),
 					TypeName = GetNonNullField<String>(reader, ordTypeName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 				});
 			} while (await reader.ReadAsync(cancellationToken));
 		}
@@ -376,7 +387,7 @@ public partial class Proxy : IProxy
 	public static Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection) => GetTableTypesAsync(connection, CancellationToken.None);
 	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name] FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.system_type_id, T.user_type_id FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
 
 		var result = new List<GetTableTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -385,6 +396,8 @@ public partial class Proxy : IProxy
 			int ordName = reader.GetOrdinal("name");
 			int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
 			int ordSchemaName = reader.GetOrdinal("Schema_Name");
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
 
 			do
 			{
@@ -393,6 +406,8 @@ public partial class Proxy : IProxy
 					Name = GetNonNullField<String>(reader, ordName),
 					TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
 					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
 				});
 			} while (await reader.ReadAsync(cancellationToken));
 		}

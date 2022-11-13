@@ -158,6 +158,8 @@ internal sealed class Program
                 TypeName = i.Name,
                 SchemaName = i.SchemaName,
                 Columns = new List<Column>(),
+                SqlSystemTypeId = i.SystemTypeId,
+                SqlUserTypeId = i.UserTypeId,
             };
 
             foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, i.TypeTableObjectId))
@@ -168,6 +170,8 @@ internal sealed class Program
                     Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
                     IsNullable = col.IsNullable ?? true,
                     MaxLength = col.MaxLength,
+                    SqlSystemTypeId = col.SystemTypeId,
+                    SqlUserTypeId = col.UserTypeId,
                 };
                 tableType.Columns.Add(column);
             }
@@ -184,6 +188,8 @@ internal sealed class Program
             Type = i.TypeName,
             SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             MaxLength = i.MaxLength,
+            SqlSystemTypeId = i.SystemTypeId,
+            SqlUserTypeId = i.UserTypeId,
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
@@ -193,6 +199,8 @@ internal sealed class Program
             Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
+            SqlSystemTypeId = i.SystemTypeId,
+            SqlUserTypeId = i.UserTypeId,
         }).ToList();
 
     public static (String?, String) ParseSchemaItem(String text)
