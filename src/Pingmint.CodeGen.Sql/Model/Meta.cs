@@ -43,6 +43,9 @@ public class Column
 
 public class ConfigMemo
 {
+    public String? Namespace { get; set; }
+    public String? ClassName { get; set; }
+
     public SortedDictionary<String, DatabaseMemo> Databases { get; } = new();
 }
 

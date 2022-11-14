@@ -27,7 +27,7 @@ internal sealed class Program
         var configMemo = await MetaAsync(config);
 
         var code = new CodeWriter();
-        Generator.Generate(config, configMemo, code); // TODO: remove config parameter
+        Generator.Generate(configMemo, code);
 
         using TextWriter textWriter = args.Length switch
         {
@@ -79,6 +79,10 @@ internal sealed class Program
     private static async Task<ConfigMemo> MetaAsync(Config config)
     {
         var configMemo = new ConfigMemo();
+
+        var cs = config.CSharp ?? throw new NullReferenceException();
+        configMemo.Namespace = cs.Namespace;
+        configMemo.ClassName = cs.ClassName;
 
         using var sql = await OpenSqlAsync(config);
 

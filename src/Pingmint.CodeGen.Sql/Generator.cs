@@ -94,12 +94,10 @@ public static class Generator
     }
 
     // TODO: remove YAML Config parameter
-    public static void Generate(Model.Yaml.Config config, ConfigMemo configMemo, CodeWriter code)
+    public static void Generate(ConfigMemo configMemo, CodeWriter code)
     {
-        var cs = config.CSharp ?? throw new NullReferenceException();
-        var className = cs.ClassName ?? throw new NullReferenceException();
-        var fileNs = cs.Namespace ?? throw new NullReferenceException();
-        var dbs = config.Databases?.Items ?? throw new NullReferenceException();
+        var className = configMemo.ClassName ?? throw new NullReferenceException();
+        var fileNs = configMemo.Namespace ?? throw new NullReferenceException();
 
         var databaseMemos = configMemo.Databases;
 
@@ -181,8 +179,6 @@ public static class Generator
             }
         }
     }
-
-
 
     private static void WriteConstructor(CodeWriter code, String className)
     {
