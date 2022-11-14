@@ -137,9 +137,6 @@ public class Statement
     public Parameters? Parameters { get; set; }
 
     // sequence
-
-    // meta
-    public List<Column>? Columns { get; set; }
 }
 
 public class Parameters

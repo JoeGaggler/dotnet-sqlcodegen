@@ -70,8 +70,10 @@ internal sealed class Program
 
     private static async Task<SqlConnection> OpenSqlAsync(Config config)
     {
-        var sql = new SqlConnection();
-        sql.ConnectionString = config.Connection?.ConnectionString;
+        var sql = new SqlConnection
+        {
+            ConnectionString = config.Connection?.ConnectionString
+        };
         await sql.OpenAsync();
         return sql;
     }
@@ -152,18 +154,16 @@ internal sealed class Program
             if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
             var tableTypeName = tableType.TypeName;
 
-            var memo = new TableTypeMemo()
+            var memo = new TableTypeMemo
             {
                 TypeName = tableType.TypeName,
                 SchemaName = tableType.SchemaName,
                 Columns = GetCommandColumns(databaseMemo, tableType.Columns),
                 SqlTypeId = new() { SystemTypeId = tableType.SqlSystemTypeId, UserTypeId = tableType.SqlUserTypeId },
+                RowClassName = GetPascalCase(tableType.TypeName) + "Row",
+                DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable"
             };
-            memo.RowClassName = GetPascalCase(tableType.TypeName) + "Row";
-            memo.DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable";
-            // memo.RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{memo.RowClassName}";
             memo.RowClassRef = memo.RowClassName;
-            // memo.DataTableClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{memo.DataTableClassName}";
             memo.DataTableClassRef = memo.DataTableClassName;
 
             schemaMemo.TableTypes[tableTypeName] = memo;
@@ -180,113 +180,100 @@ internal sealed class Program
 
     private static async Task PopulateStatementsAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
     {
-        if (database.Statements?.Items is { } statements)
+        if (database.Statements?.Items is not { } statements) { return; }
+
+        foreach (var statement in statements)
         {
-            // TODO: OLD
-            foreach (var statement in statements)
+            var columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text));
+
+            if (statement.Parameters?.Items is { } parameters)
             {
-                var columns = statement.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text));
-
-                if (statement.Parameters?.Items is { } parameters)
+                foreach (var parameter in parameters)
                 {
-                    foreach (var parameter in parameters)
-                    {
-                        var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type);
-                        parameter.SqlDbType = found.SqlDbType;
-                        parameter.SqlTypeId = found.SqlTypeId;
-                    }
+                    var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type);
+                    parameter.SqlDbType = found.SqlDbType;
+                    parameter.SqlTypeId = found.SqlTypeId;
                 }
-
-                var name = statement.Name ?? throw new NullReferenceException();
-                var commandText = statement.Text ?? throw new NullReferenceException();
-
-                Boolean isNonQuery;
-                String? rowClassName;
-                if (columns.Count != 0)
-                {
-                    isNonQuery = false;
-                    rowClassName = GetPascalCase(name + "_Row");
-                    var recordMemo = databaseMemo.Records[rowClassName] = new RecordMemo()
-                    {
-                        Name = rowClassName,
-                    };
-                    PopulateRecordProperties(databaseMemo, recordMemo, statement.Columns);
-                }
-                else
-                {
-                    isNonQuery = true;
-                    rowClassName = null;
-                }
-
-                var memo = new CommandMemo()
-                {
-                    CommandType = CommandType.Text,
-                    CommandText = commandText.ReplaceLineEndings(" ").Trim(),
-                    MethodName = $"{name}",
-                    RowClassName = rowClassName,
-                    // RowClassRef = $"{databaseMemo.ClassName}.{rowClassName}",
-                    RowClassRef = rowClassName,
-                    Parameters = GetCommandParameters(null, statement.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
-                    Columns = GetCommandColumns(databaseMemo, columns),
-                    IsNonQuery = isNonQuery,
-                };
-                databaseMemo.Statements[name] = memo;
             }
+            else
+            {
+                parameters = new();
+            }
+
+            var name = statement.Name ?? throw new NullReferenceException();
+            var commandText = statement.Text ?? throw new NullReferenceException();
+
+            Boolean isNonQuery;
+            String? rowClassName;
+            if (columns.Count != 0)
+            {
+                isNonQuery = false;
+                rowClassName = GetPascalCase(name + "_Row");
+                var recordMemo = databaseMemo.Records[rowClassName] = new RecordMemo()
+                {
+                    Name = rowClassName,
+                };
+                PopulateRecordProperties(databaseMemo, recordMemo, columns);
+            }
+            else
+            {
+                isNonQuery = true;
+                rowClassName = null;
+            }
+
+            var memo = new CommandMemo()
+            {
+                CommandType = CommandType.Text,
+                CommandText = commandText.ReplaceLineEndings(" ").Trim(),
+                MethodName = name,
+                RowClassName = rowClassName,
+                RowClassRef = rowClassName,
+                Parameters = GetCommandParameters(null, parameters, databaseMemo),
+                Columns = GetCommandColumns(databaseMemo, columns),
+                IsNonQuery = isNonQuery,
+            };
+            databaseMemo.Statements[name] = memo;
         }
     }
 
     private static async Task PopulateProceduresAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
     {
-        if (database.Procedures?.Items is { } procs)
+        if (database.Procedures?.Items is not { } procs) { return; }
+
+        foreach (var proc in procs)
         {
-            // TODO: OLD
-            var insert = new List<Procedure>();
-            var remove = new List<Procedure>();
-            foreach (var proc in procs)
+            var (schema, procName) = ParseSchemaItem(proc.Text);
+            if (schema is null) { throw new InvalidOperationException($"Unable to parse schema item: {proc.Text}"); }
+
+            if (procName == "*")
             {
-                var (schema, procName) = ParseSchemaItem(proc.Text);
-                if (schema is null) { throw new InvalidOperationException($"Unable to parse schema item: {proc.Text}"); }
-
-                if (procName == "*")
+                foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
                 {
-                    remove.Add(proc);
-                    foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
-                    {
-                        var newProc = new Procedure();
-                        await MetaProcAsync(sql, newProc, schema, row.Name);
-                        insert.Add(newProc);
-                    }
-                }
-                else
-                {
-                    await MetaProcAsync(sql, proc, schema, procName);
-                }
-
-                static async Task MetaProcAsync(SqlConnection sql, Procedure proc, string schema, string procName)
-                {
-                    proc.Schema = schema;
-                    proc.Name = procName;
-
-                    if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
-                    {
-                        throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
-                    }
-
-                    proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
-
-                    proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
+                    var newProc = new Procedure();
+                    await MetaProcAsync(sql, newProc, schema, row.Name, databaseMemo);
                 }
             }
-            foreach (var item in remove) { procs.Remove(item); }
-            procs.AddRange(insert);
-
-            // TODO: NEW
-            foreach (var proc in procs)
+            else
             {
-                var schemaName = proc.Schema;
+                await MetaProcAsync(sql, proc, schema, procName, databaseMemo);
+            }
+
+            static async Task MetaProcAsync(SqlConnection sql, Procedure proc, string schema, string procName, DatabaseMemo databaseMemo)
+            {
+                if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
+                {
+                    throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
+                }
+
+                proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
+
+                // TODO: go straight to memo
+                proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
+
+                var schemaName = schema;
                 if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
 
-                var name = proc.Name ?? throw new NullReferenceException();
+                var name = procName ?? throw new NullReferenceException();
                 var columns = proc.Columns ?? throw new NullReferenceException();
 
                 Boolean isNonQuery;
@@ -310,12 +297,11 @@ internal sealed class Program
                 var memo = new CommandMemo()
                 {
                     CommandType = CommandType.StoredProcedure,
-                    CommandText = $"{database.SqlName}.{schemaName}.{name}",
+                    CommandText = $"{databaseMemo.SqlName}.{schemaName}.{name}",
                     MethodName = GetPascalCase(name),
                     Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                     Columns = GetCommandColumns(databaseMemo, columns),
                     RowClassName = rowClassName,
-                    // RowClassRef = $"{databaseMemo.ClassName}.{schemaMemo.ClassName}.{rowClassName}",
                     RowClassRef = rowClassName,
                     IsNonQuery = isNonQuery,
                 };
@@ -324,6 +310,7 @@ internal sealed class Program
             }
         }
     }
+
     private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Column> columns)
     {
         var props = recordMemo.Properties;
@@ -460,8 +447,8 @@ internal sealed class Program
     {
         if (text.IndexOf('.') is int i and > 0)
         {
-            var schema = text.Substring(0, i);
-            var item = text.Substring(i + 1);
+            var schema = text[..i];
+            var item = text[(i + 1)..];
             return (schema, item);
         }
         else
