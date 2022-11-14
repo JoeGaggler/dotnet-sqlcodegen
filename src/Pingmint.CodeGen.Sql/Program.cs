@@ -210,7 +210,7 @@ internal sealed class Program
 
             var recordMemo = new RecordMemo
             {
-                Name = memo.RowClassName + $" // {schemaName}.{tableTypeName}",
+                Name = memo.RowClassName,
                 ParentTableType = memo,
             };
             PopulateRecordProperties(databaseMemo, recordMemo, columns);

@@ -27,7 +27,7 @@ public partial class EchoScopes2Row
 {
 	public String Scope { get; set; }
 }
-public partial class ScopesRow // pingmint.Scopes
+public partial class ScopesRow
 {
 	public String Scope { get; set; }
 }
