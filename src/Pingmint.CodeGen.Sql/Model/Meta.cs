@@ -4,12 +4,14 @@ namespace Pingmint.CodeGen.Sql.Model;
 
 public record struct SqlTypeId : IComparable<SqlTypeId>
 {
+    public Int32 SchemaId;
     public Int32 SystemTypeId;
     public Int32 UserTypeId;
 
     public int CompareTo(SqlTypeId other)
     {
-        if (SystemTypeId.CompareTo(other.SystemTypeId) is var comp && comp != 0) { return comp; }
+        if (SchemaId.CompareTo(other.SchemaId) is var comp1 && comp1 != 0) { return comp1; }
+        if (SystemTypeId.CompareTo(other.SystemTypeId) is var comp2 && comp2 != 0) { return comp2; }
         return UserTypeId.CompareTo(other.UserTypeId);
     }
 }

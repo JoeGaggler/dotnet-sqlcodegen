@@ -16,6 +16,7 @@ partial class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRo
 public interface IDmDescribeFirstResultSetRow
 {
     String? Name { get; set; }
+	Int32 SchemaId { get; set; }
     Byte SystemTypeId { get; set; }
     Int32 UserTypeId { get; set; }
     Boolean? IsNullable { get; set; }
