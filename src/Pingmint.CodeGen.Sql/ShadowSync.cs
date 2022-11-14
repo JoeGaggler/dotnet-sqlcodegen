@@ -5724,19 +5724,23 @@ public partial class ShadowSyncProxy : IShadowSyncProxy
 	public async Task<Int32> UpdatePasswordLock2Async(String userName, String clientName) => await UpdatePasswordLock2Async(await connectionFunc(), userName, clientName);
 	public async Task<Int32> UpdateTranscriptionistPasswordLockAsync(String userName, String companyCode) => await UpdateTranscriptionistPasswordLockAsync(await connectionFunc(), userName, companyCode);
 
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
     {
         Size = size,
         Direction = direction,
         SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
     };
 
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
     {
         Size = size,
         Direction = direction,
         TypeName = typeName,
         SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
     };
 
     private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);

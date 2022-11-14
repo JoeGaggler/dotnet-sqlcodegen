@@ -205,7 +205,6 @@ internal sealed class Program
                 foreach (var parameter in parameters)
                 {
                     var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type);
-                    parameter.SqlDbType = found.SqlDbType;
                     parameter.SqlTypeId = found.SqlTypeId;
                 }
             }
@@ -283,7 +282,7 @@ internal sealed class Program
                 {
                     Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
                     Type = i.TypeName,
-                    SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
+                    IsTableType = i.IsTableType,
                     MaxLength = i.MaxLength,
                     SqlTypeId = new() { SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
                 }).ToList();
@@ -355,13 +354,12 @@ internal sealed class Program
             var memo = new ParametersMemo()
             {
                 ParameterName = i.Name ?? throw new NullReferenceException(),
-                ParameterType = i.SqlDbType,
                 ArgumentName = GetCamelCase(i.Name),
                 MaxLength = i.MaxLength,
                 SqlTypeId = i.SqlTypeId,
             };
 
-            if (i.SqlDbType == SqlDbType.Structured)
+            if (i.IsTableType)
             {
                 var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
                 schemaName ??= hostSchema;
@@ -384,12 +382,14 @@ internal sealed class Program
                 }
 
                 tableType.IsReferenced = true;
+                memo.ParameterType = SqlDbType.Structured;
                 memo.ArgumentType = $"List<{tableType.RowClassRef}>";
                 memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
                 memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
             }
             else
             {
+                memo.ParameterType = databaseMemo.Types[i.SqlTypeId].SqlDbType;
                 memo.ArgumentType = GetShortestNameForType(GetDotnetType(databaseMemo, memo.SqlTypeId));
                 memo.ArgumentExpression = GetCamelCase(i.Name);
             }

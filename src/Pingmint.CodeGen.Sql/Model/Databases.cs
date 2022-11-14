@@ -142,7 +142,7 @@ public class Parameter
     // sequence
 
     // meta
-    public System.Data.SqlDbType SqlDbType { get; set; }
+    public Boolean IsTableType { get; set; }
     public Int32? MaxLength { get; set; }
     public SqlTypeId SqlTypeId { get; set; }
 }

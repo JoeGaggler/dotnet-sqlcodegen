@@ -139,19 +139,23 @@ public partial class Proxy : IProxy
 	public async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id) => await GetTableTypeColumnsAsync(await connectionFunc(), id);
 	public async Task<List<GetTableTypesRow>> GetTableTypesAsync() => await GetTableTypesAsync(await connectionFunc());
 
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
     {
         Size = size,
         Direction = direction,
         SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
     };
 
-    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new SqlParameter(parameterName, value ?? DBNull.Value)
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
     {
         Size = size,
         Direction = direction,
         TypeName = typeName,
         SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
     };
 
     private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
