@@ -14,24 +14,6 @@ public record struct SqlTypeId : IComparable<SqlTypeId>
     }
 }
 
-public class DatabaseTypesMeta
-{
-    public List<DatabaseTypeMeta> Types { get; set; } = new();
-}
-
-public class DatabaseTypeMeta
-{
-    public String SqlName { get; set; }
-    public SqlTypeId SqlTypeId { get; set; }
-    public SqlDbType SqlDbType { get; set; }
-    public Type DotnetType { get; set; }
-}
-
-public class ResultSetMeta
-{
-    public List<Column>? Columns { get; set; }
-}
-
 public class Column
 {
     public String Name { get; set; }

@@ -109,18 +109,16 @@ internal sealed class Program
             ClassName = database.ClassName ?? GetPascalCase(sqlDatabaseName),
         };
 
-        await PopulateTypesAsync(sql, database, databaseMemo);
-        await PopulateTableTypesAsync(sql, database, databaseMemo);
+        await PopulateTypesAsync(sql, databaseMemo);
+        await PopulateTableTypesAsync(sql, databaseMemo);
         await PopulateStatementsAsync(sql, database, databaseMemo);
         await PopulateProceduresAsync(sql, database, databaseMemo);
 
         return databaseMemo;
     }
 
-    private static async Task PopulateTypesAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
+    private static async Task PopulateTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
     {
-        // TODO: OLD
-        var allTypes = database.TODO_AllTypes = new();
         foreach (var type in await Proxy.GetSysTypesAsync(sql))
         {
             SqlDbType sqlDbType;
@@ -133,39 +131,22 @@ internal sealed class Program
                 continue; // TODO: type not supported
             }
 
-            var newType = new DatabaseTypeMeta()
+            var sqlTypeId = new SqlTypeId() { SystemTypeId = type.SystemTypeId, UserTypeId = type.UserTypeId };
+            var dotnetType = GetDotnetType(sqlDbType);
+
+            databaseMemo.Types.Add(sqlTypeId, new()
             {
                 SqlName = type.Name,
-                SqlTypeId = new() { SystemTypeId = type.SystemTypeId, UserTypeId = type.UserTypeId },
                 SqlDbType = sqlDbType,
-            };
-
-            newType.DotnetType = GetDotnetType(newType.SqlDbType);
-
-            allTypes.Types.Add(newType);
-        }
-
-        // TODO: NEW
-        foreach (var type in database.TODO_AllTypes.Types)
-        {
-            databaseMemo.Types.Add(type.SqlTypeId, new()
-            {
-                SqlName = type.SqlName,
-                SqlDbType = type.SqlDbType,
-                SqlTypeId = type.SqlTypeId,
-                DotnetType = type.DotnetType,
+                SqlTypeId = sqlTypeId,
+                DotnetType = dotnetType,
             });
         }
     }
 
-    private static async Task PopulateTableTypesAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
+    private static async Task PopulateTableTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
     {
-        // TODO: OLD
-        var tableTypes = await GetTableTypesForDatabaseAsync(sql);
-        database.TableTypes = new() { Items = tableTypes };
-
-        // TODO: NEW
-        foreach (var tableType in tableTypes)
+        foreach (var tableType in await GetTableTypesForDatabaseAsync(sql))
         {
             var schemaName = tableType.SchemaName;
             if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
@@ -204,29 +185,20 @@ internal sealed class Program
             // TODO: OLD
             foreach (var statement in statements)
             {
-                statement.ResultSet = new ResultSetMeta() // TODO: same as procedure
-                {
-                    Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text)),
-                };
+                var columns = statement.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text));
 
                 if (statement.Parameters?.Items is { } parameters)
                 {
                     foreach (var parameter in parameters)
                     {
-                        var found = database.TODO_AllTypes.Types.First(i => i.SqlName == parameter.Type);
+                        var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type);
                         parameter.SqlDbType = found.SqlDbType;
                         parameter.SqlTypeId = found.SqlTypeId;
                     }
                 }
-            }
 
-            // TODO: NEW
-            foreach (var statement in statements)
-            {
                 var name = statement.Name ?? throw new NullReferenceException();
-                var resultSet = statement.ResultSet ?? throw new NullReferenceException();
                 var commandText = statement.Text ?? throw new NullReferenceException();
-                var columns = statement.ResultSet.Columns ?? throw new NullReferenceException();
 
                 Boolean isNonQuery;
                 String? rowClassName;
@@ -238,7 +210,7 @@ internal sealed class Program
                     {
                         Name = rowClassName,
                     };
-                    PopulateRecordProperties(databaseMemo, recordMemo, statement.ResultSet.Columns);
+                    PopulateRecordProperties(databaseMemo, recordMemo, statement.Columns);
                 }
                 else
                 {
@@ -302,10 +274,7 @@ internal sealed class Program
 
                     proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
 
-                    proc.ResultSet = new ResultSetMeta()
-                    {
-                        Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId)),
-                    };
+                    proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
                 }
             }
             foreach (var item in remove) { procs.Remove(item); }
@@ -318,7 +287,7 @@ internal sealed class Program
                 if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
 
                 var name = proc.Name ?? throw new NullReferenceException();
-                var columns = proc.ResultSet?.Columns ?? throw new NullReferenceException();
+                var columns = proc.Columns ?? throw new NullReferenceException();
 
                 Boolean isNonQuery;
                 String? rowClassName;
@@ -330,7 +299,7 @@ internal sealed class Program
                     {
                         Name = rowClassName,
                     };
-                    PopulateRecordProperties(databaseMemo, recordMemo, proc.ResultSet.Columns);
+                    PopulateRecordProperties(databaseMemo, recordMemo, proc.Columns);
                 }
                 else
                 {
@@ -355,7 +324,6 @@ internal sealed class Program
             }
         }
     }
-
     private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Column> columns)
     {
         var props = recordMemo.Properties;
@@ -370,7 +338,6 @@ internal sealed class Program
             props.Add(prop);
         }
     }
-
     private static List<ParametersMemo> GetCommandParameters(String? hostSchema, List<Parameter> parameters, DatabaseMemo databaseMemo)
     {
         var memos = new List<ParametersMemo>();

@@ -9,6 +9,8 @@ namespace Pingmint.CodeGen.Sql;
 
 public partial interface IProxy
 {
+	Task<List<EchoScopes2Row>> EchoScopes2Async(List<ScopesRow> scopes1, List<ScopesRow> scopes2);
+	Task<Int32> InsertFooAsync(Int32 val);
 	Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text);
 	Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid);
 	Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id);
@@ -20,6 +22,29 @@ public partial interface IProxy
 	Task<List<GetTableTypesRow>> GetTableTypesAsync();
 }
 
+public partial class EchoScopes2Row
+{
+	public String Scope { get; set; }
+}
+public partial class ScopesRow // pingmint.Scopes
+{
+	public String Scope { get; set; }
+}
+public sealed partial class ScopesRowDataTable : DataTable
+{
+	public ScopesRowDataTable() : this(new List<ScopesRow>()) { }
+	public ScopesRowDataTable(List<ScopesRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Scope", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
+		foreach (var row in rows)
+		{
+			var scope = String.IsNullOrEmpty(row.Scope) || row.Scope.Length <= 50 ? row.Scope : row.Scope.Remove(50);
+			base.Rows.Add(scope);
+		}
+	}
+}
 public partial class DmDescribeFirstResultSetForObjectRow
 {
 	public String? Name { get; set; }
@@ -102,6 +127,8 @@ public partial class Proxy : IProxy
 		this.connectionFunc = connectionFunc;
 	}
 
+	public async Task<List<EchoScopes2Row>> EchoScopes2Async(List<ScopesRow> scopes1, List<ScopesRow> scopes2) => await EchoScopes2Async(await connectionFunc(), scopes1, scopes2);
+	public async Task<Int32> InsertFooAsync(Int32 val) => await InsertFooAsync(await connectionFunc(), val);
 	public async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text) => await DmDescribeFirstResultSetAsync(await connectionFunc(), text);
 	public async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid) => await DmDescribeFirstResultSetForObjectAsync(await connectionFunc(), objectid);
 	public async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id) => await GetParametersForObjectAsync(await connectionFunc(), id);
@@ -134,6 +161,41 @@ public partial class Proxy : IProxy
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
+
+	public static Task<List<EchoScopes2Row>> EchoScopes2Async(SqlConnection connection, List<ScopesRow> scopes1, List<ScopesRow> scopes2) => EchoScopes2Async(connection, scopes1, scopes2, CancellationToken.None);
+	public static async Task<List<EchoScopes2Row>> EchoScopes2Async(SqlConnection connection, List<ScopesRow> scopes1, List<ScopesRow> scopes2, CancellationToken cancellationToken)
+	{
+		using SqlCommand cmd = CreateStoredProcedure(connection, "tempdb.pingmint.echo_scopes2");
+
+		cmd.Parameters.Add(CreateParameter("@scopes1", new ScopesRowDataTable(scopes1), SqlDbType.Structured, "pingmint.Scopes"));
+		cmd.Parameters.Add(CreateParameter("@scopes2", new ScopesRowDataTable(scopes2), SqlDbType.Structured, "pingmint.Scopes"));
+
+		var result = new List<EchoScopes2Row>();
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
+		{
+			int ordScope = reader.GetOrdinal("Scope");
+
+			do
+			{
+				result.Add(new EchoScopes2Row
+				{
+					Scope = GetNonNullField<String>(reader, ordScope),
+				});
+			} while (await reader.ReadAsync(cancellationToken));
+		}
+		return result;
+	}
+
+	public static Task<Int32> InsertFooAsync(SqlConnection connection, Int32 val) => InsertFooAsync(connection, val, CancellationToken.None);
+	public static async Task<Int32> InsertFooAsync(SqlConnection connection, Int32 val, CancellationToken cancellationToken)
+	{
+		using SqlCommand cmd = CreateStoredProcedure(connection, "tempdb.pingmint.insert_foo");
+
+		cmd.Parameters.Add(CreateParameter("@val", val, SqlDbType.Int, 4));
+
+		return await cmd.ExecuteNonQueryAsync(cancellationToken);
+	}
 
 	public static Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text) => DmDescribeFirstResultSetAsync(connection, text, CancellationToken.None);
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, CancellationToken cancellationToken)

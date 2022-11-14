@@ -69,24 +69,10 @@ public class DatabasesItem
     // mapping
     public String? SqlName { get; set; }
     public String? ClassName { get; set; }
-    public DatabaseItemTableTypes? TableTypes { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence
-
-    // meta
-    public DatabaseTypesMeta TODO_AllTypes { get; set; }
-}
-
-public class DatabaseItemTableTypes
-{
-    // scalar
-
-    // mapping
-
-    // sequence
-    public List<TableType>? Items { get; set; }
 }
 
 public class TableType
@@ -128,7 +114,7 @@ public class Procedure
     // meta
     public String? Name { get; set; }
     public String? Schema { get; set; }
-    public ResultSetMeta ResultSet { get; set; }
+    public List<Column>? Columns { get; set; }
 }
 
 public class DatabasesItemStatements
@@ -153,7 +139,7 @@ public class Statement
     // sequence
 
     // meta
-    public ResultSetMeta ResultSet { get; set; }
+    public List<Column>? Columns { get; set; }
 }
 
 public class Parameters
