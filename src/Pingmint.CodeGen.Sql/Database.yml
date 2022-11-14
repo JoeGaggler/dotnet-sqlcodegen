@@ -5,11 +5,11 @@ csharp:
 databases:
   - tempdb:
       class: TempDb
-      procedures:
+      #procedures:
       #   - pingmint.insert_foo
       #   - pingmint.echo_text
       #   - pingmint.echo_scopes2
-        - pingmint.*
+      #   - pingmint.*
       statements:
         - name: DmDescribeFirstResultSetForObject
           text: |
