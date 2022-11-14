@@ -39,7 +39,7 @@ public class DatabaseMemo
     public String ClassName { get; set; }
 
     public SortedDictionary<String, RecordMemo> Records { get; } = new();
-    public SortedDictionary<String, SchemaMemo> Schemas { get; } = new();
+    public SortedDictionary<Int32, SchemaMemo> Schemas { get; } = new();
     public SortedDictionary<String, CommandMemo> Statements { get; } = new();
     public SortedDictionary<SqlTypeId, TypeMemo> Types { get; } = new();
 }
@@ -54,12 +54,13 @@ public class TypeMemo
 
 public class SchemaMemo
 {
+    public Int32 SchemaId { get; set; }
     public String SqlName { get; set; }
     public String ClassName { get; set; }
 
+    public SortedDictionary<SqlTypeId, TableTypeMemo> TableTypes { get; } = new();
     public SortedDictionary<String, CommandMemo> Procedures { get; } = new();
     public SortedDictionary<String, RecordMemo> Records { get; } = new();
-    public SortedDictionary<String, TableTypeMemo> TableTypes { get; } = new();
 }
 
 public class RecordMemo

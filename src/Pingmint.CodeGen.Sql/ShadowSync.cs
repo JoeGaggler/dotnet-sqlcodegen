@@ -554,415 +554,6 @@ public partial class UniqueidentifierTableTypeRow // dbo.uniqueidentifier_TableT
 {
 	public Guid ID { get; set; }
 }
-public sealed partial class AssociatesTableRowDataTable : DataTable
-{
-	public AssociatesTableRowDataTable() : this(new List<AssociatesTableRow>()) { }
-	public AssociatesTableRowDataTable(List<AssociatesTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		foreach (var row in rows)
-		{
-			var clientID = row.ClientID;
-			var associateID = row.AssociateID;
-			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 50 ? row.AssociateClientCode : row.AssociateClientCode.Remove(50);
-			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
-			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 100 ? row.NameFirst : row.NameFirst.Remove(100);
-			var nameMiddle = String.IsNullOrEmpty(row.NameMiddle) || row.NameMiddle.Length <= 100 ? row.NameMiddle : row.NameMiddle.Remove(100);
-			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 100 ? row.NameLast : row.NameLast.Remove(100);
-			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 50 ? row.NameSuffix : row.NameSuffix.Remove(50);
-			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
-			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 100 ? row.Specialty : row.Specialty.Remove(100);
-			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
-			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 300 ? row.Address1 : row.Address1.Remove(300);
-			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 300 ? row.Address2 : row.Address2.Remove(300);
-			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 300 ? row.Address3 : row.Address3.Remove(300);
-			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 300 ? row.City : row.City.Remove(300);
-			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 50 ? row.State : row.State.Remove(50);
-			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 50 ? row.ZipCode : row.ZipCode.Remove(50);
-			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
-			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
-			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
-			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 100 ? row.Email : row.Email.Remove(100);
-			var referralUserID = row.ReferralUserID;
-			var useAutoFax = row.UseAutoFax;
-			var referralLocationID = row.ReferralLocationID;
-			var exportType = row.ExportType;
-			var associateTypeID = row.AssociateTypeID;
-			var isPrimary = row.IsPrimary;
-			var isInformal = row.IsInformal;
-			var iSPCP = row.ISPCP;
-			var addToDB = row.AddToDB;
-			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
-			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
-		}
-	}
-}
-public sealed partial class AssociatesTable2RowDataTable : DataTable
-{
-	public AssociatesTable2RowDataTable() : this(new List<AssociatesTable2Row>()) { }
-	public AssociatesTable2RowDataTable(List<AssociatesTable2Row> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 30 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 3 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 9 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		foreach (var row in rows)
-		{
-			var clientID = row.ClientID;
-			var associateID = row.AssociateID;
-			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 20 ? row.AssociateClientCode : row.AssociateClientCode.Remove(20);
-			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
-			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 20 ? row.NameFirst : row.NameFirst.Remove(20);
-			var nameMiddle = row.NameMiddle;
-			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 20 ? row.NameLast : row.NameLast.Remove(20);
-			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 10 ? row.NameSuffix : row.NameSuffix.Remove(10);
-			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
-			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 30 ? row.Specialty : row.Specialty.Remove(30);
-			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
-			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 50 ? row.Address1 : row.Address1.Remove(50);
-			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 50 ? row.Address2 : row.Address2.Remove(50);
-			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 50 ? row.Address3 : row.Address3.Remove(50);
-			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 20 ? row.City : row.City.Remove(20);
-			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 3 ? row.State : row.State.Remove(3);
-			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 9 ? row.ZipCode : row.ZipCode.Remove(9);
-			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
-			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
-			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
-			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 50 ? row.Email : row.Email.Remove(50);
-			var referralUserID = row.ReferralUserID;
-			var useAutoFax = row.UseAutoFax;
-			var referralLocationID = row.ReferralLocationID;
-			var exportType = row.ExportType;
-			var associateTypeID = row.AssociateTypeID;
-			var isPrimary = row.IsPrimary;
-			var isInformal = row.IsInformal;
-			var iSPCP = row.ISPCP;
-			var addToDB = row.AddToDB;
-			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
-			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
-		}
-	}
-}
-public sealed partial class AssociatesTable3RowDataTable : DataTable
-{
-	public AssociatesTable3RowDataTable() : this(new List<AssociatesTable3Row>()) { }
-	public AssociatesTable3RowDataTable(List<AssociatesTable3Row> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 30 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
-		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		foreach (var row in rows)
-		{
-			var clientID = row.ClientID;
-			var associateID = row.AssociateID;
-			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 20 ? row.AssociateClientCode : row.AssociateClientCode.Remove(20);
-			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
-			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 20 ? row.NameFirst : row.NameFirst.Remove(20);
-			var nameMiddle = row.NameMiddle;
-			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 20 ? row.NameLast : row.NameLast.Remove(20);
-			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 10 ? row.NameSuffix : row.NameSuffix.Remove(10);
-			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
-			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 30 ? row.Specialty : row.Specialty.Remove(30);
-			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
-			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 300 ? row.Address1 : row.Address1.Remove(300);
-			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 300 ? row.Address2 : row.Address2.Remove(300);
-			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 300 ? row.Address3 : row.Address3.Remove(300);
-			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 300 ? row.City : row.City.Remove(300);
-			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 50 ? row.State : row.State.Remove(50);
-			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 50 ? row.ZipCode : row.ZipCode.Remove(50);
-			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
-			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
-			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
-			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 50 ? row.Email : row.Email.Remove(50);
-			var referralUserID = row.ReferralUserID;
-			var useAutoFax = row.UseAutoFax;
-			var referralLocationID = row.ReferralLocationID;
-			var exportType = row.ExportType;
-			var associateTypeID = row.AssociateTypeID;
-			var isPrimary = row.IsPrimary;
-			var isInformal = row.IsInformal;
-			var iSPCP = row.ISPCP;
-			var addToDB = row.AddToDB;
-			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
-			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
-		}
-	}
-}
-public sealed partial class IntTableTypeRowDataTable : DataTable
-{
-	public IntTableTypeRowDataTable() : this(new List<IntTableTypeRow>()) { }
-	public IntTableTypeRowDataTable(List<IntTableTypeRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		foreach (var row in rows)
-		{
-			var iD = row.ID;
-			base.Rows.Add(iD);
-		}
-	}
-}
-public sealed partial class NameValuePairsTableRowDataTable : DataTable
-{
-	public NameValuePairsTableRowDataTable() : this(new List<NameValuePairsTableRow>()) { }
-	public NameValuePairsTableRowDataTable(List<NameValuePairsTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Name", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Value", DataType = typeof(String), AllowDBNull = true, MaxLength = 1000 });
-		foreach (var row in rows)
-		{
-			var name = String.IsNullOrEmpty(row.Name) || row.Name.Length <= 50 ? row.Name : row.Name.Remove(50);
-			var value = String.IsNullOrEmpty(row.Value) || row.Value.Length <= 1000 ? row.Value : row.Value.Remove(1000);
-			base.Rows.Add(name, value);
-		}
-	}
-}
-public sealed partial class OrdersTableRowDataTable : DataTable
-{
-	public OrdersTableRowDataTable() : this(new List<OrdersTableRow>()) { }
-	public OrdersTableRowDataTable(List<OrdersTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Order_ID", DataType = typeof(Guid), AllowDBNull = true, MaxLength = 16 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Patient_ID", DataType = typeof(String), AllowDBNull = false, MaxLength = 20 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Appointment_ID", DataType = typeof(Guid), AllowDBNull = true, MaxLength = 16 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Account_Number", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Order_Number", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Accession_Number", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Order_Status_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 2 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Date_Observed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 7 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Date_Requested", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 7 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Item_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Description", DataType = typeof(String), AllowDBNull = true, MaxLength = 500 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Notes", DataType = typeof(String), AllowDBNull = true, MaxLength = 1000 });
-		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_4", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_5", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		foreach (var row in rows)
-		{
-			var orderID = row.OrderID;
-			var patientID = String.IsNullOrEmpty(row.PatientID) || row.PatientID.Length <= 20 ? row.PatientID : row.PatientID.Remove(20);
-			var appointmentID = row.AppointmentID;
-			var accountNumber = String.IsNullOrEmpty(row.AccountNumber) || row.AccountNumber.Length <= 50 ? row.AccountNumber : row.AccountNumber.Remove(50);
-			var orderNumber = String.IsNullOrEmpty(row.OrderNumber) || row.OrderNumber.Length <= 50 ? row.OrderNumber : row.OrderNumber.Remove(50);
-			var accessionNumber = String.IsNullOrEmpty(row.AccessionNumber) || row.AccessionNumber.Length <= 50 ? row.AccessionNumber : row.AccessionNumber.Remove(50);
-			var orderStatusCode = String.IsNullOrEmpty(row.OrderStatusCode) || row.OrderStatusCode.Length <= 2 ? row.OrderStatusCode : row.OrderStatusCode.Remove(2);
-			var dateObserved = row.DateObserved;
-			var dateRequested = row.DateRequested;
-			var itemCode = String.IsNullOrEmpty(row.ItemCode) || row.ItemCode.Length <= 50 ? row.ItemCode : row.ItemCode.Remove(50);
-			var description = String.IsNullOrEmpty(row.Description) || row.Description.Length <= 500 ? row.Description : row.Description.Remove(500);
-			var notes = String.IsNullOrEmpty(row.Notes) || row.Notes.Length <= 1000 ? row.Notes : row.Notes.Remove(1000);
-			var userField1 = String.IsNullOrEmpty(row.UserField1) || row.UserField1.Length <= 100 ? row.UserField1 : row.UserField1.Remove(100);
-			var userField2 = String.IsNullOrEmpty(row.UserField2) || row.UserField2.Length <= 100 ? row.UserField2 : row.UserField2.Remove(100);
-			var userField3 = String.IsNullOrEmpty(row.UserField3) || row.UserField3.Length <= 100 ? row.UserField3 : row.UserField3.Remove(100);
-			var userField4 = String.IsNullOrEmpty(row.UserField4) || row.UserField4.Length <= 100 ? row.UserField4 : row.UserField4.Remove(100);
-			var userField5 = String.IsNullOrEmpty(row.UserField5) || row.UserField5.Length <= 100 ? row.UserField5 : row.UserField5.Remove(100);
-			base.Rows.Add(orderID, patientID, appointmentID, accountNumber, orderNumber, accessionNumber, orderStatusCode, dateObserved, dateRequested, itemCode, description, notes, userField1, userField2, userField3, userField4, userField5);
-		}
-	}
-}
-public sealed partial class QAFeedbackRatingsTableRowDataTable : DataTable
-{
-	public QAFeedbackRatingsTableRowDataTable() : this(new List<QAFeedbackRatingsTableRow>()) { }
-	public QAFeedbackRatingsTableRowDataTable(List<QAFeedbackRatingsTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "QARating_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Comment", DataType = typeof(String), AllowDBNull = true, MaxLength = 500 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Error_Marker", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Seconds", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		foreach (var row in rows)
-		{
-			var qARatingID = row.QARatingID;
-			var comment = String.IsNullOrEmpty(row.Comment) || row.Comment.Length <= 500 ? row.Comment : row.Comment.Remove(500);
-			var errorMarker = String.IsNullOrEmpty(row.ErrorMarker) || row.ErrorMarker.Length <= 50 ? row.ErrorMarker : row.ErrorMarker.Remove(50);
-			var seconds = row.Seconds;
-			base.Rows.Add(qARatingID, comment, errorMarker, seconds);
-		}
-	}
-}
-public sealed partial class SignaturesTableRowDataTable : DataTable
-{
-	public SignaturesTableRowDataTable() : this(new List<SignaturesTableRow>()) { }
-	public SignaturesTableRowDataTable(List<SignaturesTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_FullName", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Sign_Order", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Date_Signed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 8 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Signed_By_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_AutoCompleted", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		foreach (var row in rows)
-		{
-			var signatureUserID = row.SignatureUserID;
-			var signatureUserFullName = String.IsNullOrEmpty(row.SignatureUserFullName) || row.SignatureUserFullName.Length <= 100 ? row.SignatureUserFullName : row.SignatureUserFullName.Remove(100);
-			var signOrder = row.SignOrder;
-			var dateSigned = row.DateSigned;
-			var signedByUserID = row.SignedByUserID;
-			var isAutoCompleted = row.IsAutoCompleted;
-			base.Rows.Add(signatureUserID, signatureUserFullName, signOrder, dateSigned, signedByUserID, isAutoCompleted);
-		}
-	}
-}
-public sealed partial class SignaturesTable2RowDataTable : DataTable
-{
-	public SignaturesTable2RowDataTable() : this(new List<SignaturesTable2Row>()) { }
-	public SignaturesTable2RowDataTable(List<SignaturesTable2Row> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_FullName", DataType = typeof(String), AllowDBNull = true, MaxLength = 350 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Sign_Order", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Date_Signed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 8 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Signed_By_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Is_AutoCompleted", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
-		foreach (var row in rows)
-		{
-			var signatureUserID = row.SignatureUserID;
-			var signatureUserFullName = String.IsNullOrEmpty(row.SignatureUserFullName) || row.SignatureUserFullName.Length <= 350 ? row.SignatureUserFullName : row.SignatureUserFullName.Remove(350);
-			var signOrder = row.SignOrder;
-			var dateSigned = row.DateSigned;
-			var signedByUserID = row.SignedByUserID;
-			var isAutoCompleted = row.IsAutoCompleted;
-			base.Rows.Add(signatureUserID, signatureUserFullName, signOrder, dateSigned, signedByUserID, isAutoCompleted);
-		}
-	}
-}
-public sealed partial class TagsTableRowDataTable : DataTable
-{
-	public TagsTableRowDataTable() : this(new List<TagsTableRow>()) { }
-	public TagsTableRowDataTable(List<TagsTableRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "Tag_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Modified_User", DataType = typeof(String), AllowDBNull = false, MaxLength = 26 });
-		base.Columns.Add(new DataColumn() { ColumnName = "Modified_Date", DataType = typeof(DateTime), AllowDBNull = false, MaxLength = 8 });
-		foreach (var row in rows)
-		{
-			var tagID = row.TagID;
-			var modifiedUser = String.IsNullOrEmpty(row.ModifiedUser) || row.ModifiedUser.Length <= 26 ? row.ModifiedUser : row.ModifiedUser.Remove(26);
-			var modifiedDate = row.ModifiedDate;
-			base.Rows.Add(tagID, modifiedUser, modifiedDate);
-		}
-	}
-}
-public sealed partial class UniqueidentifierTableTypeRowDataTable : DataTable
-{
-	public UniqueidentifierTableTypeRowDataTable() : this(new List<UniqueidentifierTableTypeRow>()) { }
-	public UniqueidentifierTableTypeRowDataTable(List<UniqueidentifierTableTypeRow> rows) : base()
-	{
-		ArgumentNullException.ThrowIfNull(rows);
-
-		base.Columns.Add(new DataColumn() { ColumnName = "ID", DataType = typeof(Guid), AllowDBNull = false, MaxLength = 16 });
-		foreach (var row in rows)
-		{
-			var iD = row.ID;
-			base.Rows.Add(iD);
-		}
-	}
-}
 public partial class AddCaseAttachmentRow
 {
 	public Int32? CaseAttachmentID { get; set; }
@@ -5335,6 +4926,415 @@ public partial class UpdateCompanyUserPasswordRow
 {
 	public String? FailureDescription { get; set; }
 	public Int32? LineCount { get; set; }
+}
+public sealed partial class AssociatesTableRowDataTable : DataTable
+{
+	public AssociatesTableRowDataTable() : this(new List<AssociatesTableRow>()) { }
+	public AssociatesTableRowDataTable(List<AssociatesTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		foreach (var row in rows)
+		{
+			var clientID = row.ClientID;
+			var associateID = row.AssociateID;
+			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 50 ? row.AssociateClientCode : row.AssociateClientCode.Remove(50);
+			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
+			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 100 ? row.NameFirst : row.NameFirst.Remove(100);
+			var nameMiddle = String.IsNullOrEmpty(row.NameMiddle) || row.NameMiddle.Length <= 100 ? row.NameMiddle : row.NameMiddle.Remove(100);
+			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 100 ? row.NameLast : row.NameLast.Remove(100);
+			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 50 ? row.NameSuffix : row.NameSuffix.Remove(50);
+			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
+			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 100 ? row.Specialty : row.Specialty.Remove(100);
+			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
+			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 300 ? row.Address1 : row.Address1.Remove(300);
+			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 300 ? row.Address2 : row.Address2.Remove(300);
+			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 300 ? row.Address3 : row.Address3.Remove(300);
+			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 300 ? row.City : row.City.Remove(300);
+			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 50 ? row.State : row.State.Remove(50);
+			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 50 ? row.ZipCode : row.ZipCode.Remove(50);
+			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
+			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
+			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
+			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 100 ? row.Email : row.Email.Remove(100);
+			var referralUserID = row.ReferralUserID;
+			var useAutoFax = row.UseAutoFax;
+			var referralLocationID = row.ReferralLocationID;
+			var exportType = row.ExportType;
+			var associateTypeID = row.AssociateTypeID;
+			var isPrimary = row.IsPrimary;
+			var isInformal = row.IsInformal;
+			var iSPCP = row.ISPCP;
+			var addToDB = row.AddToDB;
+			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
+			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
+		}
+	}
+}
+public sealed partial class AssociatesTable2RowDataTable : DataTable
+{
+	public AssociatesTable2RowDataTable() : this(new List<AssociatesTable2Row>()) { }
+	public AssociatesTable2RowDataTable(List<AssociatesTable2Row> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 30 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 3 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 9 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		foreach (var row in rows)
+		{
+			var clientID = row.ClientID;
+			var associateID = row.AssociateID;
+			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 20 ? row.AssociateClientCode : row.AssociateClientCode.Remove(20);
+			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
+			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 20 ? row.NameFirst : row.NameFirst.Remove(20);
+			var nameMiddle = row.NameMiddle;
+			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 20 ? row.NameLast : row.NameLast.Remove(20);
+			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 10 ? row.NameSuffix : row.NameSuffix.Remove(10);
+			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
+			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 30 ? row.Specialty : row.Specialty.Remove(30);
+			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
+			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 50 ? row.Address1 : row.Address1.Remove(50);
+			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 50 ? row.Address2 : row.Address2.Remove(50);
+			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 50 ? row.Address3 : row.Address3.Remove(50);
+			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 20 ? row.City : row.City.Remove(20);
+			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 3 ? row.State : row.State.Remove(3);
+			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 9 ? row.ZipCode : row.ZipCode.Remove(9);
+			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
+			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
+			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
+			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 50 ? row.Email : row.Email.Remove(50);
+			var referralUserID = row.ReferralUserID;
+			var useAutoFax = row.UseAutoFax;
+			var referralLocationID = row.ReferralLocationID;
+			var exportType = row.ExportType;
+			var associateTypeID = row.AssociateTypeID;
+			var isPrimary = row.IsPrimary;
+			var isInformal = row.IsInformal;
+			var iSPCP = row.ISPCP;
+			var addToDB = row.AddToDB;
+			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
+			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
+		}
+	}
+}
+public sealed partial class IntTableTypeRowDataTable : DataTable
+{
+	public IntTableTypeRowDataTable() : this(new List<IntTableTypeRow>()) { }
+	public IntTableTypeRowDataTable(List<IntTableTypeRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		foreach (var row in rows)
+		{
+			var iD = row.ID;
+			base.Rows.Add(iD);
+		}
+	}
+}
+public sealed partial class NameValuePairsTableRowDataTable : DataTable
+{
+	public NameValuePairsTableRowDataTable() : this(new List<NameValuePairsTableRow>()) { }
+	public NameValuePairsTableRowDataTable(List<NameValuePairsTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Name", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Value", DataType = typeof(String), AllowDBNull = true, MaxLength = 1000 });
+		foreach (var row in rows)
+		{
+			var name = String.IsNullOrEmpty(row.Name) || row.Name.Length <= 50 ? row.Name : row.Name.Remove(50);
+			var value = String.IsNullOrEmpty(row.Value) || row.Value.Length <= 1000 ? row.Value : row.Value.Remove(1000);
+			base.Rows.Add(name, value);
+		}
+	}
+}
+public sealed partial class OrdersTableRowDataTable : DataTable
+{
+	public OrdersTableRowDataTable() : this(new List<OrdersTableRow>()) { }
+	public OrdersTableRowDataTable(List<OrdersTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Order_ID", DataType = typeof(Guid), AllowDBNull = true, MaxLength = 16 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Patient_ID", DataType = typeof(String), AllowDBNull = false, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Appointment_ID", DataType = typeof(Guid), AllowDBNull = true, MaxLength = 16 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Account_Number", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Order_Number", DataType = typeof(String), AllowDBNull = false, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Accession_Number", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Order_Status_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 2 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Date_Observed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 7 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Date_Requested", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 7 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Item_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Description", DataType = typeof(String), AllowDBNull = true, MaxLength = 500 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Notes", DataType = typeof(String), AllowDBNull = true, MaxLength = 1000 });
+		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_4", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "User_Field_5", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		foreach (var row in rows)
+		{
+			var orderID = row.OrderID;
+			var patientID = String.IsNullOrEmpty(row.PatientID) || row.PatientID.Length <= 20 ? row.PatientID : row.PatientID.Remove(20);
+			var appointmentID = row.AppointmentID;
+			var accountNumber = String.IsNullOrEmpty(row.AccountNumber) || row.AccountNumber.Length <= 50 ? row.AccountNumber : row.AccountNumber.Remove(50);
+			var orderNumber = String.IsNullOrEmpty(row.OrderNumber) || row.OrderNumber.Length <= 50 ? row.OrderNumber : row.OrderNumber.Remove(50);
+			var accessionNumber = String.IsNullOrEmpty(row.AccessionNumber) || row.AccessionNumber.Length <= 50 ? row.AccessionNumber : row.AccessionNumber.Remove(50);
+			var orderStatusCode = String.IsNullOrEmpty(row.OrderStatusCode) || row.OrderStatusCode.Length <= 2 ? row.OrderStatusCode : row.OrderStatusCode.Remove(2);
+			var dateObserved = row.DateObserved;
+			var dateRequested = row.DateRequested;
+			var itemCode = String.IsNullOrEmpty(row.ItemCode) || row.ItemCode.Length <= 50 ? row.ItemCode : row.ItemCode.Remove(50);
+			var description = String.IsNullOrEmpty(row.Description) || row.Description.Length <= 500 ? row.Description : row.Description.Remove(500);
+			var notes = String.IsNullOrEmpty(row.Notes) || row.Notes.Length <= 1000 ? row.Notes : row.Notes.Remove(1000);
+			var userField1 = String.IsNullOrEmpty(row.UserField1) || row.UserField1.Length <= 100 ? row.UserField1 : row.UserField1.Remove(100);
+			var userField2 = String.IsNullOrEmpty(row.UserField2) || row.UserField2.Length <= 100 ? row.UserField2 : row.UserField2.Remove(100);
+			var userField3 = String.IsNullOrEmpty(row.UserField3) || row.UserField3.Length <= 100 ? row.UserField3 : row.UserField3.Remove(100);
+			var userField4 = String.IsNullOrEmpty(row.UserField4) || row.UserField4.Length <= 100 ? row.UserField4 : row.UserField4.Remove(100);
+			var userField5 = String.IsNullOrEmpty(row.UserField5) || row.UserField5.Length <= 100 ? row.UserField5 : row.UserField5.Remove(100);
+			base.Rows.Add(orderID, patientID, appointmentID, accountNumber, orderNumber, accessionNumber, orderStatusCode, dateObserved, dateRequested, itemCode, description, notes, userField1, userField2, userField3, userField4, userField5);
+		}
+	}
+}
+public sealed partial class QAFeedbackRatingsTableRowDataTable : DataTable
+{
+	public QAFeedbackRatingsTableRowDataTable() : this(new List<QAFeedbackRatingsTableRow>()) { }
+	public QAFeedbackRatingsTableRowDataTable(List<QAFeedbackRatingsTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "QARating_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Comment", DataType = typeof(String), AllowDBNull = true, MaxLength = 500 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Error_Marker", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Seconds", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		foreach (var row in rows)
+		{
+			var qARatingID = row.QARatingID;
+			var comment = String.IsNullOrEmpty(row.Comment) || row.Comment.Length <= 500 ? row.Comment : row.Comment.Remove(500);
+			var errorMarker = String.IsNullOrEmpty(row.ErrorMarker) || row.ErrorMarker.Length <= 50 ? row.ErrorMarker : row.ErrorMarker.Remove(50);
+			var seconds = row.Seconds;
+			base.Rows.Add(qARatingID, comment, errorMarker, seconds);
+		}
+	}
+}
+public sealed partial class SignaturesTableRowDataTable : DataTable
+{
+	public SignaturesTableRowDataTable() : this(new List<SignaturesTableRow>()) { }
+	public SignaturesTableRowDataTable(List<SignaturesTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_FullName", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Sign_Order", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Date_Signed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 8 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Signed_By_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_AutoCompleted", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		foreach (var row in rows)
+		{
+			var signatureUserID = row.SignatureUserID;
+			var signatureUserFullName = String.IsNullOrEmpty(row.SignatureUserFullName) || row.SignatureUserFullName.Length <= 100 ? row.SignatureUserFullName : row.SignatureUserFullName.Remove(100);
+			var signOrder = row.SignOrder;
+			var dateSigned = row.DateSigned;
+			var signedByUserID = row.SignedByUserID;
+			var isAutoCompleted = row.IsAutoCompleted;
+			base.Rows.Add(signatureUserID, signatureUserFullName, signOrder, dateSigned, signedByUserID, isAutoCompleted);
+		}
+	}
+}
+public sealed partial class TagsTableRowDataTable : DataTable
+{
+	public TagsTableRowDataTable() : this(new List<TagsTableRow>()) { }
+	public TagsTableRowDataTable(List<TagsTableRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Tag_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Modified_User", DataType = typeof(String), AllowDBNull = false, MaxLength = 26 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Modified_Date", DataType = typeof(DateTime), AllowDBNull = false, MaxLength = 8 });
+		foreach (var row in rows)
+		{
+			var tagID = row.TagID;
+			var modifiedUser = String.IsNullOrEmpty(row.ModifiedUser) || row.ModifiedUser.Length <= 26 ? row.ModifiedUser : row.ModifiedUser.Remove(26);
+			var modifiedDate = row.ModifiedDate;
+			base.Rows.Add(tagID, modifiedUser, modifiedDate);
+		}
+	}
+}
+public sealed partial class UniqueidentifierTableTypeRowDataTable : DataTable
+{
+	public UniqueidentifierTableTypeRowDataTable() : this(new List<UniqueidentifierTableTypeRow>()) { }
+	public UniqueidentifierTableTypeRowDataTable(List<UniqueidentifierTableTypeRow> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "ID", DataType = typeof(Guid), AllowDBNull = false, MaxLength = 16 });
+		foreach (var row in rows)
+		{
+			var iD = row.ID;
+			base.Rows.Add(iD);
+		}
+	}
+}
+public sealed partial class AssociatesTable3RowDataTable : DataTable
+{
+	public AssociatesTable3RowDataTable() : this(new List<AssociatesTable3Row>()) { }
+	public AssociatesTable3RowDataTable(List<AssociatesTable3Row> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Client_ID", DataType = typeof(Int32), AllowDBNull = false, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Client_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Prefix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_First", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Middle", DataType = typeof(String), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Last", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Name_Suffix", DataType = typeof(String), AllowDBNull = true, MaxLength = 10 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Business_Name", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Specialty", DataType = typeof(String), AllowDBNull = true, MaxLength = 30 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Greeting", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_1", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_2", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Address_3", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "City", DataType = typeof(String), AllowDBNull = true, MaxLength = 300 });
+		base.Columns.Add(new DataColumn() { ColumnName = "State", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Zip_Code", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Country", DataType = typeof(String), AllowDBNull = true, MaxLength = 20 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Phone", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Fax", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Email", DataType = typeof(String), AllowDBNull = true, MaxLength = 50 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Use_AutoFax", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Referral_Location_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Export_Type", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Type_ID", DataType = typeof(Int16), AllowDBNull = true, MaxLength = 2 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Primary", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_Informal", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "IS_PCP", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "AddToDB", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Associate_Company", DataType = typeof(String), AllowDBNull = true, MaxLength = 100 });
+		foreach (var row in rows)
+		{
+			var clientID = row.ClientID;
+			var associateID = row.AssociateID;
+			var associateClientCode = String.IsNullOrEmpty(row.AssociateClientCode) || row.AssociateClientCode.Length <= 20 ? row.AssociateClientCode : row.AssociateClientCode.Remove(20);
+			var namePrefix = String.IsNullOrEmpty(row.NamePrefix) || row.NamePrefix.Length <= 10 ? row.NamePrefix : row.NamePrefix.Remove(10);
+			var nameFirst = String.IsNullOrEmpty(row.NameFirst) || row.NameFirst.Length <= 20 ? row.NameFirst : row.NameFirst.Remove(20);
+			var nameMiddle = row.NameMiddle;
+			var nameLast = String.IsNullOrEmpty(row.NameLast) || row.NameLast.Length <= 20 ? row.NameLast : row.NameLast.Remove(20);
+			var nameSuffix = String.IsNullOrEmpty(row.NameSuffix) || row.NameSuffix.Length <= 10 ? row.NameSuffix : row.NameSuffix.Remove(10);
+			var businessName = String.IsNullOrEmpty(row.BusinessName) || row.BusinessName.Length <= 50 ? row.BusinessName : row.BusinessName.Remove(50);
+			var specialty = String.IsNullOrEmpty(row.Specialty) || row.Specialty.Length <= 30 ? row.Specialty : row.Specialty.Remove(30);
+			var greeting = String.IsNullOrEmpty(row.Greeting) || row.Greeting.Length <= 50 ? row.Greeting : row.Greeting.Remove(50);
+			var address1 = String.IsNullOrEmpty(row.Address1) || row.Address1.Length <= 300 ? row.Address1 : row.Address1.Remove(300);
+			var address2 = String.IsNullOrEmpty(row.Address2) || row.Address2.Length <= 300 ? row.Address2 : row.Address2.Remove(300);
+			var address3 = String.IsNullOrEmpty(row.Address3) || row.Address3.Length <= 300 ? row.Address3 : row.Address3.Remove(300);
+			var city = String.IsNullOrEmpty(row.City) || row.City.Length <= 300 ? row.City : row.City.Remove(300);
+			var state = String.IsNullOrEmpty(row.State) || row.State.Length <= 50 ? row.State : row.State.Remove(50);
+			var zipCode = String.IsNullOrEmpty(row.ZipCode) || row.ZipCode.Length <= 50 ? row.ZipCode : row.ZipCode.Remove(50);
+			var country = String.IsNullOrEmpty(row.Country) || row.Country.Length <= 20 ? row.Country : row.Country.Remove(20);
+			var phone = String.IsNullOrEmpty(row.Phone) || row.Phone.Length <= 50 ? row.Phone : row.Phone.Remove(50);
+			var fax = String.IsNullOrEmpty(row.Fax) || row.Fax.Length <= 50 ? row.Fax : row.Fax.Remove(50);
+			var email = String.IsNullOrEmpty(row.Email) || row.Email.Length <= 50 ? row.Email : row.Email.Remove(50);
+			var referralUserID = row.ReferralUserID;
+			var useAutoFax = row.UseAutoFax;
+			var referralLocationID = row.ReferralLocationID;
+			var exportType = row.ExportType;
+			var associateTypeID = row.AssociateTypeID;
+			var isPrimary = row.IsPrimary;
+			var isInformal = row.IsInformal;
+			var iSPCP = row.ISPCP;
+			var addToDB = row.AddToDB;
+			var associateCompany = String.IsNullOrEmpty(row.AssociateCompany) || row.AssociateCompany.Length <= 100 ? row.AssociateCompany : row.AssociateCompany.Remove(100);
+			base.Rows.Add(clientID, associateID, associateClientCode, namePrefix, nameFirst, nameMiddle, nameLast, nameSuffix, businessName, specialty, greeting, address1, address2, address3, city, state, zipCode, country, phone, fax, email, referralUserID, useAutoFax, referralLocationID, exportType, associateTypeID, isPrimary, isInformal, iSPCP, addToDB, associateCompany);
+		}
+	}
+}
+public sealed partial class SignaturesTable2RowDataTable : DataTable
+{
+	public SignaturesTable2RowDataTable() : this(new List<SignaturesTable2Row>()) { }
+	public SignaturesTable2RowDataTable(List<SignaturesTable2Row> rows) : base()
+	{
+		ArgumentNullException.ThrowIfNull(rows);
+
+		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Signature_User_FullName", DataType = typeof(String), AllowDBNull = true, MaxLength = 350 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Sign_Order", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Date_Signed", DataType = typeof(DateTime), AllowDBNull = true, MaxLength = 8 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Signed_By_User_ID", DataType = typeof(Int32), AllowDBNull = true, MaxLength = 4 });
+		base.Columns.Add(new DataColumn() { ColumnName = "Is_AutoCompleted", DataType = typeof(Boolean), AllowDBNull = true, MaxLength = 1 });
+		foreach (var row in rows)
+		{
+			var signatureUserID = row.SignatureUserID;
+			var signatureUserFullName = String.IsNullOrEmpty(row.SignatureUserFullName) || row.SignatureUserFullName.Length <= 350 ? row.SignatureUserFullName : row.SignatureUserFullName.Remove(350);
+			var signOrder = row.SignOrder;
+			var dateSigned = row.DateSigned;
+			var signedByUserID = row.SignedByUserID;
+			var isAutoCompleted = row.IsAutoCompleted;
+			base.Rows.Add(signatureUserID, signatureUserFullName, signOrder, dateSigned, signedByUserID, isAutoCompleted);
+		}
+	}
 }
 
 public partial class ShadowSyncProxy : IShadowSyncProxy

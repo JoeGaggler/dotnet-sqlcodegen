@@ -16,6 +16,7 @@ public partial interface IProxy
 	Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id);
 	Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc);
 	Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema);
+	Task<List<GetSchemasRow>> GetSchemasAsync();
 	Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id);
 	Task<List<GetSysTypesRow>> GetSysTypesAsync();
 	Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id);
@@ -91,6 +92,11 @@ public partial class GetProceduresForSchemaRow
 	public String SchemaName { get; set; }
 	public String? ObsoleteMessage { get; set; }
 }
+public partial class GetSchemasRow
+{
+	public String Name { get; set; }
+	public Int32 SchemaId { get; set; }
+}
 public partial class GetSysTypeRow
 {
 	public Byte SystemTypeId { get; set; }
@@ -140,6 +146,7 @@ public partial class Proxy : IProxy
 	public async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id) => await GetParametersForObjectAsync(await connectionFunc(), id);
 	public async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc) => await GetProcedureForSchemaAsync(await connectionFunc(), schema, proc);
 	public async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema) => await GetProceduresForSchemaAsync(await connectionFunc(), schema);
+	public async Task<List<GetSchemasRow>> GetSchemasAsync() => await GetSchemasAsync(await connectionFunc());
 	public async Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id) => await GetSysTypeAsync(await connectionFunc(), id);
 	public async Task<List<GetSysTypesRow>> GetSysTypesAsync() => await GetSysTypesAsync(await connectionFunc());
 	public async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id) => await GetTableTypeColumnsAsync(await connectionFunc(), id);
@@ -374,6 +381,30 @@ public partial class Proxy : IProxy
 					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
 					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
 					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
+				});
+			} while (await reader.ReadAsync(cancellationToken));
+		}
+		return result;
+	}
+
+	public static Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection) => GetSchemasAsync(connection, CancellationToken.None);
+	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection, CancellationToken cancellationToken)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id FROM sys.schemas");
+
+		var result = new List<GetSchemasRow>();
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
+		{
+			int ordName = reader.GetOrdinal("name");
+			int ordSchemaId = reader.GetOrdinal("schema_id");
+
+			do
+			{
+				result.Add(new GetSchemasRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
 				});
 			} while (await reader.ReadAsync(cancellationToken));
 		}

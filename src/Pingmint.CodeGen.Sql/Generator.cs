@@ -22,7 +22,6 @@ public static class Generator
                     if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
                     CodeRecord(code, record);
                 }
-
                 foreach (var tableType in schema.TableTypes.Values)
                 {
                     if (!tableType.IsReferenced) { continue; }

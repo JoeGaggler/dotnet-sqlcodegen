@@ -111,12 +111,29 @@ internal sealed class Program
             ClassName = database.ClassName ?? GetPascalCase(sqlDatabaseName),
         };
 
+        await PopulateSchemasAsync(sql, databaseMemo);
         await PopulateTypesAsync(sql, databaseMemo);
         await PopulateTableTypesAsync(sql, databaseMemo);
         await PopulateStatementsAsync(sql, database, databaseMemo);
         await PopulateProceduresAsync(sql, database, databaseMemo);
 
         return databaseMemo;
+    }
+
+    private static async Task PopulateSchemasAsync(SqlConnection sql, DatabaseMemo databaseMemo)
+    {
+        foreach (var schema in await Proxy.GetSchemasAsync(sql))
+        {
+            int schemaId = schema.SchemaId;
+            string name = schema.Name;
+            var memo = new SchemaMemo
+            {
+                SqlName = name,
+                SchemaId = schemaId,
+                ClassName = GetPascalCase(name),
+            };
+            databaseMemo.Schemas[schemaId] = memo;
+        }
     }
 
     private static async Task PopulateTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
@@ -133,7 +150,7 @@ internal sealed class Program
                 continue; // TODO: type not supported
             }
 
-            var sqlTypeId = ((ISqlTypeId)type).SqlTypeId; // TODO: why is this cast necessary
+            var sqlTypeId = type.GetSqlTypeId();
             var dotnetType = GetDotnetType(sqlDbType);
 
             databaseMemo.Types.Add(sqlTypeId, new TypeMemo()
@@ -151,7 +168,16 @@ internal sealed class Program
         foreach (var tableType in await Proxy.GetTableTypesAsync(sql))
         {
             var schemaName = tableType.SchemaName;
-            if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
+            if (!databaseMemo.Schemas.TryGetValue(tableType.SchemaId, out var schemaMemo))
+            {
+                throw new InvalidOperationException($"Missing schema {tableType.SchemaId} for table type: {tableType.SchemaName}.{tableType.Name}");
+                // schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo()
+                // {
+                //     SchemaId = tableType.SchemaId,
+                //     SqlName = schemaName,
+                //     ClassName = GetPascalCase(schemaName)
+                // };
+            }
             var tableTypeName = tableType.Name;
 
             var columns = new List<Column>();
@@ -163,7 +189,7 @@ internal sealed class Program
                     Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
                     IsNullable = col.IsNullable ?? true,
                     MaxLength = col.MaxLength,
-                    SqlTypeId = ((ISqlTypeId)col).SqlTypeId, // TODO: why is this cast necessary?
+                    SqlTypeId = col.GetSqlTypeId(),
                 };
                 columns.Add(column);
             }
@@ -173,14 +199,14 @@ internal sealed class Program
                 TypeName = tableTypeName,
                 SchemaName = tableType.SchemaName,
                 Columns = GetCommandColumns(databaseMemo, columns),
-                SqlTypeId = ((ISqlTypeId)tableType).SqlTypeId, // TODO: why is this cast necessary?
+                SqlTypeId = tableType.GetSqlTypeId(),
                 RowClassName = GetPascalCase(tableTypeName) + "Row",
                 DataTableClassName = GetPascalCase(tableTypeName) + "RowDataTable"
             };
             memo.RowClassRef = memo.RowClassName;
             memo.DataTableClassRef = memo.DataTableClassName;
 
-            schemaMemo.TableTypes[tableTypeName] = memo;
+            schemaMemo.TableTypes[memo.SqlTypeId] = memo;
 
             var recordMemo = new RecordMemo
             {
@@ -284,15 +310,14 @@ internal sealed class Program
                     Type = i.TypeName,
                     IsTableType = i.IsTableType,
                     MaxLength = i.MaxLength,
-                    SqlTypeId = ((ISqlTypeId)i).SqlTypeId, // TODO: why is this cast necessary?
+                    SqlTypeId = i.GetSqlTypeId(),
                 }).ToList();
                 proc.Parameters = new() { Items = iii };
 
                 // TODO: go straight to memo
                 proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
 
-                var schemaName = schema;
-                if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
+                var schemaMemo = databaseMemo.Schemas.Values.First(i => i.SqlName == schema); // TODO: O(n)
 
                 var name = procName ?? throw new NullReferenceException();
                 var columns = proc.Columns ?? throw new NullReferenceException();
@@ -318,9 +343,9 @@ internal sealed class Program
                 var memo = new CommandMemo()
                 {
                     CommandType = CommandType.StoredProcedure,
-                    CommandText = $"{databaseMemo.SqlName}.{schemaName}.{name}",
+                    CommandText = $"{databaseMemo.SqlName}.{schema}.{name}",
                     MethodName = GetPascalCase(name),
-                    Parameters = GetCommandParameters(schemaName, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
+                    Parameters = GetCommandParameters(schema, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                     Columns = GetCommandColumns(databaseMemo, columns),
                     RowClassName = rowClassName,
                     RowClassRef = rowClassName,
@@ -366,12 +391,10 @@ internal sealed class Program
 
                 static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter i)
                 {
-                    foreach (var schema in databaseMemo.Schemas.Values)
+                    var schemaMemo = databaseMemo.Schemas[i.SqlTypeId.SchemaId];
+                    if (schemaMemo.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
                     {
-                        if (schema.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
-                        {
-                            return tableType;
-                        }
+                        return tableType;
                     }
                     return null;
                 }
@@ -420,7 +443,7 @@ internal sealed class Program
             Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
-            SqlTypeId = ((ISqlTypeId)i).SqlTypeId, // TODO: why is this cast necessary?
+            SqlTypeId = i.GetSqlTypeId(),
         }).ToList();
 
     public static (String?, String) ParseSchemaItem(String text)
