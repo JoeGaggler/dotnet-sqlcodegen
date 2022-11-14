@@ -1,4 +1,56 @@
-namespace Pingmint.CodeGen.Sql.Model;
+namespace Pingmint.CodeGen.Sql.Model.Yaml;
+
+public class Config
+{
+    // scalar
+
+    // mapping
+    public Connection? Connection { get; set; }
+    public CSharp? CSharp { get; set; }
+    public Databases? Databases { get; set; }
+
+    // sequence
+}
+
+public class Connection
+{
+    // scalar
+    public String? ConnectionString { get; set; }
+
+    // mapping
+
+    // sequence
+}
+
+public class CSharp
+{
+    // scalar
+
+    // mapping
+    public String? Namespace { get; set; }
+    public String? ClassName { get; set; }
+
+    // sequence
+}
+
+// public class Class
+// {
+//     // scalar
+
+//     // mapping
+
+//     // sequence
+// }
+
+
+// public class Class
+// {
+//     // scalar
+
+//     // mapping
+
+//     // sequence
+// }
 
 public class Databases
 {
@@ -15,39 +67,12 @@ public class DatabasesItem
     // scalar
 
     // mapping
-    public String? Name { get; set; }
+    public String? SqlName { get; set; }
     public String? ClassName { get; set; }
-    public DatabaseItemTableTypes? TableTypes { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 
     // sequence
-}
-
-public class DatabaseItemTableTypes
-{
-    // scalar
-
-    // mapping
-
-    // sequence
-    public List<TableType>? Items { get; set; }
-}
-
-public class TableType
-{
-    // scalar
-
-    // mapping
-
-    // sequence
-
-    // meta
-    public String SchemaName { get; set; }
-    public String TypeName { get; set; }
-    public List<Column>? Columns { get; set; }
-    public Int32 SqlSystemTypeId { get; set; }
-    public Int32 SqlUserTypeId { get; set; }
 }
 
 public class DatabasesItemProcedures
@@ -71,9 +96,7 @@ public class Procedure
     // sequence
 
     // meta
-    public String? Name { get; set; }
-    public String? Schema { get; set; }
-    public ResultSetMeta ResultSet { get; set; }
+    public List<Column>? Columns { get; set; }
 }
 
 public class DatabasesItemStatements
@@ -96,9 +119,6 @@ public class Statement
     public Parameters? Parameters { get; set; }
 
     // sequence
-
-    // meta
-    public ResultSetMeta ResultSet { get; set; }
 }
 
 public class Parameters
@@ -122,17 +142,7 @@ public class Parameter
     // sequence
 
     // meta
-    public System.Data.SqlDbType SqlDbType { get; set; }
+    public Boolean IsTableType { get; set; }
     public Int32? MaxLength { get; set; }
-    public Int32 SqlSystemTypeId { get; set; }
-    public Int32 SqlUserTypeId { get; set; }
+    public SqlTypeId SqlTypeId { get; set; }
 }
-
-// public class Class
-// {
-//     // scalar
-
-//     // mapping
-
-//     // sequence
-// }
