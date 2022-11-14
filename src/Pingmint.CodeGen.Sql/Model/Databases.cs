@@ -75,22 +75,6 @@ public class DatabasesItem
     // sequence
 }
 
-public class TableType
-{
-    // scalar
-
-    // mapping
-
-    // sequence
-
-    // meta
-    public String SchemaName { get; set; }
-    public String TypeName { get; set; }
-    public List<Column>? Columns { get; set; }
-    public Int32 SqlSystemTypeId { get; set; }
-    public Int32 SqlUserTypeId { get; set; }
-}
-
 public class DatabasesItemProcedures
 {
     // scalar
@@ -112,8 +96,6 @@ public class Procedure
     // sequence
 
     // meta
-    public String? Name { get; set; }
-    public String? Schema { get; set; }
     public List<Column>? Columns { get; set; }
 }
 

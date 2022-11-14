@@ -148,20 +148,34 @@ internal sealed class Program
 
     private static async Task PopulateTableTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
     {
-        foreach (var tableType in await GetTableTypesForDatabaseAsync(sql))
+        foreach (var tableType in await Proxy.GetTableTypesAsync(sql))
         {
             var schemaName = tableType.SchemaName;
             if (!databaseMemo.Schemas.TryGetValue(schemaName, out var schemaMemo)) { schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo() { SqlName = schemaName, ClassName = GetPascalCase(schemaName) }; }
-            var tableTypeName = tableType.TypeName;
+            var tableTypeName = tableType.Name;
+
+            var columns = new List<Column>();
+            foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, tableType.TypeTableObjectId))
+            {
+                var column = new Column
+                {
+                    Name = col.Name ?? throw new NullReferenceException(),
+                    Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
+                    IsNullable = col.IsNullable ?? true,
+                    MaxLength = col.MaxLength,
+                    SqlTypeId = new() { SystemTypeId = col.SystemTypeId, UserTypeId = col.UserTypeId },
+                };
+                columns.Add(column);
+            }
 
             var memo = new TableTypeMemo
             {
-                TypeName = tableType.TypeName,
+                TypeName = tableTypeName,
                 SchemaName = tableType.SchemaName,
-                Columns = GetCommandColumns(databaseMemo, tableType.Columns),
-                SqlTypeId = new() { SystemTypeId = tableType.SqlSystemTypeId, UserTypeId = tableType.SqlUserTypeId },
-                RowClassName = GetPascalCase(tableType.TypeName) + "Row",
-                DataTableClassName = GetPascalCase(tableType.TypeName) + "RowDataTable"
+                Columns = GetCommandColumns(databaseMemo, columns),
+                SqlTypeId = new() { SystemTypeId = tableType.SystemTypeId, UserTypeId = tableType.UserTypeId },
+                RowClassName = GetPascalCase(tableTypeName) + "Row",
+                DataTableClassName = GetPascalCase(tableTypeName) + "RowDataTable"
             };
             memo.RowClassRef = memo.RowClassName;
             memo.DataTableClassRef = memo.DataTableClassName;
@@ -173,7 +187,7 @@ internal sealed class Program
                 Name = memo.RowClassName + $" // {schemaName}.{tableTypeName}",
                 ParentTableType = memo,
             };
-            PopulateRecordProperties(databaseMemo, recordMemo, tableType.Columns);
+            PopulateRecordProperties(databaseMemo, recordMemo, columns);
             schemaMemo.Records[memo.RowClassName] = recordMemo;
         }
     }
@@ -265,7 +279,15 @@ internal sealed class Program
                     throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
                 }
 
-                proc.Parameters = new() { Items = GetParametersForProcedure(await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)) };
+                var iii = (await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)).Select(i => new Parameter()
+                {
+                    Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
+                    Type = i.TypeName,
+                    SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
+                    MaxLength = i.MaxLength,
+                    SqlTypeId = new() { SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
+                }).ToList();
+                proc.Parameters = new() { Items = iii };
 
                 // TODO: go straight to memo
                 proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
@@ -389,48 +411,6 @@ internal sealed class Program
             PropertyTypeName = GetStringForType(i.dotnetType, i.column.IsNullable),
             PropertyName = GetPascalCase(i.column.Name),
             FieldTypeName = GetShortestNameForType(i.dotnetType),
-        }).ToList();
-
-    private static async Task<List<TableType>> GetTableTypesForDatabaseAsync(SqlConnection sql)
-    {
-        var list = new List<TableType>();
-        foreach (var i in await Proxy.GetTableTypesAsync(sql))
-        {
-            var tableType = new TableType
-            {
-                TypeName = i.Name,
-                SchemaName = i.SchemaName,
-                Columns = new List<Column>(),
-                SqlSystemTypeId = i.SystemTypeId,
-                SqlUserTypeId = i.UserTypeId,
-            };
-
-            foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, i.TypeTableObjectId))
-            {
-                var column = new Column
-                {
-                    Name = col.Name ?? throw new NullReferenceException(),
-                    Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
-                    IsNullable = col.IsNullable ?? true,
-                    MaxLength = col.MaxLength,
-                    SqlTypeId = new() { SystemTypeId = col.SystemTypeId, UserTypeId = col.UserTypeId },
-                };
-                tableType.Columns.Add(column);
-            }
-
-            list.Add(tableType);
-        }
-        return list;
-    }
-
-    private static List<Parameter> GetParametersForProcedure(List<GetParametersForObjectRow> parameters) =>
-        parameters.Select(i => new Parameter()
-        {
-            Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
-            Type = i.TypeName,
-            SqlDbType = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
-            MaxLength = i.MaxLength,
-            SqlTypeId = new() { SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
