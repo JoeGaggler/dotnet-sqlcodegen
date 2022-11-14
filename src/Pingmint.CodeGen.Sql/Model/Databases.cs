@@ -146,12 +146,3 @@ public class Parameter
     public Int32? MaxLength { get; set; }
     public SqlTypeId SqlTypeId { get; set; }
 }
-
-// public class Class
-// {
-//     // scalar
-
-//     // mapping
-
-//     // sequence
-// }

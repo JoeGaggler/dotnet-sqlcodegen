@@ -133,10 +133,10 @@ internal sealed class Program
                 continue; // TODO: type not supported
             }
 
-            var sqlTypeId = new SqlTypeId() { SchemaId = type.SchemaId, SystemTypeId = type.SystemTypeId, UserTypeId = type.UserTypeId };
+            var sqlTypeId = ((ISqlTypeId)type).SqlTypeId; // TODO: why is this cast necessary
             var dotnetType = GetDotnetType(sqlDbType);
 
-            databaseMemo.Types.Add(sqlTypeId, new()
+            databaseMemo.Types.Add(sqlTypeId, new TypeMemo()
             {
                 SqlName = type.Name,
                 SqlDbType = sqlDbType,
@@ -163,7 +163,7 @@ internal sealed class Program
                     Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
                     IsNullable = col.IsNullable ?? true,
                     MaxLength = col.MaxLength,
-                    SqlTypeId = new() { SchemaId = col.SchemaId, SystemTypeId = col.SystemTypeId, UserTypeId = col.UserTypeId },
+                    SqlTypeId = ((ISqlTypeId)col).SqlTypeId, // TODO: why is this cast necessary?
                 };
                 columns.Add(column);
             }
@@ -173,7 +173,7 @@ internal sealed class Program
                 TypeName = tableTypeName,
                 SchemaName = tableType.SchemaName,
                 Columns = GetCommandColumns(databaseMemo, columns),
-                SqlTypeId = new() { SchemaId = tableType.SchemaId, SystemTypeId = tableType.SystemTypeId, UserTypeId = tableType.UserTypeId },
+                SqlTypeId = ((ISqlTypeId)tableType).SqlTypeId, // TODO: why is this cast necessary?
                 RowClassName = GetPascalCase(tableTypeName) + "Row",
                 DataTableClassName = GetPascalCase(tableTypeName) + "RowDataTable"
             };
@@ -284,7 +284,7 @@ internal sealed class Program
                     Type = i.TypeName,
                     IsTableType = i.IsTableType,
                     MaxLength = i.MaxLength,
-                    SqlTypeId = new() { SchemaId = i.SchemaId, SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
+                    SqlTypeId = ((ISqlTypeId)i).SqlTypeId, // TODO: why is this cast necessary?
                 }).ToList();
                 proc.Parameters = new() { Items = iii };
 
@@ -420,7 +420,7 @@ internal sealed class Program
             Type = GetSqlDbType(i.SqlTypeName),
             // Type = i.IsTableType ? SqlDbType.Structured : GetSqlDbType(i.TypeName),
             IsNullable = i.IsNullable.GetValueOrDefault(true), // nullable by default
-            SqlTypeId = new() { SchemaId = i.SchemaId, SystemTypeId = i.SystemTypeId, UserTypeId = i.UserTypeId },
+            SqlTypeId = ((ISqlTypeId)i).SqlTypeId, // TODO: why is this cast necessary?
         }).ToList();
 
     public static (String?, String) ParseSchemaItem(String text)
