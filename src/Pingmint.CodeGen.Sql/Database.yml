@@ -5,14 +5,11 @@ csharp:
 databases:
   - database: tempdb
     class: TempDb
-    procedures:
-      include:
-        - pingmint.insert_foo
-    #procedures:
-    #   - pingmint.insert_foo
-    #   - pingmint.echo_text
-    #   - pingmint.echo_scopes2
-    #   - pingmint.*
+    # procedures:
+    #   include:
+    #     - pingmint.*
+    #   exclude:
+    #     - pingmint.*
     statements:
       - name: DmDescribeFirstResultSetForObject
         text: |

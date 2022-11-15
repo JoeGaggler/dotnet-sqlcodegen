@@ -95,6 +95,7 @@ internal sealed class ProceduresMapping : Mapping<Model.DatabasesItemProcedures>
     protected override ISequence? StartSequence(string key) => key switch
     {
         "include" => new ProceduresSequence(m => this.Model.Included = m),
+        "exclude" => new ProceduresSequence(m => this.Model.Excluded = m),
         _ => null,
     };
 }
