@@ -113,7 +113,6 @@ internal sealed class Program
 
         await PopulateSchemasAsync(sql, databaseMemo);
         await PopulateTypesAsync(sql, databaseMemo);
-        await PopulateTableTypesAsync(sql, databaseMemo);
         await PopulateStatementsAsync(sql, database, databaseMemo);
         await PopulateProceduresAsync(sql, database, databaseMemo);
 
@@ -138,20 +137,35 @@ internal sealed class Program
 
     private static async Task PopulateTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
     {
+        var tableTypes = (await Proxy.GetTableTypesAsync(sql)).ToDictionary(i => i.GetSqlTypeId());
         foreach (var type in await Proxy.GetSysTypesAsync(sql))
         {
             SqlDbType sqlDbType;
-            try
+            Type? dotnetType;
+            if (!type.IsUserDefined)
             {
-                sqlDbType = GetSqlDbType(type.Name);
+                try
+                {
+                    sqlDbType = GetSqlDbType(type.Name);
+                    dotnetType = GetDotnetType(sqlDbType);
+                }
+                catch
+                {
+                    continue; // TODO: type not supported
+                }
             }
-            catch
+            else if (tableTypes.TryGetValue(type.GetSqlTypeId(), out var tableType))
             {
-                continue; // TODO: type not supported
+                sqlDbType = SqlDbType.Structured;
+                dotnetType = null;
+                await PopulateTableTypeAsync(sql, databaseMemo, tableType);
+            }
+            else
+            {
+                throw new InvalidOperationException($"unknown type: {type.Name} - {type.GetSqlTypeId()}");
             }
 
             var sqlTypeId = type.GetSqlTypeId();
-            var dotnetType = GetDotnetType(sqlDbType);
 
             databaseMemo.Types.Add(sqlTypeId, new TypeMemo()
             {
@@ -163,59 +177,49 @@ internal sealed class Program
         }
     }
 
-    private static async Task PopulateTableTypesAsync(SqlConnection sql, DatabaseMemo databaseMemo)
+    private static async Task PopulateTableTypeAsync(SqlConnection sql, DatabaseMemo databaseMemo, GetTableTypesRow tableType)
     {
-        foreach (var tableType in await Proxy.GetTableTypesAsync(sql))
+        if (!databaseMemo.Schemas.TryGetValue(tableType.SchemaId, out var schemaMemo))
         {
-            var schemaName = tableType.SchemaName;
-            if (!databaseMemo.Schemas.TryGetValue(tableType.SchemaId, out var schemaMemo))
-            {
-                throw new InvalidOperationException($"Missing schema {tableType.SchemaId} for table type: {tableType.SchemaName}.{tableType.Name}");
-                // schemaMemo = databaseMemo.Schemas[schemaName] = new SchemaMemo()
-                // {
-                //     SchemaId = tableType.SchemaId,
-                //     SqlName = schemaName,
-                //     ClassName = GetPascalCase(schemaName)
-                // };
-            }
-            var tableTypeName = tableType.Name;
-
-            var columns = new List<Column>();
-            foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, tableType.TypeTableObjectId))
-            {
-                var column = new Column
-                {
-                    Name = col.Name ?? throw new NullReferenceException(),
-                    Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
-                    IsNullable = col.IsNullable ?? true,
-                    MaxLength = col.MaxLength,
-                    SqlTypeId = col.GetSqlTypeId(),
-                };
-                columns.Add(column);
-            }
-
-            var memo = new TableTypeMemo
-            {
-                TypeName = tableTypeName,
-                SchemaName = tableType.SchemaName,
-                Columns = GetCommandColumns(databaseMemo, columns),
-                SqlTypeId = tableType.GetSqlTypeId(),
-                RowClassName = GetPascalCase(tableTypeName) + "Row",
-                DataTableClassName = GetPascalCase(tableTypeName) + "RowDataTable"
-            };
-            memo.RowClassRef = memo.RowClassName;
-            memo.DataTableClassRef = memo.DataTableClassName;
-
-            schemaMemo.TableTypes[memo.SqlTypeId] = memo;
-
-            var recordMemo = new RecordMemo
-            {
-                Name = memo.RowClassName,
-                ParentTableType = memo,
-            };
-            PopulateRecordProperties(databaseMemo, recordMemo, columns);
-            schemaMemo.Records[memo.RowClassName] = recordMemo;
+            throw new InvalidOperationException($"Missing schema {tableType.SchemaId} for table type: {tableType.SchemaName}.{tableType.Name}");
         }
+        var tableTypeName = tableType.Name;
+
+        var columns = new List<Column>();
+        foreach (var col in await Proxy.GetTableTypeColumnsAsync(sql, tableType.TypeTableObjectId))
+        {
+            var column = new Column
+            {
+                Name = col.Name ?? throw new NullReferenceException(),
+                Type = GetSqlDbType(col.TypeName), // TODO: what if this is also a table type?
+                IsNullable = col.IsNullable ?? true,
+                MaxLength = col.MaxLength,
+                SqlTypeId = col.GetSqlTypeId(),
+            };
+            columns.Add(column);
+        }
+
+        var memo = new TableTypeMemo
+        {
+            TypeName = tableTypeName,
+            SchemaName = tableType.SchemaName,
+            Columns = GetCommandColumns(databaseMemo, columns),
+            SqlTypeId = tableType.GetSqlTypeId(),
+            RowClassName = GetPascalCase(tableTypeName) + "Row",
+            DataTableClassName = GetPascalCase(tableTypeName) + "RowDataTable"
+        };
+        memo.RowClassRef = memo.RowClassName;
+        memo.DataTableClassRef = memo.DataTableClassName;
+
+        schemaMemo.TableTypes[memo.SqlTypeId] = memo;
+
+        var recordMemo = new RecordMemo
+        {
+            Name = memo.RowClassName,
+            ParentTableType = memo,
+        };
+        PopulateRecordProperties(databaseMemo, recordMemo, columns);
+        schemaMemo.Records[memo.RowClassName] = recordMemo;
     }
 
     private static async Task PopulateStatementsAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
@@ -405,6 +409,7 @@ internal sealed class Program
                 }
 
                 tableType.IsReferenced = true;
+                memo.MaxLength = null;
                 memo.ParameterType = SqlDbType.Structured;
                 memo.ArgumentType = $"List<{tableType.RowClassRef}>";
                 memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
@@ -412,8 +417,11 @@ internal sealed class Program
             }
             else
             {
+                var dotnetType = GetDotnetType(databaseMemo, memo.SqlTypeId);
+                if (dotnetType != typeof(String)) { memo.MaxLength = null; }
+
                 memo.ParameterType = databaseMemo.Types[i.SqlTypeId].SqlDbType;
-                memo.ArgumentType = GetShortestNameForType(GetDotnetType(databaseMemo, memo.SqlTypeId));
+                memo.ArgumentType = GetShortestNameForType(dotnetType);
                 memo.ArgumentExpression = GetCamelCase(i.Name);
             }
 
@@ -426,7 +434,7 @@ internal sealed class Program
     private static List<ColumnMemo> GetCommandColumns(DatabaseMemo database, List<Column> columns) =>
         columns.Select(i => (column: i, dotnetType: GetDotnetType(database, i.SqlTypeId))).Select(i => new ColumnMemo()
         {
-            MaxLength = i.column.MaxLength,
+            MaxLength = i.dotnetType == typeof(String) ? i.column.MaxLength : null,
             OrdinalVarName = $"ord{GetPascalCase(i.column.Name)}",
             ColumnName = i.column.Name,
             ColumnIsNullable = i.column.IsNullable,

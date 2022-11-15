@@ -49,7 +49,7 @@ public class TypeMemo
     public String SqlName { get; set; }
     public SqlTypeId SqlTypeId { get; set; }
     public SqlDbType SqlDbType { get; set; }
-    public Type DotnetType { get; set; }
+    public Type? DotnetType { get; set; }
 }
 
 public class SchemaMemo
