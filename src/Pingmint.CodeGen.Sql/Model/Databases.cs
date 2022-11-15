@@ -80,9 +80,10 @@ public class DatabasesItemProcedures
     // scalar
 
     // mapping
+    public List<Procedure>? Included { get; set; }
+    public List<Procedure>? Excluded { get; set; }
 
-    // sequence
-    public List<Procedure>? Items { get; set; }
+    // sequence is forwarded to "Included"
 }
 
 public class Procedure

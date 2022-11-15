@@ -281,7 +281,8 @@ internal sealed class Program
 
     private static async Task PopulateProceduresAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
     {
-        if (database.Procedures?.Items is not { } procs) { return; }
+        // TODO: excluded
+        if (database.Procedures?.Included is not { } procs) { return; }
 
         foreach (var proc in procs)
         {

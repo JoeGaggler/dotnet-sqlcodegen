@@ -3,89 +3,92 @@ csharp:
   namespace: Pingmint.CodeGen.Sql
   class: Proxy
 databases:
-  - tempdb:
-      class: TempDb
-      #procedures:
-      #   - pingmint.insert_foo
-      #   - pingmint.echo_text
-      #   - pingmint.echo_scopes2
-      #   - pingmint.*
-      statements:
-        - name: DmDescribeFirstResultSetForObject
-          text: |
-            SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
-            FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D
-            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
-            ORDER BY D.column_ordinal
-          parameters:
-            - name: objectid
-              type: int
-        - name: DmDescribeFirstResultSet
-          text: |
-            SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
-            FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D
-            JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
-            ORDER BY D.column_ordinal
-          parameters:
-            - name: text
-              type: varchar
-        - name: GetProcedureForSchema
-          text: |
-            SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
-            FROM sys.procedures AS P
-            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
-            LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
-            WHERE S.name = @schema
-            AND P.name = @proc
-            ORDER BY P.name
-          parameters:
-            - name: schema
-              type: varchar
-            - name: proc
-              type: varchar
-        - name: GetProceduresForSchema
-          text: |
-            SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
-            FROM sys.procedures AS P
-            INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
-            LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
-            WHERE S.name = @schema
-            ORDER BY P.name
-          parameters:
-            - name: schema
-              type: varchar
-        - name: GetParametersForObject
-          text: |
-            SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name]
-            FROM sys.parameters AS P
-            JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id)
-            WHERE P.object_id = @id
-          parameters:
-            - name: id
-              type: int
-        - name: GetTableTypes
-          text: |
-            SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.schema_id, T.system_type_id, T.user_type_id
-            FROM sys.table_types AS T
-            INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
-            ORDER BY S.name, T.name
-        - name: GetSysTypes
-          text: SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types
-        - name: GetSysType
-          text: |
-            SELECT system_type_id, is_table_type, name
-            FROM sys.types where system_type_id = @id
-          parameters:
-            - name: id
-              type: int
-        - name: GetTableTypeColumns
-          text: |
-            SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.schema_id, T.system_type_id, T.user_type_id
-            from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id)
-            where C.object_id = @id and t.name <> 'sysname'
-            order by c.column_id
-          parameters:
-            - name: id
-              type: int
-        - name: GetSchemas
-          text: SELECT name, schema_id FROM sys.schemas
+  - database: tempdb
+    class: TempDb
+    procedures:
+      include:
+        - pingmint.insert_foo
+    #procedures:
+    #   - pingmint.insert_foo
+    #   - pingmint.echo_text
+    #   - pingmint.echo_scopes2
+    #   - pingmint.*
+    statements:
+      - name: DmDescribeFirstResultSetForObject
+        text: |
+          SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
+          FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D
+          JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
+          ORDER BY D.column_ordinal
+        parameters:
+          - name: objectid
+            type: int
+      - name: DmDescribeFirstResultSet
+        text: |
+          SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
+          FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D
+          JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
+          ORDER BY D.column_ordinal
+        parameters:
+          - name: text
+            type: varchar
+      - name: GetProcedureForSchema
+        text: |
+          SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
+          FROM sys.procedures AS P
+          INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+          LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
+          WHERE S.name = @schema
+          AND P.name = @proc
+          ORDER BY P.name
+        parameters:
+          - name: schema
+            type: varchar
+          - name: proc
+            type: varchar
+      - name: GetProceduresForSchema
+        text: |
+          SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]
+          FROM sys.procedures AS P
+          INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id)
+          LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete')
+          WHERE S.name = @schema
+          ORDER BY P.name
+        parameters:
+          - name: schema
+            type: varchar
+      - name: GetParametersForObject
+        text: |
+          SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name]
+          FROM sys.parameters AS P
+          JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id)
+          WHERE P.object_id = @id
+        parameters:
+          - name: id
+            type: int
+      - name: GetTableTypes
+        text: |
+          SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.schema_id, T.system_type_id, T.user_type_id
+          FROM sys.table_types AS T
+          INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
+          ORDER BY S.name, T.name
+      - name: GetSysTypes
+        text: SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types
+      - name: GetSysType
+        text: |
+          SELECT system_type_id, is_table_type, name
+          FROM sys.types where system_type_id = @id
+        parameters:
+          - name: id
+            type: int
+      - name: GetTableTypeColumns
+        text: |
+          SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.schema_id, T.system_type_id, T.user_type_id
+          from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id)
+          where C.object_id = @id and t.name <> 'sysname'
+          order by c.column_id
+        parameters:
+          - name: id
+            type: int
+      - name: GetSchemas
+        text: SELECT name, schema_id FROM sys.schemas

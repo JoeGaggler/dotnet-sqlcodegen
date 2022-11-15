@@ -9,6 +9,7 @@ namespace Pingmint.CodeGen.Sql;
 
 public partial interface IProxy
 {
+	Task<Int32> InsertFooAsync(Int32 val);
 	Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text);
 	Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid);
 	Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id);
@@ -115,6 +116,7 @@ public partial class Proxy : IProxy
 		this.connectionFunc = connectionFunc;
 	}
 
+	public async Task<Int32> InsertFooAsync(Int32 val) => await InsertFooAsync(await connectionFunc(), val);
 	public async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text) => await DmDescribeFirstResultSetAsync(await connectionFunc(), text);
 	public async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid) => await DmDescribeFirstResultSetForObjectAsync(await connectionFunc(), objectid);
 	public async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id) => await GetParametersForObjectAsync(await connectionFunc(), id);
@@ -152,6 +154,16 @@ public partial class Proxy : IProxy
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
+
+	public static Task<Int32> InsertFooAsync(SqlConnection connection, Int32 val) => InsertFooAsync(connection, val, CancellationToken.None);
+	public static async Task<Int32> InsertFooAsync(SqlConnection connection, Int32 val, CancellationToken cancellationToken)
+	{
+		using SqlCommand cmd = CreateStoredProcedure(connection, "tempdb.pingmint.insert_foo");
+
+		cmd.Parameters.Add(CreateParameter("@val", val, SqlDbType.Int));
+
+		return await cmd.ExecuteNonQueryAsync(cancellationToken);
+	}
 
 	public static Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text) => DmDescribeFirstResultSetAsync(connection, text, CancellationToken.None);
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, CancellationToken cancellationToken)

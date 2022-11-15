@@ -66,8 +66,14 @@ internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
 
     protected override ISequence? StartSequence(String key) => key switch
     {
-        "procedures" => new ProceduresSequence(m => this.Model.Procedures = m),
+        "procedures" => new ProceduresSequence(m => this.Model.Procedures = new() { Included = m }),
         "statements" => new StatementsSequence(m => this.Model.Statements = m),
+        _ => null,
+    };
+
+    protected override IMapping? StartMapping(string key) => key switch
+    {
+        "procedures" => new ProceduresMapping(m => this.Model.Procedures = m),
         _ => null,
     };
 
@@ -82,24 +88,26 @@ internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
     }
 }
 
-// internal sealed class DatabaseItemMapping : Mapping<Model.DatabasesItem>
-// {
-//     public DatabaseItemMapping(Action<Model.DatabasesItem> callback, String key) : base(callback, new() { SqlName = key }) { }
-
-
-
-//     protected override void Pop(List<Model.DatabasesItem> parentModel, Model.DatabasesItem model) => parentModel.Add(this.Model);
-// }
-
-internal sealed class ProceduresSequence : Sequence<Model.DatabasesItemProcedures>
+internal sealed class ProceduresMapping : Mapping<Model.DatabasesItemProcedures>
 {
-    public ProceduresSequence(Action<Model.DatabasesItemProcedures> callback) : base(callback, new() { Items = new() }) { }
+    public ProceduresMapping(Action<Model.DatabasesItemProcedures> callback) : base(callback, new()) { }
 
-    protected override IMapping? StartMapping() => new ProcedureMapping(m => this.Model.Items.Add(m));
+    protected override ISequence? StartSequence(string key) => key switch
+    {
+        "include" => new ProceduresSequence(m => this.Model.Included = m),
+        _ => null,
+    };
+}
+
+internal sealed class ProceduresSequence : Sequence<List<Model.Procedure>>
+{
+    public ProceduresSequence(Action<List<Model.Procedure>> callback) : base(callback, new()) { }
+
+    protected override IMapping? StartMapping() => new ProcedureMapping(m => this.Model.Add(m));
 
     protected override bool Add(string value)
     {
-        this.Model.Items!.Add(new() { Text = value }); // TODO: remove null-forgiveness
+        this.Model.Add(new() { Text = value });
         return true;
     }
 }
