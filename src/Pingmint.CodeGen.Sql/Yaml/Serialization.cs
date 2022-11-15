@@ -7,24 +7,24 @@ internal sealed class DocumentYaml : IDocument
 {
     public Model.Config Model { get; private set; } = new();
 
-    public IMapping? StartMapping() => new ConfigMapping(this.Model);
+    public IMapping? StartMapping() => new ConfigMapping(m => this.Model = m);
 
     public ISequence? StartSequence() => null;
 }
 
-internal sealed class ConfigMapping : Mapping<Model.Config, Model.Config> // passthrough
+internal sealed class ConfigMapping : Mapping<Model.Config> // passthrough
 {
-    public ConfigMapping(Model.Config parent) : base(parent, parent) { } // passthrough
+    public ConfigMapping(Action<Model.Config> callback) : base(callback, new()) { } // passthrough
 
     protected override IMapping? StartMapping(string key) => key switch
     {
-        "csharp" => new CSharpMapping(this.Model),
+        "csharp" => new CSharpMapping(m => this.Model.CSharp = m),
         _ => null,
     };
 
     protected override ISequence? StartSequence(string key) => key switch
     {
-        "databases" => new DatabasesSequence(this.Model),
+        "databases" => new DatabasesSequence(m => this.Model.Databases = new() { Items = m }),
         _ => null,
     };
 
@@ -36,13 +36,11 @@ internal sealed class ConfigMapping : Mapping<Model.Config, Model.Config> // pas
             default: return false;
         }
     }
-
-    protected override void Pop(Model.Config parentModel, Model.Config model) { } // passthrough already done
 }
 
-internal sealed class CSharpMapping : Mapping<Model.Config, Model.CSharp>
+internal sealed class CSharpMapping : Mapping<Model.CSharp>
 {
-    public CSharpMapping(Model.Config parent) : base(parent, new()) { }
+    public CSharpMapping(Action<Model.CSharp> callback) : base(callback, new()) { }
 
     protected override bool Add(string key, string value)
     {
@@ -53,37 +51,29 @@ internal sealed class CSharpMapping : Mapping<Model.Config, Model.CSharp>
             default: return false;
         }
     }
-
-    protected override void Pop(Model.Config parentModel, Model.CSharp model) => parentModel.CSharp = model;
 }
 
-internal sealed class DatabasesSequence : Sequence<Model.Config, Model.Databases>
+internal sealed class DatabasesSequence : Sequence<List<Model.DatabasesItem>>
 {
-    public DatabasesSequence(Model.Config parent) : base(parent, new()) { }
+    public DatabasesSequence(Action<List<Model.DatabasesItem>> callback) : base(callback, new()) { }
 
-    protected override IMapping? StartMapping() => new DatabaseMapping(this.Model);
-
-    protected override void Pop(Model.Config parentModel, Model.Databases model) => parentModel.Databases = model;
+    protected override IMapping? StartMapping() => new DatabaseMapping(m => this.Model.Add(m));
 }
 
-internal sealed class DatabaseMapping : Mapping<Model.Databases, List<Model.DatabasesItem>>
+internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
 {
-    public DatabaseMapping(Model.Databases parent) : base(parent, new()) { }
-
-    protected override IMapping? StartMapping(String key) => new DatabaseItemMapping(this.Model, key);
-
-    protected override void Pop(Model.Databases parentModel, List<Model.DatabasesItem> model) => this.Parent.Items = this.Model;
-}
-
-internal sealed class DatabaseItemMapping : Mapping<List<Model.DatabasesItem>, Model.DatabasesItem>
-{
-    public DatabaseItemMapping(List<Model.DatabasesItem> parent, String key) : base(parent, new() { SqlName = key }) { }
+    public DatabaseMapping(Action<Model.DatabasesItem> callback) : base(callback, new()) { }
 
     protected override ISequence? StartSequence(String key) => key switch
     {
-        "procs" => new ProceduresSequence(this.Model),
-        "procedures" => new ProceduresSequence(this.Model),
-        "statements" => new StatementsSequence(this.Model),
+        "procedures" => new ProceduresSequence(m => this.Model.Procedures = new() { Included = m }),
+        "statements" => new StatementsSequence(m => this.Model.Statements = m),
+        _ => null,
+    };
+
+    protected override IMapping? StartMapping(string key) => key switch
+    {
+        "procedures" => new ProceduresMapping(m => this.Model.Procedures = m),
         _ => null,
     };
 
@@ -91,32 +81,41 @@ internal sealed class DatabaseItemMapping : Mapping<List<Model.DatabasesItem>, M
     {
         switch (key)
         {
+            case "database": { this.Model.SqlName = value; return true; }
             case "class": { this.Model.ClassName = value; return true; }
             default: return false;
         }
     }
-
-    protected override void Pop(List<Model.DatabasesItem> parentModel, Model.DatabasesItem model) => parentModel.Add(this.Model);
 }
 
-internal sealed class ProceduresSequence : Sequence<Model.DatabasesItem, Model.DatabasesItemProcedures>
+internal sealed class ProceduresMapping : Mapping<Model.DatabasesItemProcedures>
 {
-    public ProceduresSequence(Model.DatabasesItem parent) : base(parent, new() { Items = new() }) { }
+    public ProceduresMapping(Action<Model.DatabasesItemProcedures> callback) : base(callback, new()) { }
 
-    protected override IMapping? StartMapping() => new ProcedureMapping(this.Model.Items);
+    protected override ISequence? StartSequence(string key) => key switch
+    {
+        "include" => new ProceduresSequence(m => this.Model.Included = m),
+        "exclude" => new ProceduresSequence(m => this.Model.Excluded = m),
+        _ => null,
+    };
+}
+
+internal sealed class ProceduresSequence : Sequence<List<Model.Procedure>>
+{
+    public ProceduresSequence(Action<List<Model.Procedure>> callback) : base(callback, new()) { }
+
+    protected override IMapping? StartMapping() => new ProcedureMapping(m => this.Model.Add(m));
 
     protected override bool Add(string value)
     {
-        this.Model.Items!.Add(new() { Text = value }); // TODO: remove null-forgiveness
+        this.Model.Add(new() { Text = value });
         return true;
     }
-
-    protected override void Pop(Model.DatabasesItem parentModel, Model.DatabasesItemProcedures model) => parentModel.Procedures = model;
 }
 
-internal sealed class ProcedureMapping : Mapping<List<Model.Procedure>, Model.Procedure>
+internal sealed class ProcedureMapping : Mapping<Model.Procedure>
 {
-    public ProcedureMapping(List<Model.Procedure> parent) : base(parent, new()) { }
+    public ProcedureMapping(Action<Model.Procedure> callback) : base(callback, new()) { }
 
     protected override ISequence? StartSequence(string key) => key switch
     {
@@ -133,26 +132,22 @@ internal sealed class ProcedureMapping : Mapping<List<Model.Procedure>, Model.Pr
             default: return false;
         }
     }
-
-    protected override void Pop(List<Model.Procedure> parentModel, Model.Procedure model) => parentModel.Add(model);
 }
 
-internal sealed class StatementsSequence : Sequence<Model.DatabasesItem, Model.DatabasesItemStatements>
+internal sealed class StatementsSequence : Sequence<Model.DatabasesItemStatements>
 {
-    public StatementsSequence(Model.DatabasesItem parent) : base(parent, new() { Items = new() }) { }
+    public StatementsSequence(Action<Model.DatabasesItemStatements> callback) : base(callback, new() { Items = new() }) { }
 
-    protected override IMapping? StartMapping() => new StatementMapping(this.Model.Items);
-
-    protected override void Pop(Model.DatabasesItem parentModel, Model.DatabasesItemStatements model) => parentModel.Statements = model;
+    protected override IMapping? StartMapping() => new StatementMapping(m => this.Model.Items.Add(m));
 }
 
-internal sealed class StatementMapping : Mapping<List<Model.Statement>, Model.Statement>
+internal sealed class StatementMapping : Mapping<Model.Statement>
 {
-    public StatementMapping(List<Model.Statement> parent) : base(parent, new()) { }
+    public StatementMapping(Action<Model.Statement> callback) : base(callback, new()) { }
 
     protected override ISequence? StartSequence(string key) => key switch
     {
-        "parameters" => new ParametersSequence(this.Model.Parameters = new()),
+        "parameters" => new ParametersSequence(m => this.Model.Parameters = new() { Items = m }),
         _ => null,
     };
 
@@ -165,22 +160,18 @@ internal sealed class StatementMapping : Mapping<List<Model.Statement>, Model.St
             default: return false;
         }
     }
-
-    protected override void Pop(List<Model.Statement> parentModel, Model.Statement model) => parentModel.Add(model);
 }
 
-internal sealed class ParametersSequence : Sequence<Model.Parameters, List<Model.Parameter>>
+internal sealed class ParametersSequence : Sequence<List<Model.Parameter>>
 {
-    public ParametersSequence(Model.Parameters parent) : base(parent, new()) { }
+    public ParametersSequence(Action<List<Model.Parameter>> callback) : base(callback, new()) { }
 
-    protected override IMapping? StartMapping() => new ParameterMapping(this.Model);
-
-    protected override void Pop(Model.Parameters parentModel, List<Model.Parameter> model) => parentModel.Items = model;
+    protected override IMapping? StartMapping() => new ParameterMapping(m => this.Model.Add(m));
 }
 
-internal sealed class ParameterMapping : Mapping<List<Model.Parameter>, Model.Parameter>
+internal sealed class ParameterMapping : Mapping<Model.Parameter>
 {
-    public ParameterMapping(List<Model.Parameter> parent) : base(parent, new()) { }
+    public ParameterMapping(Action<Model.Parameter> callback) : base(callback, new()) { }
 
     protected override bool Add(string key, string value)
     {
@@ -191,6 +182,4 @@ internal sealed class ParameterMapping : Mapping<List<Model.Parameter>, Model.Pa
             default: return false;
         }
     }
-
-    protected override void Pop(List<Model.Parameter> parentModel, Model.Parameter model) => parentModel.Add(model);
 }

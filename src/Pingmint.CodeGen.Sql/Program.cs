@@ -281,7 +281,31 @@ internal sealed class Program
 
     private static async Task PopulateProceduresAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
     {
-        if (database.Procedures?.Items is not { } procs) { return; }
+        List<(String Schema, String Name)> excludeSchemaProcList = new();
+        if (database.Procedures?.Excluded is { } excludeProcs)
+        {
+            foreach (var item in excludeProcs)
+            {
+                var (schema, procName) = ParseSchemaItem(item.Text);
+                if (schema is not null && procName is not null)
+                {
+                    excludeSchemaProcList.Add((schema, procName));
+                }
+            }
+        }
+        Boolean IsExcluded(String procSchema, String procName)
+        {
+            foreach (var exclude in excludeSchemaProcList)
+            {
+                if (procSchema != exclude.Schema) continue;
+                if (procName == exclude.Name) return true;
+                if (exclude.Name == "*") return true;
+            }
+            return false;
+        }
+
+
+        if (database.Procedures?.Included is not { } procs) { return; }
 
         foreach (var proc in procs)
         {
@@ -292,12 +316,14 @@ internal sealed class Program
             {
                 foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
                 {
+                    if (IsExcluded(schema, row.Name)) { continue; }
                     var newProc = new Procedure();
                     await MetaProcAsync(sql, newProc, schema, row.Name, databaseMemo);
                 }
             }
             else
             {
+                if (IsExcluded(schema, procName)) { continue; }
                 await MetaProcAsync(sql, proc, schema, procName, databaseMemo);
             }
 
