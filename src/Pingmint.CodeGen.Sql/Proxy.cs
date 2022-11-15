@@ -84,6 +84,7 @@ public partial class GetSysTypesRow
 	public Int32 SchemaId { get; set; }
 	public Byte SystemTypeId { get; set; }
 	public Int32 UserTypeId { get; set; }
+	public Boolean IsUserDefined { get; set; }
 }
 public partial class GetTableTypeColumnsRow
 {
@@ -380,7 +381,7 @@ public partial class Proxy : IProxy
 	public static Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection) => GetSysTypesAsync(connection, CancellationToken.None);
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id FROM sys.types");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types");
 
 		var result = new List<GetSysTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -390,6 +391,7 @@ public partial class Proxy : IProxy
 			int ordSchemaId = reader.GetOrdinal("schema_id");
 			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
 			int ordUserTypeId = reader.GetOrdinal("user_type_id");
+			int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
 
 			do
 			{
@@ -399,6 +401,7 @@ public partial class Proxy : IProxy
 					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
 					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
 					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+					IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
 				});
 			} while (await reader.ReadAsync(cancellationToken));
 		}
