@@ -240,13 +240,13 @@ internal sealed class YamlVisitor : IParsingEventVisitor
     }
 }
 
-internal abstract class Sequence<TParentModel, TModel> : ISequence
+internal abstract class Sequence<TModel> : ISequence
 {
-    protected TParentModel Parent { get; private init; }
+    private readonly Action<TModel> callback;
 
     protected TModel Model { get; private init; }
 
-    public Sequence(TParentModel parent, TModel model) { this.Parent = parent; this.Model = model; }
+    public Sequence(Action<TModel> callback, TModel model) { this.callback = callback; this.Model = model; }
 
     protected virtual IMapping? StartMapping() => null;
 
@@ -260,18 +260,16 @@ internal abstract class Sequence<TParentModel, TModel> : ISequence
 
     Boolean ISequence.Add(String value) => this.Add(value);
 
-    void ISequence.Pop() => this.Pop(this.Parent, this.Model);
-
-    protected abstract void Pop(TParentModel parentModel, TModel model);
+    void ISequence.Pop() => this.callback(this.Model);
 }
 
-internal abstract class Mapping<TParentModel, TModel> : IMapping
+internal abstract class Mapping<TModel> : IMapping
 {
-    protected TParentModel Parent { get; private init; }
+    private readonly Action<TModel> callback;
 
     protected TModel Model { get; init; }
 
-    public Mapping(TParentModel parent, TModel model) { this.Parent = parent; this.Model = model; }
+    public Mapping(Action<TModel> callback, TModel model) { this.callback = callback; this.Model = model; }
 
     protected virtual IMapping? StartMapping(String key) => null;
 
@@ -285,7 +283,5 @@ internal abstract class Mapping<TParentModel, TModel> : IMapping
 
     Boolean IMapping.Add(String key, String value) => this.Add(key, value);
 
-    void IMapping.Pop() => this.Pop(this.Parent, this.Model);
-
-    protected abstract void Pop(TParentModel parentModel, TModel model);
+    void IMapping.Pop() => this.callback(this.Model);
 }
