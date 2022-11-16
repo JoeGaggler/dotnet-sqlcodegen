@@ -141,13 +141,61 @@ internal sealed class Program
         foreach (var type in await Proxy.GetSysTypesAsync(sql))
         {
             SqlDbType sqlDbType;
-            Type? dotnetType;
+            DotnetTypeMemo? dotnetType;
             if (!type.IsUserDefined)
             {
                 try
                 {
                     sqlDbType = GetSqlDbType(type.Name);
-                    dotnetType = GetDotnetType(sqlDbType);
+                    dotnetType = new DotnetTypeMemo();
+                    (dotnetType.Name, dotnetType.IsValueType) = sqlDbType switch
+                    {
+                        SqlDbType.Char or
+                        SqlDbType.NChar or
+                        SqlDbType.NText or
+                        SqlDbType.NVarChar or
+                        SqlDbType.Text or
+                        SqlDbType.VarChar or
+                        SqlDbType.Xml
+                        => ("String", false),
+
+                        SqlDbType.DateTimeOffset => ("DateTimeOffset", true),
+
+                        SqlDbType.Date or
+                        SqlDbType.DateTime or
+                        SqlDbType.DateTime2 or
+                        SqlDbType.SmallDateTime
+                        => ("DateTime", true),
+
+                        SqlDbType.Time => ("TimeSpan", true),
+
+                        SqlDbType.Bit => ("Boolean", true),
+                        SqlDbType.Int => ("Int32", true),
+                        SqlDbType.TinyInt => ("Byte", true),
+                        SqlDbType.SmallInt => ("Int16", true),
+                        SqlDbType.BigInt => ("Int64", true),
+
+                        SqlDbType.Money or
+                        SqlDbType.SmallMoney or
+                        SqlDbType.Decimal => ("Decimal", true),
+
+                        SqlDbType.Real => ("Single", true),
+                        SqlDbType.Float => ("Double", true),
+
+                        SqlDbType.UniqueIdentifier => ("Guid", true),
+
+                        SqlDbType.Binary or
+                        SqlDbType.Image or
+                        SqlDbType.Timestamp or
+                        SqlDbType.VarBinary => ("Byte[]", false),
+
+                        // TODO:
+                        // SqlDbType.Variant => throw new NotImplementedException(),
+                        // SqlDbType.Udt => throw new NotImplementedException(),
+                        // SqlDbType.Structured => throw new NotImplementedException(),
+
+                        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
+                    };
                 }
                 catch
                 {
@@ -157,8 +205,12 @@ internal sealed class Program
             else if (tableTypes.TryGetValue(type.GetSqlTypeId(), out var tableType))
             {
                 sqlDbType = SqlDbType.Structured;
-                dotnetType = null;
-                await PopulateTableTypeAsync(sql, databaseMemo, tableType);
+                var ttMemo = await PopulateTableTypeAsync(sql, databaseMemo, tableType);
+                dotnetType = new DotnetTypeMemo
+                {
+                    Name = ttMemo.DataTableClassRef,
+                    IsValueType = false,
+                };
             }
             else
             {
@@ -177,7 +229,7 @@ internal sealed class Program
         }
     }
 
-    private static async Task PopulateTableTypeAsync(SqlConnection sql, DatabaseMemo databaseMemo, GetTableTypesRow tableType)
+    private static async Task<TableTypeMemo> PopulateTableTypeAsync(SqlConnection sql, DatabaseMemo databaseMemo, GetTableTypesRow tableType)
     {
         if (!databaseMemo.Schemas.TryGetValue(tableType.SchemaId, out var schemaMemo))
         {
@@ -220,6 +272,8 @@ internal sealed class Program
         };
         PopulateRecordProperties(databaseMemo, recordMemo, columns);
         schemaMemo.Records[memo.RowClassName] = recordMemo;
+
+        return memo;
     }
 
     private static async Task PopulateStatementsAsync(SqlConnection sql, DatabasesItem database, DatabaseMemo databaseMemo)
@@ -334,7 +388,10 @@ internal sealed class Program
                     throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
                 }
 
-                var iii = (await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)).Select(i => new Parameter()
+                var schemaMemo = databaseMemo.Schemas.Values.First(i => i.SqlName == schema); // TODO: O(n)
+                var name = procName ?? throw new NullReferenceException();
+
+                var parameters = (await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)).Select(i => new Parameter()
                 {
                     Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
                     Type = i.TypeName,
@@ -342,15 +399,17 @@ internal sealed class Program
                     MaxLength = i.MaxLength,
                     SqlTypeId = i.GetSqlTypeId(),
                 }).ToList();
-                proc.Parameters = new() { Items = iii };
+                proc.Parameters = new() { Items = parameters };
+
+                var paramClassName = GetPascalCase(name + "_Parameters");
+                var paramRecordMemo = schemaMemo.Records[paramClassName] = new RecordMemo()
+                {
+                    Name = paramClassName,
+                };
+                PopulateRecordProperties(databaseMemo, paramRecordMemo, parameters);
 
                 // TODO: go straight to memo
-                proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
-
-                var schemaMemo = databaseMemo.Schemas.Values.First(i => i.SqlName == schema); // TODO: O(n)
-
-                var name = procName ?? throw new NullReferenceException();
-                var columns = proc.Columns ?? throw new NullReferenceException();
+                var columns = proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId)) ?? throw new NullReferenceException();
 
                 Boolean isNonQuery;
                 String? rowClassName;
@@ -387,6 +446,22 @@ internal sealed class Program
         }
     }
 
+    private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Parameter> parameters)
+    {
+        var props = recordMemo.Properties;
+        foreach (var parameter in parameters)
+        {
+            var prop = new PropertyMemo
+            {
+                IsNullable = true,
+                Name = GetPascalCase(parameter.Name),
+                Type = GetDotnetType(databaseMemo, parameter.SqlTypeId)
+            };
+
+            props.Add(prop);
+        }
+    }
+
     private static void PopulateRecordProperties(DatabaseMemo databaseMemo, RecordMemo recordMemo, List<Column> columns)
     {
         var props = recordMemo.Properties;
@@ -401,6 +476,7 @@ internal sealed class Program
             props.Add(prop);
         }
     }
+
     private static List<ParametersMemo> GetCommandParameters(String? hostSchema, List<Parameter> parameters, DatabaseMemo databaseMemo)
     {
         var memos = new List<ParametersMemo>();
@@ -419,17 +495,7 @@ internal sealed class Program
                 var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
                 schemaName ??= hostSchema;
 
-                static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter i)
-                {
-                    var schemaMemo = databaseMemo.Schemas[i.SqlTypeId.SchemaId];
-                    if (schemaMemo.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
-                    {
-                        return tableType;
-                    }
-                    return null;
-                }
-
-                if (FindMatch(databaseMemo, schemaName, i) is not { } tableType)
+                if (FindTableType(databaseMemo, i.SqlTypeId) is not { } tableType)
                 {
                     throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlTypeId})");
                 }
@@ -444,10 +510,10 @@ internal sealed class Program
             else
             {
                 var dotnetType = GetDotnetType(databaseMemo, memo.SqlTypeId);
-                if (dotnetType != typeof(String)) { memo.MaxLength = null; }
+                if (dotnetType.Name.ToLowerInvariant() != "string") { memo.MaxLength = null; }
 
                 memo.ParameterType = databaseMemo.Types[i.SqlTypeId].SqlDbType;
-                memo.ArgumentType = GetShortestNameForType(dotnetType);
+                memo.ArgumentType = dotnetType.Name;
                 memo.ArgumentExpression = GetCamelCase(i.Name);
             }
 
@@ -457,17 +523,27 @@ internal sealed class Program
         return memos;
     }
 
+    static TableTypeMemo? FindTableType(DatabaseMemo databaseMemo, SqlTypeId sqlTypeId)
+    {
+        var schemaMemo = databaseMemo.Schemas[sqlTypeId.SchemaId];
+        if (schemaMemo.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == sqlTypeId) is { } tableType)
+        {
+            return tableType;
+        }
+        return null;
+    }
+
     private static List<ColumnMemo> GetCommandColumns(DatabaseMemo database, List<Column> columns) =>
         columns.Select(i => (column: i, dotnetType: GetDotnetType(database, i.SqlTypeId))).Select(i => new ColumnMemo()
         {
-            MaxLength = i.dotnetType == typeof(String) ? i.column.MaxLength : null,
+            MaxLength = i.dotnetType.Name.ToLowerInvariant() == "string" ? i.column.MaxLength : null,
             OrdinalVarName = $"ord{GetPascalCase(i.column.Name)}",
             ColumnName = i.column.Name,
             ColumnIsNullable = i.column.IsNullable,
             PropertyType = i.dotnetType,
             PropertyTypeName = GetStringForType(i.dotnetType, i.column.IsNullable),
             PropertyName = GetPascalCase(i.column.Name),
-            FieldTypeName = GetShortestNameForType(i.dotnetType),
+            FieldTypeName = i.dotnetType.Name,
         }).ToList();
 
     private static List<Column> GetColumnsForResultSet<T>(List<T> resultSet) where T : IDmDescribeFirstResultSetRow =>
@@ -494,56 +570,7 @@ internal sealed class Program
         }
     }
 
-    public static Type GetDotnetType(SqlDbType type) => type switch
-    {
-        SqlDbType.Char or
-        SqlDbType.NChar or
-        SqlDbType.NText or
-        SqlDbType.NVarChar or
-        SqlDbType.Text or
-        SqlDbType.VarChar or
-        SqlDbType.Xml
-        => typeof(String),
-
-        SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
-
-        SqlDbType.Date or
-        SqlDbType.DateTime or
-        SqlDbType.DateTime2 or
-        SqlDbType.SmallDateTime
-        => typeof(DateTime),
-
-        SqlDbType.Time => typeof(TimeSpan),
-
-        SqlDbType.Bit => typeof(Boolean),
-        SqlDbType.Int => typeof(Int32),
-        SqlDbType.TinyInt => typeof(Byte),
-        SqlDbType.SmallInt => typeof(Int16),
-        SqlDbType.BigInt => typeof(Int64),
-
-        SqlDbType.Money or
-        SqlDbType.SmallMoney or
-        SqlDbType.Decimal => typeof(Decimal),
-
-        SqlDbType.Real => typeof(Single),
-        SqlDbType.Float => typeof(Double),
-
-        SqlDbType.UniqueIdentifier => typeof(Guid),
-
-        SqlDbType.Binary or
-        SqlDbType.Image or
-        SqlDbType.Timestamp or
-        SqlDbType.VarBinary => typeof(Byte[]),
-
-        // TODO:
-        // SqlDbType.Variant => throw new NotImplementedException(),
-        // SqlDbType.Udt => throw new NotImplementedException(),
-        // SqlDbType.Structured => throw new NotImplementedException(),
-
-        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
-    };
-
-    private static Type GetDotnetType(DatabaseMemo database, SqlTypeId type)
+    private static DotnetTypeMemo GetDotnetType(DatabaseMemo database, SqlTypeId type)
     {
         if (!database.Types.TryGetValue(type, out var found))
         {

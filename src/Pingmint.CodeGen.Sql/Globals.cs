@@ -50,13 +50,13 @@ public static class Globals
             {
                 if (!Char.IsLetter(ch))
                 {
-                    if (sb.Length == 0)
+                    if (sb.Length == 0 || !Char.IsDigit(ch))
                     {
                         continue;
                     }
                     else
                     {
-                        sb.Append(Char.ToUpperInvariant(ch));
+                        sb.Append(ch);
                         continue;
                     }
                 }
@@ -80,6 +80,10 @@ public static class Globals
     public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
         $"{GetShortestNameForType(type)}?" :
         $"{GetShortestNameForType(type)}";
+
+    public static String GetStringForType(Model.DotnetTypeMemo type, Boolean isColumnNullable) => (isColumnNullable) ?
+        $"{type.Name}?" :
+        $"{type.Name}";
 
     public static String GetShortestNameForType(Type type) => type switch
     {

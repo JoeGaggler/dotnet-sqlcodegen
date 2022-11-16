@@ -49,7 +49,13 @@ public class TypeMemo
     public String SqlName { get; set; }
     public SqlTypeId SqlTypeId { get; set; }
     public SqlDbType SqlDbType { get; set; }
-    public Type? DotnetType { get; set; }
+    public DotnetTypeMemo DotnetType { get; set; }
+}
+
+public class DotnetTypeMemo
+{
+    public String Name { get; set; }
+    public Boolean IsValueType { get; set; }
 }
 
 public class SchemaMemo
@@ -74,7 +80,7 @@ public class RecordMemo
 public class PropertyMemo
 {
     public Boolean IsNullable { get; set; }
-    public Type Type { get; set; }
+    public DotnetTypeMemo Type { get; set; }
     public String Name { get; set; }
 }
 
@@ -108,7 +114,7 @@ public class ColumnMemo
     public String OrdinalVarName { get; set; }
     public String ColumnName { get; set; }
     public Boolean ColumnIsNullable { get; set; }
-    public Type PropertyType { get; set; }
+    public DotnetTypeMemo PropertyType { get; set; }
     public String PropertyTypeName { get; set; }
     public String PropertyName { get; set; }
     public String FieldTypeName { get; set; }

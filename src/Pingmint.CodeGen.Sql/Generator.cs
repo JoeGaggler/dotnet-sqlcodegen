@@ -76,7 +76,7 @@ public static class Generator
                         var localName = GetCamelCase(col.PropertyName);
                         var propName = col.PropertyName;
 
-                        if (col.PropertyType == typeof(String) && col.MaxLength is { } maxLength && maxLength > 1)
+                        if (col.PropertyType.Name.ToLowerInvariant() == "string" && col.MaxLength is { } maxLength && maxLength > 1)
                         {
                             code.Line("var {0} = String.IsNullOrEmpty(row.{1}) || row.{1}.Length <= {2} ? row.{1} : row.{1}.Remove({2});", localName, propName, maxLength.ToString());
                         }
@@ -341,29 +341,28 @@ public static class Generator
             {
                 code.Line("var result = new {0}();", resultType);
                 code.Line("using var reader = await cmd.ExecuteReaderAsync(cancellationToken);");
-                using (code.If("await reader.ReadAsync(cancellationToken)"))
+                code.Line("if (!await reader.ReadAsync(cancellationToken)) { return result; }");
+                code.Line();
+                foreach (var column in commandMemo.Columns)
                 {
-                    foreach (var column in commandMemo.Columns)
+                    code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
+                }
+                code.Line();
+                using (code.DoWhile("await reader.ReadAsync(cancellationToken)"))
+                {
+                    code.Line("result.Add(new {0}", rowClassRef2);
+                    using (code.CreateBraceScope(null, ");"))
                     {
-                        code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
-                    }
-                    code.Line();
-                    using (code.DoWhile("await reader.ReadAsync(cancellationToken)"))
-                    {
-                        code.Line("result.Add(new {0}", rowClassRef2);
-                        using (code.CreateBraceScope(null, ");"))
+                        foreach (var column in commandMemo.Columns)
                         {
-                            foreach (var column in commandMemo.Columns)
+                            var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
                             {
-                                var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
-                                {
-                                    (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                };
-                                code.Line(line);
-                            }
+                                (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                            };
+                            code.Line(line);
                         }
                     }
                 }

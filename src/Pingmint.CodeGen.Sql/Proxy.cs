@@ -162,30 +162,29 @@ public partial class Proxy : IProxy
 
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
-			int ordIsNullable = reader.GetOrdinal("is_nullable");
-			int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-			int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		int ordIsNullable = reader.GetOrdinal("is_nullable");
+		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
+		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
+
+		do
+		{
+			result.Add(new DmDescribeFirstResultSetRow
 			{
-				result.Add(new DmDescribeFirstResultSetRow
-				{
-					Name = GetField<String>(reader, ordName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
-					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
-					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetField<String>(reader, ordName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+				IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+				ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
+				SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -198,30 +197,29 @@ public partial class Proxy : IProxy
 
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
-			int ordIsNullable = reader.GetOrdinal("is_nullable");
-			int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-			int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		int ordIsNullable = reader.GetOrdinal("is_nullable");
+		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
+		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
+
+		do
+		{
+			result.Add(new DmDescribeFirstResultSetForObjectRow
 			{
-				result.Add(new DmDescribeFirstResultSetForObjectRow
-				{
-					Name = GetField<String>(reader, ordName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
-					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
-					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetField<String>(reader, ordName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+				IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+				ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
+				SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -234,34 +232,33 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetParametersForObjectRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordParameterId = reader.GetOrdinal("parameter_id");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
-			int ordName = reader.GetOrdinal("name");
-			int ordIsOutput = reader.GetOrdinal("is_output");
-			int ordMaxLength = reader.GetOrdinal("max_length");
-			int ordIsTableType = reader.GetOrdinal("is_table_type");
-			int ordTypeName = reader.GetOrdinal("Type_Name");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordParameterId = reader.GetOrdinal("parameter_id");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		int ordName = reader.GetOrdinal("name");
+		int ordIsOutput = reader.GetOrdinal("is_output");
+		int ordMaxLength = reader.GetOrdinal("max_length");
+		int ordIsTableType = reader.GetOrdinal("is_table_type");
+		int ordTypeName = reader.GetOrdinal("Type_Name");
+
+		do
+		{
+			result.Add(new GetParametersForObjectRow
 			{
-				result.Add(new GetParametersForObjectRow
-				{
-					ParameterId = GetNonNullFieldValue<Int32>(reader, ordParameterId),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-					Name = GetField<String>(reader, ordName),
-					IsOutput = GetNonNullFieldValue<Boolean>(reader, ordIsOutput),
-					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
-					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
-					TypeName = GetNonNullField<String>(reader, ordTypeName),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				ParameterId = GetNonNullFieldValue<Int32>(reader, ordParameterId),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+				Name = GetField<String>(reader, ordName),
+				IsOutput = GetNonNullFieldValue<Boolean>(reader, ordIsOutput),
+				MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
+				IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
+				TypeName = GetNonNullField<String>(reader, ordTypeName),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -275,24 +272,23 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetProcedureForSchemaRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordObjectId = reader.GetOrdinal("object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-			int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordObjectId = reader.GetOrdinal("object_id");
+		int ordSchemaName = reader.GetOrdinal("Schema_Name");
+		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
+
+		do
+		{
+			result.Add(new GetProcedureForSchemaRow
 			{
-				result.Add(new GetProcedureForSchemaRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
-					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetNonNullField<String>(reader, ordName),
+				ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
+				SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+				ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -305,24 +301,23 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetProceduresForSchemaRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordObjectId = reader.GetOrdinal("object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-			int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordObjectId = reader.GetOrdinal("object_id");
+		int ordSchemaName = reader.GetOrdinal("Schema_Name");
+		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
+
+		do
+		{
+			result.Add(new GetProceduresForSchemaRow
 			{
-				result.Add(new GetProceduresForSchemaRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
-					ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetNonNullField<String>(reader, ordName),
+				ObjectId = GetNonNullFieldValue<Int32>(reader, ordObjectId),
+				SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+				ObsoleteMessage = GetField<String>(reader, ordObsoleteMessage),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -333,20 +328,19 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetSchemasRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+
+		do
+		{
+			result.Add(new GetSchemasRow
 			{
-				result.Add(new GetSchemasRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetNonNullField<String>(reader, ordName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -359,22 +353,21 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetSysTypeRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordIsTableType = reader.GetOrdinal("is_table_type");
-			int ordName = reader.GetOrdinal("name");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordIsTableType = reader.GetOrdinal("is_table_type");
+		int ordName = reader.GetOrdinal("name");
+
+		do
+		{
+			result.Add(new GetSysTypeRow
 			{
-				result.Add(new GetSysTypeRow
-				{
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
-					Name = GetNonNullField<String>(reader, ordName),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
+				Name = GetNonNullField<String>(reader, ordName),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -385,26 +378,25 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetSysTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
-			int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+
+		do
+		{
+			result.Add(new GetSysTypesRow
 			{
-				result.Add(new GetSysTypesRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-					IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetNonNullField<String>(reader, ordName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+				IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -417,30 +409,29 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetTableTypeColumnsRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordIsNullable = reader.GetOrdinal("is_nullable");
-			int ordMaxLength = reader.GetOrdinal("max_length");
-			int ordName = reader.GetOrdinal("name");
-			int ordTypeName = reader.GetOrdinal("Type_Name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordIsNullable = reader.GetOrdinal("is_nullable");
+		int ordMaxLength = reader.GetOrdinal("max_length");
+		int ordName = reader.GetOrdinal("name");
+		int ordTypeName = reader.GetOrdinal("Type_Name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+
+		do
+		{
+			result.Add(new GetTableTypeColumnsRow
 			{
-				result.Add(new GetTableTypeColumnsRow
-				{
-					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
-					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
-					Name = GetField<String>(reader, ordName),
-					TypeName = GetNonNullField<String>(reader, ordTypeName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+				MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
+				Name = GetField<String>(reader, ordName),
+				TypeName = GetNonNullField<String>(reader, ordTypeName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
@@ -451,28 +442,27 @@ public partial class Proxy : IProxy
 
 		var result = new List<GetTableTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-		if (await reader.ReadAsync(cancellationToken))
-		{
-			int ordName = reader.GetOrdinal("name");
-			int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
-			int ordSchemaName = reader.GetOrdinal("Schema_Name");
-			int ordSchemaId = reader.GetOrdinal("schema_id");
-			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-			int ordUserTypeId = reader.GetOrdinal("user_type_id");
+		if (!await reader.ReadAsync(cancellationToken)) { return result; }
 
-			do
+		int ordName = reader.GetOrdinal("name");
+		int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
+		int ordSchemaName = reader.GetOrdinal("Schema_Name");
+		int ordSchemaId = reader.GetOrdinal("schema_id");
+		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+		int ordUserTypeId = reader.GetOrdinal("user_type_id");
+
+		do
+		{
+			result.Add(new GetTableTypesRow
 			{
-				result.Add(new GetTableTypesRow
-				{
-					Name = GetNonNullField<String>(reader, ordName),
-					TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
-					SchemaName = GetNonNullField<String>(reader, ordSchemaName),
-					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
-					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
-					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
-				});
-			} while (await reader.ReadAsync(cancellationToken));
-		}
+				Name = GetNonNullField<String>(reader, ordName),
+				TypeTableObjectId = GetNonNullFieldValue<Int32>(reader, ordTypeTableObjectId),
+				SchemaName = GetNonNullField<String>(reader, ordSchemaName),
+				SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+				SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+				UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+			});
+		} while (await reader.ReadAsync(cancellationToken));
 		return result;
 	}
 
