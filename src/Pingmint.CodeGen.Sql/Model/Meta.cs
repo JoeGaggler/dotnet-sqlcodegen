@@ -129,6 +129,7 @@ public class ParametersMemo
     public String ArgumentType { get; set; }
     public String ArgumentName { get; set; }
     public String ArgumentExpression { get; set; }
+    public String PropertyName { get; set; }
     public Int32? MaxLength { get; set; }
     public SqlTypeId SqlTypeId { get; set; }
 }

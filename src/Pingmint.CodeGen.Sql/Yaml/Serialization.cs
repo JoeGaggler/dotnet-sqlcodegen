@@ -138,7 +138,7 @@ internal sealed class StatementsSequence : Sequence<Model.DatabasesItemStatement
 {
     public StatementsSequence(Action<Model.DatabasesItemStatements> callback) : base(callback, new() { Items = new() }) { }
 
-    protected override IMapping? StartMapping() => new StatementMapping(m => this.Model.Items.Add(m));
+    protected override IMapping? StartMapping() => new StatementMapping(m => this.Model.Items?.Add(m));
 }
 
 internal sealed class StatementMapping : Mapping<Model.Statement>

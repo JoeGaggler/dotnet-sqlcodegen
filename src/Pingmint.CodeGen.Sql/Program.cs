@@ -300,6 +300,16 @@ internal sealed class Program
             var name = statement.Name ?? throw new NullReferenceException();
             var commandText = statement.Text ?? throw new NullReferenceException();
 
+            if (parameters.Count > 0)
+            {
+                var paramClassName = GetPascalCase(name + "_Parameters");
+                var paramRecordMemo = databaseMemo.Records[paramClassName] = new RecordMemo()
+                {
+                    Name = paramClassName,
+                };
+                PopulateRecordProperties(databaseMemo, paramRecordMemo, parameters);
+            }
+
             Boolean isNonQuery;
             String? rowClassName;
             if (columns.Count != 0)
@@ -486,6 +496,7 @@ internal sealed class Program
             {
                 ParameterName = i.Name ?? throw new NullReferenceException(),
                 ArgumentName = GetCamelCase(i.Name),
+                PropertyName = GetPascalCase(i.Name),
                 MaxLength = i.MaxLength,
                 SqlTypeId = i.SqlTypeId,
             };

@@ -233,6 +233,8 @@ public static class Generator
         public String Parameters;
         public String ArgumentsRaw;
         public String Arguments;
+        public String? ParametersForClass;
+        public String? ArgumentsForClass;
         public String? RowClassRef;
     }
 
@@ -254,13 +256,23 @@ public static class Generator
         var prms1 = "";
         var args1 = "";
         var prms = "connection";
+        var prms2 = prms;
         var args = "SqlConnection connection"; // TODO: parameters, then transaction
+        var args2 = args + $", {commandMemo.MethodName}Parameters parameters"; // TODO: property for class name on commandMemo
         if (commandMemo.Parameters is { } parameters && parameters.Count > 0)
         {
             prms1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentName}"));
-            args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType} {i.ArgumentName}"));
+            args1 = String.Join(", ", parameters?.Select(i => $"{i.ArgumentType}? {i.ArgumentName}")); // TODO: ArgumentType should already have nullability
+
+            prms2 += ", " + String.Join(", ", parameters?.Select(i => $"parameters.{i.PropertyName}"));
+
             prms += ", " + prms1;
             args += ", " + args1;
+        }
+        else
+        {
+            prms2 = null;
+            args2 = null;
         }
 
         return new()
@@ -270,8 +282,10 @@ public static class Generator
             ResultType = resultType,
             Parameters = prms,
             ParametersRaw = prms1,
+            ParametersForClass = prms2,
             Arguments = args,
             ArgumentsRaw = args1,
+            ArgumentsForClass = args2,
             RowClassRef = rowClassRef,
         };
     }
@@ -300,8 +314,11 @@ public static class Generator
         var prms = sig.Parameters;
         var rowClassRef = sig.RowClassRef;
 
-        // args += ", CancellationToken cancellationToken";
-
+        if (sig.ArgumentsForClass is { } cargs && sig.ParametersForClass is { } cprms)
+        {
+            code.Line("public static {0} {1}({2}) => {1}({3}, CancellationToken.None);", returnType, methodName, cargs, cprms);
+            code.Line("public static {0} {1}({2}) => {1}({3}, cancellationToken);", returnType, methodName, cargs+ ", CancellationToken cancellationToken", cprms);
+        }
         code.Line("public static {0} {1}({2}) => {1}({3}, CancellationToken.None);", returnType, methodName, args, prms);
         using (code.Method("public static async", returnType, methodName, args + ", CancellationToken cancellationToken"))
         {
@@ -341,14 +358,14 @@ public static class Generator
             {
                 code.Line("var result = new {0}();", resultType);
                 code.Line("using var reader = await cmd.ExecuteReaderAsync(cancellationToken);");
-                code.Line("if (!await reader.ReadAsync(cancellationToken)) { return result; }");
+                code.Line("if (!reader.Read()) { return result; }"); // TODO: reconsider async
                 code.Line();
                 foreach (var column in commandMemo.Columns)
                 {
                     code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
                 }
                 code.Line();
-                using (code.DoWhile("await reader.ReadAsync(cancellationToken)"))
+                using (code.DoWhile("reader.Read()")) // TODO: reconsider async
                 {
                     code.Line("result.Add(new {0}", rowClassRef2);
                     using (code.CreateBraceScope(null, ");"))

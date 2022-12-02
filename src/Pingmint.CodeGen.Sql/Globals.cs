@@ -77,10 +77,6 @@ public static class Globals
         return sb.ToString();
     }
 
-    public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
-        $"{GetShortestNameForType(type)}?" :
-        $"{GetShortestNameForType(type)}";
-
     public static String GetStringForType(Model.DotnetTypeMemo type, Boolean isColumnNullable) => (isColumnNullable) ?
         $"{type.Name}?" :
         $"{type.Name}";
