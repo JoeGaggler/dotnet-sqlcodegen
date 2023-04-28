@@ -110,51 +110,54 @@ public static class Generator
         code.FileNamespace(fileNs);
         code.Line();
 
-        code.Line("public partial interface I{0}", className);
-        using (code.CreateBraceScope())
-        {
-            foreach (var databaseMemo in databaseMemos.Values)
-            {
-                foreach (var schemaMemo in databaseMemo.Schemas.Values)
-                {
-                    foreach (var procMemo in schemaMemo.Procedures.Values)
-                    {
-                        CodeSqlStatementInterface(code, procMemo);
-                    }
-                }
+        // TODO: reconsider interface
+        // code.Line("public partial interface I{0}", className);
+        // using (code.CreateBraceScope())
+        // {
+        //     foreach (var databaseMemo in databaseMemos.Values)
+        //     {
+        //         foreach (var schemaMemo in databaseMemo.Schemas.Values)
+        //         {
+        //             foreach (var procMemo in schemaMemo.Procedures.Values)
+        //             {
+        //                 CodeSqlStatementInterface(code, procMemo);
+        //             }
+        //         }
 
-                foreach (var memo in databaseMemo.Statements)
-                {
-                    CodeSqlStatementInterface(code, memo.Value);
-                }
-            }
-        }
-        code.Line();
+        //         foreach (var memo in databaseMemo.Statements)
+        //         {
+        //             CodeSqlStatementInterface(code, memo.Value);
+        //         }
+        //     }
+        // }
+        // code.Line();
 
         CodeRecords(code, databaseMemos);
         code.Line();
 
-        using (code.PartialClass("public", className, "I" + className))
+        // using (code.PartialClass("public", className, "I" + className)) // TODO: reconsider implements
+        using (code.PartialClass("public", className))
         {
             WriteConstructor(code, className);
             code.Line();
 
-            foreach (var databaseMemo in databaseMemos.Values)
-            {
-                foreach (var schemaMemo in databaseMemo.Schemas.Values)
-                {
-                    foreach (var procMemo in schemaMemo.Procedures.Values)
-                    {
-                        CodeSqlStatementInstance(code, procMemo);
-                    }
-                }
+            // TODO: reconsider instance methods
+            // foreach (var databaseMemo in databaseMemos.Values)
+            // {
+            //     foreach (var schemaMemo in databaseMemo.Schemas.Values)
+            //     {
+            //         foreach (var procMemo in schemaMemo.Procedures.Values)
+            //         {
+            //             CodeSqlStatementInstance(code, procMemo);
+            //         }
+            //     }
 
-                foreach (var memo in databaseMemo.Statements)
-                {
-                    CodeSqlStatementInstance(code, memo.Value);
-                }
-            }
-            code.Line();
+            //     foreach (var memo in databaseMemo.Statements)
+            //     {
+            //         CodeSqlStatementInstance(code, memo.Value);
+            //     }
+            // }
+            // code.Line();
 
             WriteHelperMethods(code);
             code.Line();
@@ -181,13 +184,14 @@ public static class Generator
 
     private static void WriteConstructor(CodeWriter code, String className)
     {
-        code.Line("private readonly Func<Task<SqlConnection>> connectionFunc;");
-        code.Line();
-        code.Line("public {0}({1})", className, "Func<Task<SqlConnection>> connectionFunc");
-        using (code.CreateBraceScope())
-        {
-            code.Line("this.connectionFunc = connectionFunc;");
-        }
+        // TODO: reconsider instance methods
+        // code.Line("private readonly Func<Task<SqlConnection>> connectionFunc;");
+        // code.Line();
+        // code.Line("public {0}({1})", className, "Func<Task<SqlConnection>> connectionFunc");
+        // using (code.CreateBraceScope())
+        // {
+        //     code.Line("this.connectionFunc = connectionFunc;");
+        // }
     }
 
     private static void WriteHelperMethods(CodeWriter code)

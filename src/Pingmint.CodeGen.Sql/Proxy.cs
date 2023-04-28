@@ -7,20 +7,6 @@ using Microsoft.Data.SqlClient;
 
 namespace Pingmint.CodeGen.Sql;
 
-public partial interface IProxy
-{
-	Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text);
-	Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid);
-	Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id);
-	Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc);
-	Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema);
-	Task<List<GetSchemasRow>> GetSchemasAsync();
-	Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id);
-	Task<List<GetSysTypesRow>> GetSysTypesAsync();
-	Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id);
-	Task<List<GetTableTypesRow>> GetTableTypesAsync();
-}
-
 public partial class DmDescribeFirstResultSetForObjectRow
 {
 	public String? Name { get; set; }
@@ -106,25 +92,8 @@ public partial class GetTableTypesRow
 	public Int32 UserTypeId { get; set; }
 }
 
-public partial class Proxy : IProxy
+public partial class Proxy
 {
-	private readonly Func<Task<SqlConnection>> connectionFunc;
-
-	public Proxy(Func<Task<SqlConnection>> connectionFunc)
-	{
-		this.connectionFunc = connectionFunc;
-	}
-
-	public async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(String text) => await DmDescribeFirstResultSetAsync(await connectionFunc(), text);
-	public async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(Int32 objectid) => await DmDescribeFirstResultSetForObjectAsync(await connectionFunc(), objectid);
-	public async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(Int32 id) => await GetParametersForObjectAsync(await connectionFunc(), id);
-	public async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(String schema, String proc) => await GetProcedureForSchemaAsync(await connectionFunc(), schema, proc);
-	public async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(String schema) => await GetProceduresForSchemaAsync(await connectionFunc(), schema);
-	public async Task<List<GetSchemasRow>> GetSchemasAsync() => await GetSchemasAsync(await connectionFunc());
-	public async Task<List<GetSysTypeRow>> GetSysTypeAsync(Int32 id) => await GetSysTypeAsync(await connectionFunc(), id);
-	public async Task<List<GetSysTypesRow>> GetSysTypesAsync() => await GetSysTypesAsync(await connectionFunc());
-	public async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(Int32 id) => await GetTableTypeColumnsAsync(await connectionFunc(), id);
-	public async Task<List<GetTableTypesRow>> GetTableTypesAsync() => await GetTableTypesAsync(await connectionFunc());
 
     private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
     {
