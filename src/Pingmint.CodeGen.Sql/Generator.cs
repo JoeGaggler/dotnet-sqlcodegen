@@ -231,7 +231,6 @@ public static class Generator
     private struct StatementSignature
     {
         public String MethodName;
-        public String ReturnType;
         public String ResultType;
         public String ParametersRaw;
         public String Parameters;
@@ -252,8 +251,7 @@ public static class Generator
             resultType = "Int32";
             rowClassRef = null;
         }
-        var returnType = String.Format("Task<{0}>", resultType);
-        var methodName = (commandMemo.MethodName ?? throw new NullReferenceException()) + "Async";
+        var methodName = (commandMemo.MethodName ?? throw new NullReferenceException());
 
         var prms1 = "";
         var args1 = "";
@@ -270,7 +268,6 @@ public static class Generator
         return new()
         {
             MethodName = methodName,
-            ReturnType = returnType,
             ResultType = resultType,
             Parameters = prms,
             ParametersRaw = prms1,
@@ -280,102 +277,126 @@ public static class Generator
         };
     }
 
-    private static void CodeSqlStatementInterface(CodeWriter code, CommandMemo commandMemo)
-    {
-        var sig = GetStatementSignature(commandMemo);
-        code.Line("{0} {1}({2});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw);
-    }
-
-    private static void CodeSqlStatementInstance(CodeWriter code, CommandMemo commandMemo)
-    {
-        var sig = GetStatementSignature(commandMemo);
-        code.Line("public async {0} {1}({2}) => await {1}(await connectionFunc(){3});", sig.ReturnType, sig.MethodName, sig.ArgumentsRaw, sig.ParametersRaw is { } raw && raw.Length > 0 ? ", " + raw : "");
-    }
-
     private static void CodeSqlStatement(CodeWriter code, CommandMemo commandMemo)
     {
         var commandText = commandMemo.CommandText ?? throw new NullReferenceException();
 
         var sig = GetStatementSignature(commandMemo);
-        var methodName = sig.MethodName;
-        var returnType = sig.ReturnType;
         var resultType = sig.ResultType;
         var args = sig.Arguments;
         var prms = sig.Parameters;
         var rowClassRef = sig.RowClassRef;
 
-        // args += ", CancellationToken cancellationToken";
-
-        code.Line("public static {0} {1}({2}) => {1}({3}, CancellationToken.None);", returnType, methodName, args, prms);
-        using (code.Method("public static async", returnType, methodName, args + ", CancellationToken cancellationToken"))
+        foreach (var isAsync in new[] { true, false })
         {
-            var commandType = commandMemo.CommandType switch
-            {
-                CommandType.Text => CommandType.Text.ToString(),
-                CommandType.StoredProcedure => CommandType.StoredProcedure.ToString(),
-                var x => throw new InvalidOperationException($"unsupported command type: {x}")
-            };
+            var returnType = isAsync ? $"Task<{resultType}>" : resultType;
+            var methodName = isAsync ? sig.MethodName + "Async" : sig.MethodName;
+            var asyncKeyword = isAsync ? " async" : "";
 
-            var commandMethod = commandMemo.CommandType switch
+            // Async only: generate convenience method without cancellation token
+            var prmsWithCancellationToken = isAsync ? prms + ", CancellationToken.None" : prms;
+            if (isAsync)
             {
-                CommandType.Text => "CreateStatement",
-                CommandType.StoredProcedure => "CreateStoredProcedure",
-                var x => throw new InvalidOperationException($"unsupported command type: {x}")
-            };
+                code.Line("public static {0} {1}({2}) => {1}({3});", returnType, methodName, args, prmsWithCancellationToken);
+            }
 
-            code.Line($"using SqlCommand cmd = {commandMethod}(connection, \"{commandText}\");");
-            code.Line();
-
-            if (commandMemo.Parameters is { } parameters2 && parameters2.Count > 0) // TODO: reuse parameters
+            var argsWithCancellationToken = isAsync ? args + ", CancellationToken cancellationToken" : args;
+            using (code.Method($"public static{asyncKeyword}", returnType, methodName, argsWithCancellationToken))
             {
-                foreach (var parameter in parameters2)
+                var commandType = commandMemo.CommandType switch
                 {
-                    var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                    var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
-                }
+                    CommandType.Text => CommandType.Text.ToString(),
+                    CommandType.StoredProcedure => CommandType.StoredProcedure.ToString(),
+                    var x => throw new InvalidOperationException($"unsupported command type: {x}")
+                };
+
+                var commandMethod = commandMemo.CommandType switch
+                {
+                    CommandType.Text => "CreateStatement",
+                    CommandType.StoredProcedure => "CreateStoredProcedure",
+                    var x => throw new InvalidOperationException($"unsupported command type: {x}")
+                };
+
+                code.Line($"using SqlCommand cmd = {commandMethod}(connection, \"{commandText}\");");
                 code.Line();
-            }
 
-            if (commandMemo.IsNonQuery)
-            {
-                code.Return("await cmd.ExecuteNonQueryAsync(cancellationToken)");
-            }
-            else if (commandMemo.Columns is { } columns && columns.Count > 0 && rowClassRef is { } rowClassRef2)
-            {
-                code.Line("var result = new {0}();", resultType);
-                code.Line("using var reader = await cmd.ExecuteReaderAsync(cancellationToken);");
-                using (code.If("await reader.ReadAsync(cancellationToken)"))
+                if (commandMemo.Parameters is { } parameters2 && parameters2.Count > 0) // TODO: reuse parameters
                 {
-                    foreach (var column in commandMemo.Columns)
+                    foreach (var parameter in parameters2)
                     {
-                        code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
+                        var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                        var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                        code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
                     }
                     code.Line();
-                    using (code.DoWhile("await reader.ReadAsync(cancellationToken)"))
+                }
+
+                if (commandMemo.IsNonQuery)
+                {
+                    if (isAsync)
                     {
-                        code.Line("result.Add(new {0}", rowClassRef2);
-                        using (code.CreateBraceScope(null, ");"))
+                        code.Return("await cmd.ExecuteNonQueryAsync(cancellationToken)");
+                    }
+                    else
+                    {
+                        code.Return("cmd.ExecuteNonQuery()");
+                    }
+                }
+                else if (commandMemo.Columns is { } columns && columns.Count > 0 && rowClassRef is { } rowClassRef2)
+                {
+                    code.Line("var result = new {0}();", resultType);
+
+                    if (isAsync)
+                    {
+                        code.Line("using var reader = await cmd.ExecuteReaderAsync(cancellationToken);");
+                    }
+                    else
+                    {
+                        code.Line("using var reader = cmd.ExecuteReader();");
+                    }
+
+                    IDisposable ifReader =
+                        isAsync ?
+                        code.If("await reader.ReadAsync(cancellationToken)") :
+                        code.If("reader.Read()");
+                    using (ifReader)
+                    {
+                        foreach (var column in commandMemo.Columns)
                         {
-                            foreach (var column in commandMemo.Columns)
+                            code.Line("int {0} = reader.GetOrdinal(\"{1}\");", column.OrdinalVarName, column.ColumnName);
+                        }
+
+                        code.Line();
+
+                        IDisposable doWhileReader =
+                            isAsync ?
+                            code.DoWhile("await reader.ReadAsync(cancellationToken)") :
+                            code.DoWhile("reader.Read()");
+                        using (doWhileReader)
+                        {
+                            code.Line("result.Add(new {0}", rowClassRef2);
+                            using (code.CreateBraceScope(null, ");"))
                             {
-                                var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
+                                foreach (var column in commandMemo.Columns)
                                 {
-                                    (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                    (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                };
-                                code.Line(line);
+                                    var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
+                                    {
+                                        (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                    };
+                                    code.Line(line);
+                                }
                             }
                         }
                     }
+                    code.Return("result");
                 }
-                code.Return("result");
-            }
-            else
-            {
-                throw new InvalidOperationException("unable to determine expected results");
+                else
+                {
+                    throw new InvalidOperationException("unable to determine expected results");
+                }
             }
         }
     }
