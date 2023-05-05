@@ -21,18 +21,26 @@ public static class Generator
                 {
                     if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
                     CodeRecord(code, record);
+
+                    code.Line();
                 }
+
                 foreach (var tableType in schema.TableTypes.Values)
                 {
                     if (!tableType.IsReferenced) { continue; }
                     CodeRecord(code, tableType);
+
+                    code.Line();
                 }
             }
+
             foreach (var recordItem in db.Records)
             {
                 var record = recordItem.Value;
                 if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
                 CodeRecord(code, record);
+
+                code.Line();
             }
         }
     }
@@ -133,7 +141,9 @@ public static class Generator
         // code.Line();
 
         CodeRecords(code, databaseMemos);
-        code.Line();
+
+        // CodeRecords already emits a blank line
+        //code.Line();
 
         // using (code.PartialClass("public", className, "I" + className)) // TODO: reconsider implements
         using (code.PartialClass("public", className))
@@ -397,6 +407,12 @@ public static class Generator
                 {
                     throw new InvalidOperationException("unable to determine expected results");
                 }
+            }
+
+            // HACK: put line break between async and sync methods
+            if (isAsync)
+            {
+                code.Line();
             }
         }
     }
