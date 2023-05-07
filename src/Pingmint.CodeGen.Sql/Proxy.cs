@@ -131,12 +131,13 @@ public partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
-	public static Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text) => DmDescribeFirstResultSetAsync(connection, text, CancellationToken.None);
-	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, CancellationToken cancellationToken)
+	public static Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, String parameters) => DmDescribeFirstResultSetAsync(connection, text, parameters, CancellationToken.None);
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String text, String parameters, CancellationToken cancellationToken)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
-		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.VarChar));
+		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.NVarChar));
+		cmd.Parameters.Add(CreateParameter("@parameters", parameters, SqlDbType.NVarChar));
 
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -167,11 +168,12 @@ public partial class Proxy
 		return result;
 	}
 
-	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String text)
+	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String text, String parameters)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
 
-		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.VarChar));
+		cmd.Parameters.Add(CreateParameter("@text", text, SqlDbType.NVarChar));
+		cmd.Parameters.Add(CreateParameter("@parameters", parameters, SqlDbType.NVarChar));
 
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = cmd.ExecuteReader();

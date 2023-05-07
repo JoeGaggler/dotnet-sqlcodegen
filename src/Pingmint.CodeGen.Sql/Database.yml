@@ -22,12 +22,14 @@ databases:
       - name: DmDescribeFirstResultSet
         text: |
           SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
-          FROM sys.dm_exec_describe_first_result_set(@text, NULL, NULL) AS D
+          FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D
           JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id))
           ORDER BY D.column_ordinal
         parameters:
           - name: text
-            type: varchar
+            type: nvarchar
+          - name: parameters
+            type: nvarchar
       - name: GetProcedureForSchema
         text: |
           SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message]

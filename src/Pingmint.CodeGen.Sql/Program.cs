@@ -227,8 +227,6 @@ internal sealed class Program
 
         foreach (var statement in statements)
         {
-            var columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text));
-
             if (statement.Parameters?.Items is { } parameters)
             {
                 foreach (var parameter in parameters)
@@ -242,6 +240,8 @@ internal sealed class Program
                 parameters = new();
             }
 
+            var parametersString = parameters.Count == 0 ? null : string.Join(", ", parameters.Select(i => $"@{i.Name} {i.Type ?? "null"}"));
+            var columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetAsync(sql, statement.Text, parametersString));
             var name = statement.Name ?? throw new NullReferenceException();
             var commandText = statement.Text ?? throw new NullReferenceException();
 
