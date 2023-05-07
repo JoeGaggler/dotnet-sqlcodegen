@@ -68,7 +68,6 @@ public class DatabasesItem
 
     // mapping
     public String? SqlName { get; set; }
-    public String? ClassName { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
 

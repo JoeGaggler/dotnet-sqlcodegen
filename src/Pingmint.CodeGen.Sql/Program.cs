@@ -108,7 +108,6 @@ internal sealed class Program
         var databaseMemo = new DatabaseMemo()
         {
             SqlName = sqlDatabaseName,
-            ClassName = database.ClassName ?? GetPascalCase(sqlDatabaseName),
         };
 
         await PopulateSchemasAsync(sql, databaseMemo);

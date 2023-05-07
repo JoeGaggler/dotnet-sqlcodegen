@@ -82,7 +82,6 @@ internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
         switch (key)
         {
             case "database": { this.Model.SqlName = value; return true; }
-            case "class": { this.Model.ClassName = value; return true; }
             default: return false;
         }
     }

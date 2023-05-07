@@ -4,7 +4,6 @@ csharp:
   class: Proxy
 databases:
   - database: tempdb
-    class: TempDb
     # procedures:
     #   include:
     #     - pingmint.*
