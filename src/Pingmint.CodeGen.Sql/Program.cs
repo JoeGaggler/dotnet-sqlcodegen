@@ -150,6 +150,13 @@ internal sealed class Program
                 }
                 catch
                 {
+                    // not implemented: image
+                    // not implemented: sql_variant
+                    // not implemented: smallmoney
+                    // not implemented: hierarchyid
+                    // not implemented: geometry
+                    // not implemented: geography
+                    // not implemented: timestamp
                     continue; // TODO: type not supported
                 }
             }
@@ -562,6 +569,7 @@ internal sealed class Program
 
         // chars
         "char" => SqlDbType.Char,
+        "nchar" => SqlDbType.NChar,
         "nvarchar" => SqlDbType.NVarChar,
         "ntext" => SqlDbType.NText,
         "text" => SqlDbType.Text,
@@ -571,6 +579,11 @@ internal sealed class Program
         "datetime" => SqlDbType.DateTime,
         "datetime2" => SqlDbType.DateTime2,
         "datetimeoffset" => SqlDbType.DateTimeOffset,
+        "smalldatetime" => SqlDbType.SmallDateTime,
+
+        // binary
+        "binary" => SqlDbType.Binary,
+        "varbinary" => SqlDbType.VarBinary,
 
         // other
         "decimal" => SqlDbType.Decimal,
@@ -583,7 +596,7 @@ internal sealed class Program
         "varchar" => SqlDbType.VarChar,
         "xml" => SqlDbType.Xml,
         "uniqueidentifier" => SqlDbType.UniqueIdentifier,
-        "varbinary" => SqlDbType.VarBinary,
+
         _ => throw new InvalidOperationException("Unexpected SQL type name: " + sqlTypeName),
     };
 }
