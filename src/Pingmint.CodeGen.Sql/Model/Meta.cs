@@ -8,7 +8,7 @@ public record struct SqlTypeId : IComparable<SqlTypeId>
     public Int32 SystemTypeId;
     public Int32 UserTypeId;
 
-    public int CompareTo(SqlTypeId other)
+    public readonly int CompareTo(SqlTypeId other)
     {
         if (SchemaId.CompareTo(other.SchemaId) is var comp1 && comp1 != 0) { return comp1; }
         if (SystemTypeId.CompareTo(other.SystemTypeId) is var comp2 && comp2 != 0) { return comp2; }
@@ -30,6 +30,11 @@ public class ConfigMemo
     public String? Namespace { get; set; }
     public String? ClassName { get; set; }
 
+    /// <summary>
+    /// Databases sorted by its SQL name
+    /// </summary>
+    /// <typeparam name="String">SQL name of the database</typeparam>
+    /// <typeparam name="DatabaseMemo">Database memo</typeparam>
     public SortedDictionary<String, DatabaseMemo> Databases { get; } = new();
 }
 
@@ -74,7 +79,7 @@ public class RecordMemo
 public class PropertyMemo
 {
     public Boolean IsNullable { get; set; }
-    public Type Type { get; set; }
+    public Type? Type { get; set; }
     public String Name { get; set; }
 }
 
