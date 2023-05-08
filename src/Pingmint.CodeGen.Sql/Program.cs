@@ -298,7 +298,6 @@ internal sealed class Program
             return false;
         }
 
-
         if (database.Procedures?.Included is not { } procs) { return; }
 
         foreach (var proc in procs)
@@ -323,12 +322,12 @@ internal sealed class Program
 
             static async Task MetaProcAsync(SqlConnection sql, Procedure proc, string schema, string procName, DatabaseMemo databaseMemo)
             {
-                if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } me)
+                if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { ObjectId: int objectId })
                 {
                     throw new InvalidOperationException($"Unable to find procedure: {proc.Text}");
                 }
 
-                var iii = (await Proxy.GetParametersForObjectAsync(sql, me.ObjectId)).Select(i => new Parameter()
+                var iii = (await Proxy.GetParametersForObjectAsync(sql, objectId)).Select(i => new Parameter()
                 {
                     Name = i.Name?.TrimStart('@') ?? throw new NullReferenceException(),
                     Type = i.TypeName,
@@ -339,7 +338,7 @@ internal sealed class Program
                 proc.Parameters = new() { Items = iii };
 
                 // TODO: go straight to memo
-                proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, me.ObjectId));
+                proc.Columns = GetColumnsForResultSet(await Proxy.DmDescribeFirstResultSetForObjectAsync(sql, objectId));
 
                 var schemaMemo = databaseMemo.Schemas.Values.First(i => i.SqlName == schema); // TODO: O(n)
 
@@ -394,44 +393,48 @@ internal sealed class Program
             props.Add(prop);
         }
     }
+
     private static List<ParametersMemo> GetCommandParameters(String? hostSchema, List<Parameter> parameters, DatabaseMemo databaseMemo)
     {
         var memos = new List<ParametersMemo>();
-        foreach (var i in parameters)
+
+        foreach (var parameter in parameters)
         {
+            String parameterName = parameter.Name ?? throw new NullReferenceException();
+
             var memo = new ParametersMemo()
             {
-                ParameterName = i.Name ?? throw new NullReferenceException(),
-                ArgumentName = GetCamelCase(i.Name),
-                MaxLength = i.MaxLength,
-                SqlTypeId = i.SqlTypeId,
+                ParameterName = parameterName,
+                ArgumentName = GetCamelCase(parameterName),
+                MaxLength = parameter.MaxLength,
+                SqlTypeId = parameter.SqlTypeId,
             };
 
-            if (i.IsTableType)
+            if (parameter.IsTableType)
             {
-                var (schemaName, typeName) = Program.ParseSchemaItem(i.Type);
+                var (schemaName, typeName) = Program.ParseSchemaItem(parameter.Type);
                 schemaName ??= hostSchema;
 
-                static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter i)
+                static TableTypeMemo? FindMatch(DatabaseMemo databaseMemo, String schemaName, Parameter target)
                 {
-                    var schemaMemo = databaseMemo.Schemas[i.SqlTypeId.SchemaId];
-                    if (schemaMemo.TableTypes.Values.FirstOrDefault(j => j.SqlTypeId == i.SqlTypeId) is { } tableType)
+                    var schemaMemo = databaseMemo.Schemas[target.SqlTypeId.SchemaId];
+                    if (schemaMemo.TableTypes.Values.FirstOrDefault(candidate => candidate.SqlTypeId == target.SqlTypeId) is { } tableType)
                     {
                         return tableType;
                     }
                     return null;
                 }
 
-                if (FindMatch(databaseMemo, schemaName, i) is not { } tableType)
+                if (FindMatch(databaseMemo, schemaName, parameter) is not { } tableType)
                 {
-                    throw new InvalidOperationException($"Unable to find table type: {i.Type} ({i.SqlTypeId})");
+                    throw new InvalidOperationException($"Unable to find table type: {parameter.Type} ({parameter.SqlTypeId})");
                 }
 
                 tableType.IsReferenced = true;
                 memo.MaxLength = null;
                 memo.ParameterType = SqlDbType.Structured;
                 memo.ArgumentType = $"List<{tableType.RowClassRef}>";
-                memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(i.Name)})";
+                memo.ArgumentExpression = $"new {tableType.DataTableClassRef}({GetCamelCase(parameterName)})";
                 memo.ParameterTableRef = $"{tableType.SchemaName}.{tableType.TypeName}";
             }
             else
@@ -439,9 +442,9 @@ internal sealed class Program
                 var dotnetType = GetDotnetType(databaseMemo, memo.SqlTypeId);
                 if (dotnetType != typeof(String)) { memo.MaxLength = null; }
 
-                memo.ParameterType = databaseMemo.Types[i.SqlTypeId].SqlDbType;
+                memo.ParameterType = databaseMemo.Types[parameter.SqlTypeId].SqlDbType;
                 memo.ArgumentType = GetShortestNameForType(dotnetType);
-                memo.ArgumentExpression = GetCamelCase(i.Name);
+                memo.ArgumentExpression = GetCamelCase(parameterName);
             }
 
             memos.Add(memo);

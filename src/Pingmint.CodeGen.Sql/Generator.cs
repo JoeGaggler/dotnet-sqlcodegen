@@ -252,14 +252,14 @@ public static class Generator
     private static StatementSignature GetStatementSignature(CommandMemo commandMemo)
     {
         String resultType;
-        if (!commandMemo.IsNonQuery && commandMemo.RowClassRef is { } rowClassRef)
+        if (!commandMemo.IsNonQuery && commandMemo.RowClassName is { } rowClassName)
         {
-            resultType = String.Format("List<{0}>", rowClassRef);
+            resultType = String.Format("List<{0}>", rowClassName);
         }
         else
         {
             resultType = "Int32";
-            rowClassRef = null;
+            rowClassName = null;
         }
         var methodName = (commandMemo.MethodName ?? throw new NullReferenceException());
 
@@ -283,7 +283,7 @@ public static class Generator
             ParametersRaw = prms1,
             Arguments = args,
             ArgumentsRaw = args1,
-            RowClassRef = rowClassRef,
+            RowClassRef = rowClassName,
         };
     }
 
