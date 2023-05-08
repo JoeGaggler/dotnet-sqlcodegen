@@ -43,6 +43,9 @@ public class DatabaseMemo
     public String SqlName { get; set; }
     public String ClassName { get; set; }
 
+    /// <summary>
+    /// Record classes sorted by its C# class name
+    /// </summary>
     public SortedDictionary<String, RecordMemo> Records { get; } = new();
     public SortedDictionary<Int32, SchemaMemo> Schemas { get; } = new();
     public SortedDictionary<String, CommandMemo> Statements { get; } = new();
@@ -102,7 +105,6 @@ public class CommandMemo
     public String CommandText { get; set; }
     public String MethodName { get; set; }
     public String? RowClassName { get; set; }
-    public String? RowClassRef { get; set; }
     public Boolean IsNonQuery { get; set; }
     public List<ColumnMemo> Columns { get; set; }
     public List<ParametersMemo> Parameters { get; set; }

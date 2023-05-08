@@ -227,7 +227,7 @@ internal sealed class Program
             {
                 foreach (var parameter in parameters)
                 {
-                    var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type);
+                    var found = databaseMemo.Types.Values.First(i => i.SqlName == parameter.Type); // TODO: error handling
                     parameter.SqlTypeId = found.SqlTypeId;
                 }
             }
@@ -265,7 +265,6 @@ internal sealed class Program
                 CommandText = commandText.ReplaceLineEndings(" ").Trim(),
                 MethodName = name,
                 RowClassName = rowClassName,
-                RowClassRef = rowClassName,
                 Parameters = GetCommandParameters(null, parameters, databaseMemo),
                 Columns = GetCommandColumns(databaseMemo, columns),
                 IsNonQuery = isNonQuery,
@@ -373,7 +372,6 @@ internal sealed class Program
                     Parameters = GetCommandParameters(schema, proc.Parameters?.Items ?? new List<Parameter>(), databaseMemo),
                     Columns = GetCommandColumns(databaseMemo, columns),
                     RowClassName = rowClassName,
-                    RowClassRef = rowClassName,
                     IsNonQuery = isNonQuery,
                 };
 
