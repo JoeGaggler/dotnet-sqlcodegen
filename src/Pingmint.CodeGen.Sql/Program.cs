@@ -19,8 +19,9 @@ internal sealed class Program
         var yaml = File.ReadAllText(args[0]);
         var config = ParseYaml(yaml);
 
-        var configMemo = await MetaAsync(config);
+        await Refactor.Program2.Run(config);
 
+        var configMemo = await MetaAsync(config);
         var code = new CodeWriter();
         Generator.Generate(configMemo, code);
 
