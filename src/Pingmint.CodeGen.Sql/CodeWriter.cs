@@ -131,6 +131,18 @@ public static class CodeWriterExtensions
         return new BraceScope(writer);
     }
 
+    public static IDisposable PartialRecordClass(this CodeWriter writer, String modifiers, String name)
+    {
+        writer.Line("{0} partial record class {1}", modifiers, name);
+        return new BraceScope(writer);
+    }
+
+    public static IDisposable PartialRecordClass(this CodeWriter writer, String modifiers, String name, String implements)
+    {
+        writer.Line("{0} partial record class {1} : {2}", modifiers, name, implements);
+        return new BraceScope(writer);
+    }
+
     public static IDisposable Using(this CodeWriter writer, String disposable)
     {
         writer.Line("using ({0})", disposable);

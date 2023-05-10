@@ -7,7 +7,7 @@ using Microsoft.Data.SqlClient;
 
 namespace Pingmint.CodeGen.Sql;
 
-public partial class DmDescribeFirstResultSetForObjectRow
+public partial record class DmDescribeFirstResultSetForObjectRow
 {
 	public String? Name { get; set; }
 	public Int32 SchemaId { get; set; }
@@ -18,7 +18,7 @@ public partial class DmDescribeFirstResultSetForObjectRow
 	public String SqlTypeName { get; set; }
 }
 
-public partial class DmDescribeFirstResultSetRow
+public partial record class DmDescribeFirstResultSetRow
 {
 	public String? Name { get; set; }
 	public Int32 SchemaId { get; set; }
@@ -29,7 +29,7 @@ public partial class DmDescribeFirstResultSetRow
 	public String SqlTypeName { get; set; }
 }
 
-public partial class GetParametersForObjectRow
+public partial record class GetParametersForObjectRow
 {
 	public Int32 ParameterId { get; set; }
 	public Int32 SchemaId { get; set; }
@@ -42,7 +42,7 @@ public partial class GetParametersForObjectRow
 	public String TypeName { get; set; }
 }
 
-public partial class GetProcedureForSchemaRow
+public partial record class GetProcedureForSchemaRow
 {
 	public String Name { get; set; }
 	public Int32 ObjectId { get; set; }
@@ -50,7 +50,7 @@ public partial class GetProcedureForSchemaRow
 	public String? ObsoleteMessage { get; set; }
 }
 
-public partial class GetProceduresForSchemaRow
+public partial record class GetProceduresForSchemaRow
 {
 	public String Name { get; set; }
 	public Int32 ObjectId { get; set; }
@@ -58,20 +58,20 @@ public partial class GetProceduresForSchemaRow
 	public String? ObsoleteMessage { get; set; }
 }
 
-public partial class GetSchemasRow
+public partial record class GetSchemasRow
 {
 	public String Name { get; set; }
 	public Int32 SchemaId { get; set; }
 }
 
-public partial class GetSysTypeRow
+public partial record class GetSysTypeRow
 {
 	public Byte SystemTypeId { get; set; }
 	public Boolean IsTableType { get; set; }
 	public String Name { get; set; }
 }
 
-public partial class GetSysTypesRow
+public partial record class GetSysTypesRow
 {
 	public String Name { get; set; }
 	public Int32 SchemaId { get; set; }
@@ -80,7 +80,7 @@ public partial class GetSysTypesRow
 	public Boolean IsUserDefined { get; set; }
 }
 
-public partial class GetTableTypeColumnsRow
+public partial record class GetTableTypeColumnsRow
 {
 	public Boolean? IsNullable { get; set; }
 	public Int16 MaxLength { get; set; }
@@ -91,7 +91,7 @@ public partial class GetTableTypeColumnsRow
 	public Int32 UserTypeId { get; set; }
 }
 
-public partial class GetTableTypesRow
+public partial record class GetTableTypesRow
 {
 	public String Name { get; set; }
 	public Int32 TypeTableObjectId { get; set; }

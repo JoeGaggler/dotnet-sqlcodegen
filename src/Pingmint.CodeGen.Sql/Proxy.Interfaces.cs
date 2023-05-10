@@ -15,9 +15,9 @@ public static class SqlTypeIdExtensions
     public static Model.SqlTypeId GetSqlTypeId(this ISqlTypeId sqlTypeId) => new() { SchemaId = sqlTypeId.SchemaId, SystemTypeId = sqlTypeId.SystemTypeId, UserTypeId = sqlTypeId.UserTypeId };
 }
 
-partial class DmDescribeFirstResultSetRow : IDmDescribeFirstResultSetRow { }
+partial record class DmDescribeFirstResultSetRow : IDmDescribeFirstResultSetRow { }
 
-partial class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRow { }
+partial record class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRow { }
 
 public interface IDmDescribeFirstResultSetRow : ISqlTypeId
 {
@@ -27,7 +27,7 @@ public interface IDmDescribeFirstResultSetRow : ISqlTypeId
     String SqlTypeName { get; set; }
 }
 
-partial class GetSysTypesRow : ISqlTypeId { }
-partial class GetTableTypesRow : ISqlTypeId { }
-partial class GetTableTypeColumnsRow : ISqlTypeId { }
-partial class GetParametersForObjectRow : ISqlTypeId { }
+partial record class GetSysTypesRow : ISqlTypeId { }
+partial record class GetTableTypesRow : ISqlTypeId { }
+partial record class GetTableTypeColumnsRow : ISqlTypeId { }
+partial record class GetParametersForObjectRow : ISqlTypeId { }

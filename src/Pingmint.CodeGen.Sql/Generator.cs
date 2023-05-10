@@ -47,7 +47,7 @@ public static class Generator
 
     private static void CodeRecord(CodeWriter code, RecordMemo recordMemo)
     {
-        using (code.PartialClass("public", recordMemo.Name))
+        using (code.PartialRecordClass("public", recordMemo.Name))
         {
             foreach (var prop in recordMemo.Properties)
             {
