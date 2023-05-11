@@ -91,7 +91,7 @@ public class Analyzer
             var methodParameter = new MethodParameter
             {
                 CSharpName = csharpIdentifier,
-                CSharpType = "TODO", // TODO
+                CSharpType = await GetCSharpTypeAsync(statementParameter.Type),
             };
             methodParameters.Add(methodParameter);
 
@@ -99,7 +99,7 @@ public class Analyzer
             {
                 SqlName = statementParameter.Name,
                 SqlType = statementParameter.Type,
-                SqlDbType = "SqlDbType.TODO", // TODO
+                SqlDbType = await GetSqlDbTypeAsync(statementParameter.Type),
                 CSharpExpression = csharpIdentifier,
             };
             commandParameters.Add(commandParameter);
@@ -124,9 +124,11 @@ public class Analyzer
             var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
             var propertyName = GetPascalCase(columnName);
 
+            WriteLine("Column: {0} {1}", columnName, columnRow.GetSqlTypeId());
+
             var propertyType = "TODO";
-            var isValueType = false; // TODO
-            var isNullable = false; // TODO
+            var isValueType = typeof(Boolean).IsValueType; // TODO
+            var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
 
             var recordProperty = new RecordProperty
             {
@@ -143,6 +145,192 @@ public class Analyzer
         codeFile.Methods.Add(methodSync);
 
         WriteLine("Analyze Done: {0}", name);
+    }
+
+    public static (String?, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text[..i];
+            var item = text[(i + 1)..];
+            return (schema, item);
+        }
+        else
+        {
+            return (null, text); // schema-less
+        }
+    }
+
+    public static (String, String?) ParseSubscript(String text)
+    {
+        if (text.IndexOf('(') is int i and > 0)
+        {
+            if (text.IndexOf(')') is int j && j > i)
+            {
+                return (text[..i], text[(i + 1)..j]);
+            }
+        }
+
+        return (text, null);
+    }
+
+    private async Task<String> GetCSharpTypeAsync(string sqlType)
+    {
+        // TODO: check cache
+
+        var (schema, schematype) = ParseSchemaItem(sqlType);
+        var (maintype, subscript) = ParseSubscript(schematype);
+
+        if (GetSqlDbType(maintype) is SqlDbType sqlDbType)
+        {
+            return GetDotnetType(sqlDbType).Name;
+        }
+
+        await Task.CompletedTask;
+        return "TodoType";
+    }
+
+    private async Task<SqlDbType> GetSqlDbTypeAsync(string sqlType)
+    {
+        // TODO: check cache
+
+        var (schema, schematype) = ParseSchemaItem(sqlType);
+        var (maintype, subscript) = ParseSubscript(schematype);
+
+        if (GetSqlDbType(maintype) is SqlDbType sqlDbType)
+        {
+            return sqlDbType;
+        }
+
+        var schemas = await GetSchemasAsync();
+        var sysTypes = await GetSysTypesAsync();
+
+        // TODO: full type lookup
+
+        await Task.CompletedTask;
+        return SqlDbType.SmallMoney;
+    }
+
+    private SqlDbType? GetSqlDbType(String sqlType) => sqlType switch
+    {
+        // ints
+        "bit" => SqlDbType.Bit,
+        "tinyint" => SqlDbType.TinyInt,
+        "smallint" => SqlDbType.SmallInt,
+        "int" => SqlDbType.Int,
+        "bigint" => SqlDbType.BigInt,
+
+        // chars
+        "char" => SqlDbType.Char,
+        "nchar" => SqlDbType.NChar,
+        "nvarchar" => SqlDbType.NVarChar,
+        "ntext" => SqlDbType.NText,
+        "text" => SqlDbType.Text,
+
+        // dates
+        "date" => SqlDbType.Date,
+        "datetime" => SqlDbType.DateTime,
+        "datetime2" => SqlDbType.DateTime2,
+        "datetimeoffset" => SqlDbType.DateTimeOffset,
+        "smalldatetime" => SqlDbType.SmallDateTime,
+
+        // binary
+        "binary" => SqlDbType.Binary,
+        "varbinary" => SqlDbType.VarBinary,
+
+        // other
+        "decimal" => SqlDbType.Decimal,
+        "float" => SqlDbType.Float,
+        "money" => SqlDbType.Money,
+        "numeric" => SqlDbType.Decimal,
+        "real" => SqlDbType.Real,
+        "time" => SqlDbType.Time,
+        "sysname" => SqlDbType.VarChar,
+        "varchar" => SqlDbType.VarChar,
+        "xml" => SqlDbType.Xml,
+        "uniqueidentifier" => SqlDbType.UniqueIdentifier,
+
+        _ => (SqlDbType?)null,
+    };
+
+    public static Type GetDotnetType(SqlDbType type) => type switch
+    {
+        SqlDbType.Char or
+        SqlDbType.NChar or
+        SqlDbType.NText or
+        SqlDbType.NVarChar or
+        SqlDbType.Text or
+        SqlDbType.VarChar or
+        SqlDbType.Xml
+        => typeof(String),
+
+        SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
+
+        SqlDbType.Date or
+        SqlDbType.DateTime or
+        SqlDbType.DateTime2 or
+        SqlDbType.SmallDateTime
+        => typeof(DateTime),
+
+        SqlDbType.Time => typeof(TimeSpan),
+
+        SqlDbType.Bit => typeof(Boolean),
+        SqlDbType.Int => typeof(Int32),
+        SqlDbType.TinyInt => typeof(Byte),
+        SqlDbType.SmallInt => typeof(Int16),
+        SqlDbType.BigInt => typeof(Int64),
+
+        SqlDbType.Money or
+        SqlDbType.SmallMoney or
+        SqlDbType.Decimal => typeof(Decimal),
+
+        SqlDbType.Real => typeof(Single),
+        SqlDbType.Float => typeof(Double),
+
+        SqlDbType.UniqueIdentifier => typeof(Guid),
+
+        SqlDbType.Binary or
+        SqlDbType.Image or
+        SqlDbType.Timestamp or
+        SqlDbType.VarBinary => typeof(Byte[]),
+
+        // TODO:
+        // SqlDbType.Variant => throw new NotImplementedException(),
+        // SqlDbType.Udt => throw new NotImplementedException(),
+        // SqlDbType.Structured => throw new NotImplementedException(),
+
+        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
+    };
+
+    private List<GetSchemasRow>? _schemas;
+    private async Task<List<GetSchemasRow>> GetSchemasAsync() => _schemas ??= await Proxy.GetSchemasAsync(await OpenSqlConnectionAsync());
+
+    private List<GetSysTypesRow>? _sysTypes;
+    private SortedDictionary<SqlTypeId, SqlTypeInfo> _sysTypeInfo = new();
+    private async Task<List<GetSysTypesRow>> GetSysTypesAsync()
+    {
+        if (_sysTypes is not null) return _sysTypes;
+
+        _sysTypes ??= await Proxy.GetSysTypesAsync(await OpenSqlConnectionAsync());
+
+        foreach (var sysType in _sysTypes)
+        {
+            var sqlTypeId = new SqlTypeId()
+            {
+                SchemaId = sysType.SchemaId,
+                SystemTypeId = sysType.SystemTypeId,
+                UserTypeId = sysType.UserTypeId,
+            };
+
+            _sysTypeInfo.Add(sqlTypeId, new SqlTypeInfo
+            {
+                SqlTypeId = sqlTypeId,
+                SqlName = sysType.Name,
+                // TODO: cache other useful info
+            });
+        }
+
+        return _sysTypes;
     }
 }
 
@@ -198,6 +386,11 @@ public class CodeFile
                 foreach (var parameter in commandParameters)
                 {
                     code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, {parameter.SqlDbType}));");
+
+                    // TODO:
+                    // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                    // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                    // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
                 }
 
                 code.Line();
@@ -315,7 +508,7 @@ public class CommandParameter
     /// <summary>
     /// SqlDbType of the parameter in the SQL command
     /// </summary>
-    public String? SqlDbType { get; set; }
+    public SqlDbType? SqlDbType { get; set; }
 
     /// <summary>
     /// Reference to the value passed in to the command
@@ -351,6 +544,34 @@ public class RecordProperty
     public string ColumnName { get; set; }
     public bool FieldTypeIsValueType { get; internal set; }
     public bool ColumnIsNullable { get; internal set; }
+}
+
+public record struct SqlTypeId : IComparable<SqlTypeId>
+{
+    public Int32 SchemaId;
+    public Int32 SystemTypeId;
+    public Int32 UserTypeId;
+
+    public readonly int CompareTo(SqlTypeId other)
+    {
+        if (SchemaId.CompareTo(other.SchemaId) is var comp1 && comp1 != 0) { return comp1; }
+        if (SystemTypeId.CompareTo(other.SystemTypeId) is var comp2 && comp2 != 0) { return comp2; }
+        return UserTypeId.CompareTo(other.UserTypeId);
+    }
+}
+
+public static class SqlTypeIdExtensions
+{
+    public static Model.SqlTypeId GetSqlTypeId(this ISqlTypeId sqlTypeId) => new() { SchemaId = sqlTypeId.SchemaId, SystemTypeId = sqlTypeId.SystemTypeId, UserTypeId = sqlTypeId.UserTypeId };
+}
+
+public class SqlTypeInfo
+{
+    // Key
+    public SqlTypeId SqlTypeId { get; set; }
+
+    // Info
+    public String SqlName { get; internal set; }
 }
 
 public static class ListExtensions
