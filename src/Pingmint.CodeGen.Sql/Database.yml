@@ -10,6 +10,8 @@ databases:
     #   exclude:
     #     - pingmint.*
     statements:
+      - name: GetNativeTypes
+        text: select * from sys.types where schema_id = (SELECT schema_id from sys.schemas where name = 'sys') order by system_type_id, user_type_id, schema_id
       - name: DmDescribeFirstResultSetForObject
         text: |
           SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]

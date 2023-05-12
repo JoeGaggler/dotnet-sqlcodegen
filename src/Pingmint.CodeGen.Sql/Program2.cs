@@ -17,9 +17,7 @@ internal sealed class Program2
         sync.Go(async () =>
         {
             var codeFile = new CodeFile();
-            var analyzer = new Analyzer(codeFile, config);
-
-            // config.Databases.Items.First().Statements.Items.First().Parameters.Items.First().Name
+            var analyzer = new Analyzer(codeFile, config); // TODO: must analyze each database separately (connection string and caches cannot be shared)
 
             if (config.Databases?.Items is { } databases)
             {
@@ -472,10 +470,10 @@ public class CodeFile
         Value = value ?? DBNull.Value,
     };
 
-    private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-    private static T? GetFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-    private static T GetNonNullField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
-    private static T GetNonNullFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T? OptionalField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T RequiredField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
@@ -566,10 +564,10 @@ public class CodeFile
                                         var ordinalVarName = $"ord{GetPascalCase(columnName)}";
                                         var line = (IsValueType, ColumnIsNullable) switch
                                         {
-                                            (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (false, true) => String.Format("{0} = OptionalField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (false, false) => String.Format("{0} = RequiredField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
                                         };
                                         code.Line(line);
                                     }
