@@ -5,7 +5,7 @@ using static System.Console;
 
 namespace Pingmint.CodeGen.Sql.Refactor;
 
-internal record struct SendOrPostCallbackWithState(SendOrPostCallback Callback, Object State);
+internal record struct SendOrPostCallbackWithState(SendOrPostCallback Callback, Object? State);
 
 public class ConsoleSynchronizationContext : SynchronizationContext
 {
@@ -25,45 +25,66 @@ public class ConsoleSynchronizationContext : SynchronizationContext
         SynchronizationContext.SetSynchronizationContext(this);
         try
         {
+            SetMainThread();
             Thread.CurrentThread.Name = "ConsoleSync";
             operationCount = 1;
-            _ = func().ContinueWith((t) => stop = true);
+            Exception? exception = null;
+            _ = func().ContinueWith((t) =>
+            {
+                exception = t.Exception;
+                stop = true;
+            });
             Interlocked.Decrement(ref operationCount);
             while (true)
             {
+                MainThread();
                 if (!queue.TryDequeue(out var item))
                 {
-                    if (stop) { break; }
+                    if (stop)
+                    {
+                        WriteLine("DEBUG: Stop");
+
+                        break;
+                    }
                     Thread.Yield();
                     continue;
                 }
-
+                WriteLine("DEBUG: Dequeue");
+                MainThread();
                 item.Callback(item.State);
+                MainThread();
             }
+
+            if (exception is not null) { throw exception; }
         }
         finally
         {
+            WriteLine("DEBUG: Finally");
             SynchronizationContext.SetSynchronizationContext(previous);
         }
     }
 
     public override void Post(SendOrPostCallback d, object? state)
     {
+        WriteLine("DEBUG: Post");
         queue.Enqueue(new(d, state));
     }
 
     public override void Send(SendOrPostCallback d, object? state)
     {
+        WriteLine("DEBUG: Send");
         queue.Enqueue(new(d, state));
     }
 
     public override void OperationStarted()
     {
+        WriteLine("DEBUG: OperationStarted");
         base.OperationStarted();
     }
 
     public override void OperationCompleted()
     {
+        WriteLine("DEBUG: OperationCompleted");
         base.OperationCompleted();
     }
 }

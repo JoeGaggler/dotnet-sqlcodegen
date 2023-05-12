@@ -1,3 +1,4 @@
+using Pingmint.CodeGen.Sql2;
 using Pingmint.CodeGen.Sql.Model;
 using Pingmint.CodeGen.Sql.Model.Yaml;
 //using Pingmint.CodeGen.Sql.Refactor;
@@ -11,7 +12,7 @@ namespace Pingmint.CodeGen.Sql.Refactor;
 
 internal sealed class Program2
 {
-    public static async Task Run(Config config)
+    public static async Task Run(Config config, string[] args)
     {
         var sync = new ConsoleSynchronizationContext();
         sync.Go(async () =>
@@ -19,16 +20,28 @@ internal sealed class Program2
             var codeFile = new CodeFile();
             var analyzer = new Analyzer(codeFile, config);
 
-            // TODO: search for "wrong"
-
             // config.Databases.Items.First().Statements.Items.First().Parameters.Items.First().Name
 
-            var ppp = new List<(String, String)>();
-            await analyzer.AnalyzeStatementAsync("GetProcedures", "SELECT * FROM sys.procedures", new List<SqlStatementParameter>() { new SqlStatementParameter("pretend", "varchar(max)") });
+            foreach (var database in config.Databases.Items)
+            {
+                foreach (var statement in database.Statements.Items)
+                {
+                    var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
+                    await analyzer.AnalyzeStatementAsync(statement.Name, statement.Text, parameters);
+                }
+            }
+            WriteLine("DEBUG: Done analyzing statement");
 
             WriteLine();
 
-            WriteLine(codeFile.GenerateCode());
+            using TextWriter textWriter = args.Length switch
+            {
+                > 1 => new StreamWriter(args[1][..^3] + "2.cs"), // TODO: remove 2222
+                _ => Console.Out
+            };
+            textWriter.Write(codeFile.GenerateCode());
+            await textWriter.FlushAsync();
+            textWriter.Close();
         });
     }
 }
@@ -46,15 +59,16 @@ public class Analyzer
         this.codeFile = codeFile;
         this.config = config;
 
-        codeFile.Namespace = config.CSharp.Namespace;
-        codeFile.ClassName = config.CSharp.ClassName;
+        codeFile.Namespace = config.CSharp.Namespace + "2"; // TODO: remove 2222
+        codeFile.ClassName = config.CSharp.ClassName + "2"; // TODO: remove 2222
 
         this.connectionString = config.Connection.ConnectionString;
     }
 
+    private int connectionCount = 0;
     private async Task<SqlConnection> OpenSqlConnectionAsync()
     {
-        WriteLine("Opening connection");
+        WriteLine($"Opening connection {++connectionCount}");
         var sql = new SqlConnection(connectionString);
         await sql.OpenAsync();
         return sql;
@@ -68,7 +82,7 @@ public class Analyzer
         WriteLine("Parameters: {0}", parametersText);
 
         using var server = await OpenSqlConnectionAsync();
-        var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText, CancellationToken.None);
+        var columsRows = Sql2.Proxy2.DmDescribeFirstResultSet(server, commandText, parametersText);
 
         var recordName = GetPascalCase(name + "Row");
 
@@ -122,18 +136,18 @@ public class Analyzer
         foreach (var (columnRow, columnIndex) in columsRows.WithIndex())
         {
             var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
-            var propertyName = GetPascalCase(columnName);
-
-            WriteLine("Column: {0} {1}", columnName, columnRow.GetSqlTypeId());
-
-            var propertyType = "TODO";
-            var isValueType = typeof(Boolean).IsValueType; // TODO
             var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
+            var propertyName = GetPascalCase(columnName);
+            var propertyTypeInfo = await GetSqlTypeInfoAsync(columnRow.GetSqlTypeId2());
+            var propertyType = GetCSharpTypeRef(propertyTypeInfo, isNullable);
+            var propertyTypeWithoutNullable = GetCSharpTypeRef(propertyTypeInfo, false);
+            var isValueType = propertyTypeInfo.CSharpTypeIsValueType;
 
             var recordProperty = new RecordProperty
             {
                 FieldName = propertyName,
                 FieldType = propertyType,
+                FieldTypeForGeneric = propertyTypeWithoutNullable,
                 FieldTypeIsValueType = isValueType,
                 ColumnName = columnName,
                 ColumnIsNullable = isNullable,
@@ -181,9 +195,9 @@ public class Analyzer
         var (schema, schematype) = ParseSchemaItem(sqlType);
         var (maintype, subscript) = ParseSubscript(schematype);
 
-        if (GetSqlDbType(maintype) is SqlDbType sqlDbType)
+        if (GetSysSqlDbType(maintype) is SqlDbType sqlDbType)
         {
-            return GetDotnetType(sqlDbType).Name;
+            return GetCSharpType(sqlDbType).Name;
         }
 
         await Task.CompletedTask;
@@ -197,7 +211,7 @@ public class Analyzer
         var (schema, schematype) = ParseSchemaItem(sqlType);
         var (maintype, subscript) = ParseSubscript(schematype);
 
-        if (GetSqlDbType(maintype) is SqlDbType sqlDbType)
+        if (GetSysSqlDbType(maintype) is SqlDbType sqlDbType)
         {
             return sqlDbType;
         }
@@ -211,7 +225,7 @@ public class Analyzer
         return SqlDbType.SmallMoney;
     }
 
-    private SqlDbType? GetSqlDbType(String sqlType) => sqlType switch
+    private SqlDbType? GetSysSqlDbType(String sqlType) => sqlType switch
     {
         // ints
         "bit" => SqlDbType.Bit,
@@ -249,11 +263,12 @@ public class Analyzer
         "varchar" => SqlDbType.VarChar,
         "xml" => SqlDbType.Xml,
         "uniqueidentifier" => SqlDbType.UniqueIdentifier,
+        "image" => SqlDbType.Image,
 
         _ => (SqlDbType?)null,
     };
 
-    public static Type GetDotnetType(SqlDbType type) => type switch
+    public static Type GetCSharpType(SqlDbType type) => type switch
     {
         SqlDbType.Char or
         SqlDbType.NChar or
@@ -304,34 +319,74 @@ public class Analyzer
 
     private List<GetSchemasRow>? _schemas;
     private async Task<List<GetSchemasRow>> GetSchemasAsync() => _schemas ??= await Proxy.GetSchemasAsync(await OpenSqlConnectionAsync());
+    private async Task<GetSchemasRow?> GetSchemaAsync(Int32 schemaId) => (await GetSchemasAsync()).FirstOrDefault(s => s.SchemaId == schemaId);
+    private async Task<GetSchemasRow?> GetSchemaAsync(String schemaName) => (await GetSchemasAsync()).FirstOrDefault(s => s.Name == schemaName);
 
     private List<GetSysTypesRow>? _sysTypes;
-    private SortedDictionary<SqlTypeId, SqlTypeInfo> _sysTypeInfo = new();
     private async Task<List<GetSysTypesRow>> GetSysTypesAsync()
     {
         if (_sysTypes is not null) return _sysTypes;
 
         _sysTypes ??= await Proxy.GetSysTypesAsync(await OpenSqlConnectionAsync());
 
-        foreach (var sysType in _sysTypes)
-        {
-            var sqlTypeId = new SqlTypeId()
-            {
-                SchemaId = sysType.SchemaId,
-                SystemTypeId = sysType.SystemTypeId,
-                UserTypeId = sysType.UserTypeId,
-            };
 
-            _sysTypeInfo.Add(sqlTypeId, new SqlTypeInfo
-            {
-                SqlTypeId = sqlTypeId,
-                SqlName = sysType.Name,
-                // TODO: cache other useful info
-            });
-        }
+
 
         return _sysTypes;
     }
+
+    private SortedDictionary<SqlTypeId2, SqlTypeInfo> _sysTypeInfo = new();
+    private async Task<SqlTypeInfo> GetSqlTypeInfoAsync(SqlTypeId2 id)
+    {
+        if (_sysTypeInfo is { } sysTypeInfo)
+        {
+            sysTypeInfo = new SortedDictionary<SqlTypeId2, SqlTypeInfo>();
+            var sysTypes = await GetSysTypesAsync();
+            var sysSchemaId = (await GetSchemaAsync("sys"))?.SchemaId ?? throw new InvalidOperationException("Could not find sys schema");
+
+            foreach (var sysType in sysTypes)
+            {
+                WriteLine($"TYPE: {sysType.Name} {sysType.SchemaId} {sysType.SystemTypeId} {sysType.UserTypeId}");
+                var sqlTypeId = new SqlTypeId2()
+                {
+                    SchemaId = sysType.SchemaId,
+                    SystemTypeId = sysType.SystemTypeId,
+                    UserTypeId = sysType.UserTypeId,
+                };
+
+                var typeInfo = new SqlTypeInfo
+                {
+                    SqlTypeId = sqlTypeId,
+                    SqlName = sysType.Name,
+                    // TODO: cache other useful info
+                };
+
+                if (sysType.SchemaId == sysSchemaId)
+                {
+                    if (GetSysSqlDbType(sysType.Name) is { } sqlDbType)
+                    {
+                        var csharpType = GetCSharpType(sqlDbType) ?? throw new InvalidOperationException("Could not get C# type for sys type: " + sysType.Name);
+                        typeInfo.SqlTypeId = sqlTypeId;
+                        typeInfo.CSharpTypeRef = csharpType.Name;
+                        typeInfo.CSharpTypeIsValueType = csharpType.IsValueType;
+                    }
+                    else
+                    {
+                        // TODO: warning
+                    }
+                }
+
+                sysTypeInfo.Add(sqlTypeId, typeInfo);
+            }
+
+            _sysTypeInfo = sysTypeInfo;
+        }
+
+        if (!_sysTypeInfo.TryGetValue(id, out var output)) throw new InvalidOperationException("Could not find type info for: " + id.ToString());
+        return output;
+    }
+
+    private string GetCSharpTypeRef(SqlTypeInfo propertyTypeInfo, bool isNullable) => propertyTypeInfo.CSharpTypeRef + (isNullable ? "?" : "");
 }
 
 public class CodeFile
@@ -354,6 +409,14 @@ public class CodeFile
     {
         var code = new CodeWriter();
 
+        code.UsingNamespace("System");
+        code.UsingNamespace("System.Collections.Generic");
+        code.UsingNamespace("System.Data");
+        code.UsingNamespace("System.Threading");
+        code.UsingNamespace("System.Threading.Tasks");
+        code.UsingNamespace("Microsoft.Data.SqlClient");
+        code.Line();
+
         code.FileNamespace(Namespace);
         code.Line();
 
@@ -368,24 +431,57 @@ public class CodeFile
 
         using (code.PartialClass("public", ClassName))
         {
+            code.Text(
+"""
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
+    {
+        Size = size,
+        Direction = direction,
+        SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
+    };
+
+    private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
+    {
+        Size = size,
+        Direction = direction,
+        TypeName = typeName,
+        SqlDbType = sqlDbType,
+        ParameterName = parameterName,
+        Value = value ?? DBNull.Value,
+    };
+
+    private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T? GetFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T GetNonNullField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T GetNonNullFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+
+    private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
+    private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
+
+""");
+
             foreach (var method in Methods)
             {
                 // TODO: make separate async/sync methods
 
                 var methodName = method.Name;
-                var commandText = method.CommandText;
+                var commandText = method.CommandText.ReplaceLineEndings(" ").Trim();
                 var csharpParameters = method.CSharpParameters;
                 var commandParameters = method.SqlParameters;
+
+                csharpParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
                 var parametersString = String.Join(", ", csharpParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
 
-                using var _ = code.Method("public", method.DataType, method.Name, parametersString);
+                using var _ = code.Method("public static", method.DataType, method.Name, parametersString);
                 code.Line($"using SqlCommand cmd = CreateStatement(connection, \"{commandText}\");");
                 code.Line();
 
                 // TODO: generate parameters
                 foreach (var parameter in commandParameters)
                 {
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, {parameter.SqlDbType}));");
+                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
 
                     // TODO:
                     // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
@@ -404,7 +500,7 @@ public class CodeFile
                         foreach (var recordProperty in record.Properties)
                         {
                             String columnName = recordProperty.ColumnName;
-                            code.Line($"var ord{GetPascalCase(columnName)} = cmd.GetOrdinal(\"{columnName}\");");
+                            code.Line($"var ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
                         }
 
                         using (code.DoWhile("reader.Read()"))
@@ -416,6 +512,7 @@ public class CodeFile
                                 {
                                     var fieldName = property.FieldName;
                                     var fieldType = property.FieldType;
+                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
                                     var columnName = property.ColumnName;
                                     var IsValueType = property.FieldTypeIsValueType;
                                     var ColumnIsNullable = property.ColumnIsNullable;
@@ -423,10 +520,10 @@ public class CodeFile
                                     var ordinalVarName = $"ord{GetPascalCase(columnName)}";
                                     var line = (IsValueType, ColumnIsNullable) switch
                                     {
-                                        (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldType),
-                                        (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldType),
-                                        (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldType),
-                                        (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldType),
+                                        (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
                                     };
                                     code.Line(line);
                                 }
@@ -538,6 +635,8 @@ public class RecordProperty
     /// </summary>
     public String FieldType { get; set; }
 
+    public String FieldTypeForGeneric { get; set; }
+
     /// <summary>
     /// Name of the SQL column in the recordset
     /// </summary>
@@ -546,32 +645,15 @@ public class RecordProperty
     public bool ColumnIsNullable { get; internal set; }
 }
 
-public record struct SqlTypeId : IComparable<SqlTypeId>
-{
-    public Int32 SchemaId;
-    public Int32 SystemTypeId;
-    public Int32 UserTypeId;
-
-    public readonly int CompareTo(SqlTypeId other)
-    {
-        if (SchemaId.CompareTo(other.SchemaId) is var comp1 && comp1 != 0) { return comp1; }
-        if (SystemTypeId.CompareTo(other.SystemTypeId) is var comp2 && comp2 != 0) { return comp2; }
-        return UserTypeId.CompareTo(other.UserTypeId);
-    }
-}
-
-public static class SqlTypeIdExtensions
-{
-    public static Model.SqlTypeId GetSqlTypeId(this ISqlTypeId sqlTypeId) => new() { SchemaId = sqlTypeId.SchemaId, SystemTypeId = sqlTypeId.SystemTypeId, UserTypeId = sqlTypeId.UserTypeId };
-}
-
 public class SqlTypeInfo
 {
     // Key
-    public SqlTypeId SqlTypeId { get; set; }
+    public SqlTypeId2 SqlTypeId { get; set; }
 
     // Info
     public String SqlName { get; internal set; }
+    public String? CSharpTypeRef { get; internal set; }
+    public Boolean CSharpTypeIsValueType { get; internal set; }
 }
 
 public static class ListExtensions
