@@ -368,12 +368,15 @@ public class Analyzer
         return null;
     }
 
+    private readonly SortedDictionary<String, CSharpTypeInfo> _csharpTypeInfoByDeclaration = new();
     private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(String declaration)
     {
-        // TODO: CACHE
+        if (_csharpTypeInfoByDeclaration.TryGetValue(declaration, out var value)) { return value; }
 
-        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) throw new InvalidOperationException("No result set for SQL type declaration");
-        return await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId);
+        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) { throw new InvalidOperationException("No result set for SQL type declaration"); }
+        if (await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId) is not { } output) { throw new InvalidOperationException("No CSharpTypeInfo for SQL type declaration"); }
+        _csharpTypeInfoByDeclaration[declaration] = output;
+        return output;
     }
 
     /////////////////////////////////////
