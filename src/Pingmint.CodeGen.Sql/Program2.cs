@@ -1,4 +1,3 @@
-using Pingmint.CodeGen.Sql2;
 using Pingmint.CodeGen.Sql.Model;
 using Pingmint.CodeGen.Sql.Model.Yaml;
 //using Pingmint.CodeGen.Sql.Refactor;
@@ -39,7 +38,7 @@ internal sealed class Program2
 
             using TextWriter textWriter = args.Length switch
             {
-                > 1 => new StreamWriter(args[1][..^3] + "2.cs"), // TODO: remove 2222
+                > 1 => new StreamWriter(args[1]),
                 _ => Console.Out
             };
             textWriter.Write(codeFile.GenerateCode());
@@ -62,8 +61,8 @@ public class Analyzer
         this.codeFile = codeFile;
         this.config = config;
 
-        codeFile.Namespace = config.CSharp.Namespace + "2"; // TODO: remove 2222
-        codeFile.ClassName = config.CSharp.ClassName + "2"; // TODO: remove 2222
+        codeFile.Namespace = config.CSharp.Namespace;
+        codeFile.ClassName = config.CSharp.ClassName;
 
         this.connectionString = config.Connection.ConnectionString;
     }
@@ -85,7 +84,7 @@ public class Analyzer
         WriteLine("Parameters: {0}", parametersText);
 
         using var server = await OpenSqlConnectionAsync();
-        var columsRows = Sql2.Proxy2.DmDescribeFirstResultSet(server, commandText, parametersText);
+        var columsRows = Proxy.DmDescribeFirstResultSet(server, commandText, parametersText);
 
         var recordName = GetPascalCase(name + "Row");
 
@@ -164,16 +163,16 @@ public class Analyzer
         WriteLine("Analyze Done: {0}", name);
     }
 
-    private List<Sql2.GetNativeTypesRow>? _nativeTypes;
-    private async Task<List<Sql2.GetNativeTypesRow>> GetNativeTypesAsync()
+    private List<GetNativeTypesRow>? _nativeTypes;
+    private async Task<List<GetNativeTypesRow>> GetNativeTypesAsync()
     {
         if (_nativeTypes is not null) return _nativeTypes;
         using var server = await OpenSqlConnectionAsync();
-        return _nativeTypes ??= Sql2.Proxy2.GetNativeTypes(server);
+        return _nativeTypes ??= Proxy.GetNativeTypes(server);
     }
 
-    private SortedDictionary<(Int32, Int32), Sql2.GetNativeTypesRow>? _nativeTypesById;
-    private async Task<Sql2.GetNativeTypesRow?> GetNativeTypeAsync(int systemTypeId, int userTypeId)
+    private SortedDictionary<(Int32, Int32), GetNativeTypesRow>? _nativeTypesById;
+    private async Task<GetNativeTypesRow?> GetNativeTypeAsync(int systemTypeId, int userTypeId)
     {
         var nativeTypes = await GetNativeTypesAsync();
 
@@ -340,13 +339,13 @@ public class Analyzer
         throw new NotImplementedException("User types not implemented yet: " + systemTypeId + ", " + userTypeId);
     }
 
-    private readonly SortedDictionary<String, Sql2.DmDescribeFirstResultSetRow> _sqlTypeDeclarations = new();
-    private async Task<Sql2.DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(String declaration)
+    private readonly SortedDictionary<String, DmDescribeFirstResultSetRow> _sqlTypeDeclarations = new();
+    private async Task<DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(String declaration)
     {
         if (_sqlTypeDeclarations.TryGetValue(declaration, out var row)) { return row; }
 
         using var server = await OpenSqlConnectionAsync();
-        row = Proxy2.DmDescribeFirstResultSet(server, $"DECLARE @x {declaration}; SELECT @x;", "").FirstOrDefault();
+        row = Proxy.DmDescribeFirstResultSet(server, $"DECLARE @x {declaration}; SELECT @x;", "").FirstOrDefault();
         if (row is not null)
         {
             _sqlTypeDeclarations[declaration] = row;
@@ -479,78 +478,105 @@ public class CodeFile
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
 """);
-
             foreach (var method in Methods)
             {
-                // TODO: make separate async/sync methods
-
-                var methodName = method.Name;
+                // var methodName = method.Name;
                 var commandText = method.CommandText.ReplaceLineEndings(" ").Trim();
                 var csharpParameters = method.CSharpParameters;
                 var commandParameters = method.SqlParameters;
 
-                csharpParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
-                var parametersString = String.Join(", ", csharpParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
-
-                using var _ = code.Method("public static", method.DataType, method.Name, parametersString);
-                code.Line($"using SqlCommand cmd = CreateStatement(connection, \"{commandText}\");");
-                code.Line();
-
-                // TODO: generate parameters
-                foreach (var parameter in commandParameters)
+                foreach (var isAsync in new[] { false, true })
                 {
-                    code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
+                    var methodParameters = csharpParameters.ToList(); // NOTE THE COPY!
+                    methodParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
+                    var parametersString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
 
-                    // TODO:
-                    // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                    // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                    // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
-                }
+                    var asyncKeyword = isAsync ? " async" : "";
+                    var returnType = isAsync ? $"Task<{method.DataType}>" : method.DataType;
+                    var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
-                code.Line();
+                    using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString);
+                    code.Line($"using SqlCommand cmd = CreateStatement(connection, \"{commandText}\");");
+                    code.Line();
 
-                if (method.Record is { } record)
-                {
-                    code.Line($"var result = new List<{record.CSharpName}>();");
-                    code.Line($"using var reader = cmd.ExecuteReader();");
-                    using (code.If("reader.Read()"))
+                    // TODO: generate parameters
+                    foreach (var parameter in commandParameters)
                     {
-                        foreach (var recordProperty in record.Properties)
+                        code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
+
+                        // TODO:
+                        // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                        // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                        // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
+                    }
+
+                    code.Line();
+
+                    if (method.Record is { } record)
+                    {
+                        code.Line($"var result = new List<{record.CSharpName}>();");
+
+                        IDisposable ifScope;
+                        if (isAsync)
                         {
-                            String columnName = recordProperty.ColumnName;
-                            code.Line($"var ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
+                            code.Line($"using var reader = await cmd.ExecuteReaderAsync();");
+                            ifScope = code.If("await reader.ReadAsync()");
+                        }
+                        else
+                        {
+                            code.Line($"using var reader = cmd.ExecuteReader();");
+                            ifScope = code.If("reader.Read()");
                         }
 
-                        using (code.DoWhile("reader.Read()"))
+                        using (ifScope)
                         {
-                            code.Line($"result.Add(new {record.CSharpName}");
-                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ");"))
+                            foreach (var recordProperty in record.Properties)
                             {
-                                foreach (var property in record.Properties)
-                                {
-                                    var fieldName = property.FieldName;
-                                    var fieldType = property.FieldType;
-                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
-                                    var columnName = property.ColumnName;
-                                    var IsValueType = property.FieldTypeIsValueType;
-                                    var ColumnIsNullable = property.ColumnIsNullable;
+                                String columnName = recordProperty.ColumnName;
+                                code.Line($"var ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
+                            }
 
-                                    var ordinalVarName = $"ord{GetPascalCase(columnName)}";
-                                    var line = (IsValueType, ColumnIsNullable) switch
+                            IDisposable doWhileScope;
+                            if (isAsync)
+                            {
+                                doWhileScope = code.DoWhile("await reader.ReadAsync()");
+                            }
+                            else
+                            {
+                                doWhileScope = code.DoWhile("reader.Read()");
+                            }
+
+                            using (doWhileScope)
+                            {
+                                code.Line($"result.Add(new {record.CSharpName}");
+                                using (code.CreateBraceScope(preamble: null, withClosingBrace: ");"))
+                                {
+                                    foreach (var property in record.Properties)
                                     {
-                                        (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                    };
-                                    code.Line(line);
+                                        var fieldName = property.FieldName;
+                                        var fieldType = property.FieldType;
+                                        var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                                        var columnName = property.ColumnName;
+                                        var IsValueType = property.FieldTypeIsValueType;
+                                        var ColumnIsNullable = property.ColumnIsNullable;
+
+                                        var ordinalVarName = $"ord{GetPascalCase(columnName)}";
+                                        var line = (IsValueType, ColumnIsNullable) switch
+                                        {
+                                            (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        };
+                                        code.Line(line);
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                code.Return("result");
+                    code.Return("result");
+                }
             }
         }
 
@@ -661,17 +687,6 @@ public class RecordProperty
     public string ColumnName { get; set; }
     public bool FieldTypeIsValueType { get; internal set; }
     public bool ColumnIsNullable { get; internal set; }
-}
-
-public class SqlTypeInfo
-{
-    // Key
-    public SqlTypeId2 SqlTypeId { get; set; }
-
-    // Info
-    public String SqlName { get; internal set; }
-    public String? CSharpTypeRef { get; internal set; }
-    public Boolean CSharpTypeIsValueType { get; internal set; }
 }
 
 public static class ListExtensions

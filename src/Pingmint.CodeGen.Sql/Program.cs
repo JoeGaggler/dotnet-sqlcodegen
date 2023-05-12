@@ -25,14 +25,14 @@ internal sealed class Program
         var code = new CodeWriter();
         Generator.Generate(configMemo, code);
 
-        using TextWriter textWriter = args.Length switch
-        {
-            > 1 => new StreamWriter(args[1]),
-            _ => Console.Out
-        };
-        textWriter.Write(code.ToString());
-        await textWriter.FlushAsync();
-        textWriter.Close();
+        // using TextWriter textWriter = args.Length switch
+        // {
+        //     > 1 => new StreamWriter(args[1]),
+        //     _ => Console.Out
+        // };
+        // textWriter.Write(code.ToString());
+        // await textWriter.FlushAsync();
+        // textWriter.Close();
 
         // bootstrap test
         // using var sql = new SqlConnection();
