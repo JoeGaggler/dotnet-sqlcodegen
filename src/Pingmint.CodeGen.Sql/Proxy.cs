@@ -29,6 +29,25 @@ public partial record class DmDescribeFirstResultSetRow
 	public String SqlTypeName { get; set; }
 }
 
+public partial record class GetNativeTypesRow
+{
+	public String Name { get; set; }
+	public Byte SystemTypeId { get; set; }
+	public Int32 UserTypeId { get; set; }
+	public Int32 SchemaId { get; set; }
+	public Int32? PrincipalId { get; set; }
+	public Int16 MaxLength { get; set; }
+	public Byte Precision { get; set; }
+	public Byte Scale { get; set; }
+	public String? CollationName { get; set; }
+	public Boolean? IsNullable { get; set; }
+	public Boolean IsUserDefined { get; set; }
+	public Boolean IsAssemblyType { get; set; }
+	public Int32 DefaultObjectId { get; set; }
+	public Int32 RuleObjectId { get; set; }
+	public Boolean IsTableType { get; set; }
+}
+
 public partial record class GetParametersForObjectRow
 {
 	public Int32 ParameterId { get; set; }
@@ -269,6 +288,105 @@ public partial class Proxy
 					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
 					ColumnOrdinal = GetFieldValue<Int32>(reader, ordColumnOrdinal),
 					SqlTypeName = GetNonNullField<String>(reader, ordSqlTypeName),
+				});
+			} while (reader.Read());
+		}
+		return result;
+	}
+
+	public static Task<List<GetNativeTypesRow>> GetNativeTypesAsync(SqlConnection connection) => GetNativeTypesAsync(connection, CancellationToken.None);
+	public static async Task<List<GetNativeTypesRow>> GetNativeTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "select * from sys.types where schema_id = (SELECT schema_id from sys.schemas where name = 'sys') order by system_type_id, user_type_id, schema_id");
+
+		var result = new List<GetNativeTypesRow>();
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+		if (await reader.ReadAsync(cancellationToken))
+		{
+			int ordName = reader.GetOrdinal("name");
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
+			int ordSchemaId = reader.GetOrdinal("schema_id");
+			int ordPrincipalId = reader.GetOrdinal("principal_id");
+			int ordMaxLength = reader.GetOrdinal("max_length");
+			int ordPrecision = reader.GetOrdinal("precision");
+			int ordScale = reader.GetOrdinal("scale");
+			int ordCollationName = reader.GetOrdinal("collation_name");
+			int ordIsNullable = reader.GetOrdinal("is_nullable");
+			int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+			int ordIsAssemblyType = reader.GetOrdinal("is_assembly_type");
+			int ordDefaultObjectId = reader.GetOrdinal("default_object_id");
+			int ordRuleObjectId = reader.GetOrdinal("rule_object_id");
+			int ordIsTableType = reader.GetOrdinal("is_table_type");
+
+			do
+			{
+				result.Add(new GetNativeTypesRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+					PrincipalId = GetFieldValue<Int32>(reader, ordPrincipalId),
+					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
+					Precision = GetNonNullFieldValue<Byte>(reader, ordPrecision),
+					Scale = GetNonNullFieldValue<Byte>(reader, ordScale),
+					CollationName = GetField<String>(reader, ordCollationName),
+					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+					IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
+					IsAssemblyType = GetNonNullFieldValue<Boolean>(reader, ordIsAssemblyType),
+					DefaultObjectId = GetNonNullFieldValue<Int32>(reader, ordDefaultObjectId),
+					RuleObjectId = GetNonNullFieldValue<Int32>(reader, ordRuleObjectId),
+					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
+				});
+			} while (await reader.ReadAsync(cancellationToken));
+		}
+		return result;
+	}
+
+	public static List<GetNativeTypesRow> GetNativeTypes(SqlConnection connection)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "select * from sys.types where schema_id = (SELECT schema_id from sys.schemas where name = 'sys') order by system_type_id, user_type_id, schema_id");
+
+		var result = new List<GetNativeTypesRow>();
+		using var reader = cmd.ExecuteReader();
+		if (reader.Read())
+		{
+			int ordName = reader.GetOrdinal("name");
+			int ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			int ordUserTypeId = reader.GetOrdinal("user_type_id");
+			int ordSchemaId = reader.GetOrdinal("schema_id");
+			int ordPrincipalId = reader.GetOrdinal("principal_id");
+			int ordMaxLength = reader.GetOrdinal("max_length");
+			int ordPrecision = reader.GetOrdinal("precision");
+			int ordScale = reader.GetOrdinal("scale");
+			int ordCollationName = reader.GetOrdinal("collation_name");
+			int ordIsNullable = reader.GetOrdinal("is_nullable");
+			int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+			int ordIsAssemblyType = reader.GetOrdinal("is_assembly_type");
+			int ordDefaultObjectId = reader.GetOrdinal("default_object_id");
+			int ordRuleObjectId = reader.GetOrdinal("rule_object_id");
+			int ordIsTableType = reader.GetOrdinal("is_table_type");
+
+			do
+			{
+				result.Add(new GetNativeTypesRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+					PrincipalId = GetFieldValue<Int32>(reader, ordPrincipalId),
+					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
+					Precision = GetNonNullFieldValue<Byte>(reader, ordPrecision),
+					Scale = GetNonNullFieldValue<Byte>(reader, ordScale),
+					CollationName = GetField<String>(reader, ordCollationName),
+					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+					IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
+					IsAssemblyType = GetNonNullFieldValue<Boolean>(reader, ordIsAssemblyType),
+					DefaultObjectId = GetNonNullFieldValue<Int32>(reader, ordDefaultObjectId),
+					RuleObjectId = GetNonNullFieldValue<Int32>(reader, ordRuleObjectId),
+					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
 				});
 			} while (reader.Read());
 		}

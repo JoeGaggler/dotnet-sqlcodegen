@@ -22,17 +22,20 @@ internal sealed class Program2
 
             // config.Databases.Items.First().Statements.Items.First().Parameters.Items.First().Name
 
-            foreach (var database in config.Databases.Items)
+            if (config.Databases?.Items is { } databases)
             {
-                foreach (var statement in database.Statements.Items)
+                foreach (var database in databases)
                 {
-                    var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
-                    await analyzer.AnalyzeStatementAsync(statement.Name, statement.Text, parameters);
+                    if (database.Statements?.Items is { } statements)
+                    {
+                        foreach (var statement in statements)
+                        {
+                            var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
+                            await analyzer.AnalyzeStatementAsync(statement.Name, statement.Text, parameters);
+                        }
+                    }
                 }
             }
-            WriteLine("DEBUG: Done analyzing statement");
-
-            WriteLine();
 
             using TextWriter textWriter = args.Length switch
             {
@@ -105,7 +108,7 @@ public class Analyzer
             var methodParameter = new MethodParameter
             {
                 CSharpName = csharpIdentifier,
-                CSharpType = await GetCSharpTypeAsync(statementParameter.Type),
+                CSharpType = (await GetCSharpTypeInfoAsync(statementParameter.Type)).TypeRef,
             };
             methodParameters.Add(methodParameter);
 
@@ -138,10 +141,10 @@ public class Analyzer
             var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
             var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
             var propertyName = GetPascalCase(columnName);
-            var propertyTypeInfo = await GetSqlTypeInfoAsync(columnRow.GetSqlTypeId2());
-            var propertyType = GetCSharpTypeRef(propertyTypeInfo, isNullable);
-            var propertyTypeWithoutNullable = GetCSharpTypeRef(propertyTypeInfo, false);
-            var isValueType = propertyTypeInfo.CSharpTypeIsValueType;
+            var csharpTypeInfo = await GetCSharpTypeInfoAsync(columnRow.SystemTypeId, columnRow.UserTypeId);
+            var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
+            var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
+            var isValueType = csharpTypeInfo.IsValueType;
 
             var recordProperty = new RecordProperty
             {
@@ -161,114 +164,100 @@ public class Analyzer
         WriteLine("Analyze Done: {0}", name);
     }
 
-    public static (String?, String) ParseSchemaItem(String text)
+    private List<Sql2.GetNativeTypesRow>? _nativeTypes;
+    private async Task<List<Sql2.GetNativeTypesRow>> GetNativeTypesAsync()
     {
-        if (text.IndexOf('.') is int i and > 0)
-        {
-            var schema = text[..i];
-            var item = text[(i + 1)..];
-            return (schema, item);
-        }
-        else
-        {
-            return (null, text); // schema-less
-        }
+        if (_nativeTypes is not null) return _nativeTypes;
+        using var server = await OpenSqlConnectionAsync();
+        return _nativeTypes ??= Sql2.Proxy2.GetNativeTypes(server);
     }
 
-    public static (String, String?) ParseSubscript(String text)
+    private SortedDictionary<(Int32, Int32), Sql2.GetNativeTypesRow>? _nativeTypesById;
+    private async Task<Sql2.GetNativeTypesRow?> GetNativeTypeAsync(int systemTypeId, int userTypeId)
     {
-        if (text.IndexOf('(') is int i and > 0)
+        var nativeTypes = await GetNativeTypesAsync();
+
+        if (_nativeTypesById is not { } nativeTypesById)
         {
-            if (text.IndexOf(')') is int j && j > i)
+            _nativeTypesById = nativeTypesById = new(nativeTypes.ToDictionary(t => ((int)t.SystemTypeId, t.UserTypeId)));
+        }
+
+        if (nativeTypesById.TryGetValue((systemTypeId, userTypeId), out var nativeType))
+        {
+            return nativeType;
+        }
+        return null;
+    }
+
+    private SortedDictionary<(Int32, Int32), SqlDbType>? _sqlDbTypesById2;
+    private async Task<SqlDbType?> GetSqlDbTypeAsync(int systemTypeId, int userTypeId)
+    {
+        if (_sqlDbTypesById2 is not { } sqlDbTypesById)
+        {
+            sqlDbTypesById = new();
+            foreach (var nativeTypeRow in await GetNativeTypesAsync())
             {
-                return (text[..i], text[(i + 1)..j]);
+                if (nativeTypeRow.Name switch
+                {
+                    // ints
+                    "bit" => SqlDbType.Bit,
+                    "tinyint" => SqlDbType.TinyInt,
+                    "smallint" => SqlDbType.SmallInt,
+                    "int" => SqlDbType.Int,
+                    "bigint" => SqlDbType.BigInt,
+
+                    // chars
+                    "char" => SqlDbType.Char,
+                    "nchar" => SqlDbType.NChar,
+                    "nvarchar" => SqlDbType.NVarChar,
+                    "ntext" => SqlDbType.NText,
+                    "text" => SqlDbType.Text,
+
+                    // dates
+                    "date" => SqlDbType.Date,
+                    "datetime" => SqlDbType.DateTime,
+                    "datetime2" => SqlDbType.DateTime2,
+                    "datetimeoffset" => SqlDbType.DateTimeOffset,
+                    "smalldatetime" => SqlDbType.SmallDateTime,
+
+                    // binary
+                    "binary" => SqlDbType.Binary,
+                    "varbinary" => SqlDbType.VarBinary,
+
+                    // other
+                    "decimal" => SqlDbType.Decimal,
+                    "float" => SqlDbType.Float,
+                    "money" => SqlDbType.Money,
+                    "numeric" => SqlDbType.Decimal,
+                    "real" => SqlDbType.Real,
+                    "time" => SqlDbType.Time,
+                    "sysname" => SqlDbType.VarChar,
+                    "varchar" => SqlDbType.VarChar,
+                    "xml" => SqlDbType.Xml,
+                    "uniqueidentifier" => SqlDbType.UniqueIdentifier,
+                    "image" => SqlDbType.Image,
+
+                    _ => (SqlDbType?)null,
+                } is not { } value)
+                {
+                    WriteLine($"Unknown native type: {nativeTypeRow.Name}");
+                    continue;
+                }
+
+                sqlDbTypesById[((int)nativeTypeRow.SystemTypeId, nativeTypeRow.UserTypeId)] = value;
             }
+
+            _sqlDbTypesById2 = sqlDbTypesById;
         }
 
-        return (text, null);
-    }
-
-    private async Task<String> GetCSharpTypeAsync(string sqlType)
-    {
-        // TODO: check cache
-
-        var (schema, schematype) = ParseSchemaItem(sqlType);
-        var (maintype, subscript) = ParseSubscript(schematype);
-
-        if (GetSysSqlDbType(maintype) is SqlDbType sqlDbType)
-        {
-            return GetCSharpType(sqlDbType).Name;
-        }
-
-        await Task.CompletedTask;
-        return "TodoType";
-    }
-
-    private async Task<SqlDbType> GetSqlDbTypeAsync(string sqlType)
-    {
-        // TODO: check cache
-
-        var (schema, schematype) = ParseSchemaItem(sqlType);
-        var (maintype, subscript) = ParseSubscript(schematype);
-
-        if (GetSysSqlDbType(maintype) is SqlDbType sqlDbType)
+        if (sqlDbTypesById.TryGetValue((systemTypeId, userTypeId), out var sqlDbType))
         {
             return sqlDbType;
         }
-
-        var schemas = await GetSchemasAsync();
-        var sysTypes = await GetSysTypesAsync();
-
-        // TODO: full type lookup
-
-        await Task.CompletedTask;
-        return SqlDbType.SmallMoney;
+        return null;
     }
 
-    private SqlDbType? GetSysSqlDbType(String sqlType) => sqlType switch
-    {
-        // ints
-        "bit" => SqlDbType.Bit,
-        "tinyint" => SqlDbType.TinyInt,
-        "smallint" => SqlDbType.SmallInt,
-        "int" => SqlDbType.Int,
-        "bigint" => SqlDbType.BigInt,
-
-        // chars
-        "char" => SqlDbType.Char,
-        "nchar" => SqlDbType.NChar,
-        "nvarchar" => SqlDbType.NVarChar,
-        "ntext" => SqlDbType.NText,
-        "text" => SqlDbType.Text,
-
-        // dates
-        "date" => SqlDbType.Date,
-        "datetime" => SqlDbType.DateTime,
-        "datetime2" => SqlDbType.DateTime2,
-        "datetimeoffset" => SqlDbType.DateTimeOffset,
-        "smalldatetime" => SqlDbType.SmallDateTime,
-
-        // binary
-        "binary" => SqlDbType.Binary,
-        "varbinary" => SqlDbType.VarBinary,
-
-        // other
-        "decimal" => SqlDbType.Decimal,
-        "float" => SqlDbType.Float,
-        "money" => SqlDbType.Money,
-        "numeric" => SqlDbType.Decimal,
-        "real" => SqlDbType.Real,
-        "time" => SqlDbType.Time,
-        "sysname" => SqlDbType.VarChar,
-        "varchar" => SqlDbType.VarChar,
-        "xml" => SqlDbType.Xml,
-        "uniqueidentifier" => SqlDbType.UniqueIdentifier,
-        "image" => SqlDbType.Image,
-
-        _ => (SqlDbType?)null,
-    };
-
-    public static Type GetCSharpType(SqlDbType type) => type switch
+    private static Type? GetCSharpTypeForSqlDbType(SqlDbType type) => type switch
     {
         SqlDbType.Char or
         SqlDbType.NChar or
@@ -309,84 +298,113 @@ public class Analyzer
         SqlDbType.Timestamp or
         SqlDbType.VarBinary => typeof(Byte[]),
 
-        // TODO:
-        // SqlDbType.Variant => throw new NotImplementedException(),
-        // SqlDbType.Udt => throw new NotImplementedException(),
-        // SqlDbType.Structured => throw new NotImplementedException(),
-
-        _ => throw new InvalidOperationException("Unexpected SqlDbType: " + type.ToString()),
+        _ => null,
     };
 
-    private List<GetSchemasRow>? _schemas;
-    private async Task<List<GetSchemasRow>> GetSchemasAsync() => _schemas ??= await Proxy.GetSchemasAsync(await OpenSqlConnectionAsync());
-    private async Task<GetSchemasRow?> GetSchemaAsync(Int32 schemaId) => (await GetSchemasAsync()).FirstOrDefault(s => s.SchemaId == schemaId);
-    private async Task<GetSchemasRow?> GetSchemaAsync(String schemaName) => (await GetSchemasAsync()).FirstOrDefault(s => s.Name == schemaName);
-
-    private List<GetSysTypesRow>? _sysTypes;
-    private async Task<List<GetSysTypesRow>> GetSysTypesAsync()
+    private readonly SortedDictionary<(Int32, Int32), CSharpTypeInfo> _csharpTypeInfosById = new(); // not null because this is generated with _sqlDbTypesById
+    private class CSharpTypeInfo
     {
-        if (_sysTypes is not null) return _sysTypes;
-
-        _sysTypes ??= await Proxy.GetSysTypesAsync(await OpenSqlConnectionAsync());
-
-
-
-
-        return _sysTypes;
+        public String TypeRef { get; init; }
+        public String TypeRefNullable { get; init; }
+        public Boolean IsValueType { get; init; }
     }
-
-    private SortedDictionary<SqlTypeId2, SqlTypeInfo> _sysTypeInfo = new();
-    private async Task<SqlTypeInfo> GetSqlTypeInfoAsync(SqlTypeId2 id)
+    private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(int systemTypeId, int userTypeId)
     {
-        if (_sysTypeInfo is { } sysTypeInfo)
+        // Determine if the type reference by the column is already known
+        // If not, then try matching it to a system type
+        // If not, then generate a new record type, and return it
+
+        if (_csharpTypeInfosById.TryGetValue((systemTypeId, userTypeId), out var csharpTypeInfo2))
         {
-            sysTypeInfo = new SortedDictionary<SqlTypeId2, SqlTypeInfo>();
-            var sysTypes = await GetSysTypesAsync();
-            var sysSchemaId = (await GetSchemaAsync("sys"))?.SchemaId ?? throw new InvalidOperationException("Could not find sys schema");
-
-            foreach (var sysType in sysTypes)
-            {
-                WriteLine($"TYPE: {sysType.Name} {sysType.SchemaId} {sysType.SystemTypeId} {sysType.UserTypeId}");
-                var sqlTypeId = new SqlTypeId2()
-                {
-                    SchemaId = sysType.SchemaId,
-                    SystemTypeId = sysType.SystemTypeId,
-                    UserTypeId = sysType.UserTypeId,
-                };
-
-                var typeInfo = new SqlTypeInfo
-                {
-                    SqlTypeId = sqlTypeId,
-                    SqlName = sysType.Name,
-                    // TODO: cache other useful info
-                };
-
-                if (sysType.SchemaId == sysSchemaId)
-                {
-                    if (GetSysSqlDbType(sysType.Name) is { } sqlDbType)
-                    {
-                        var csharpType = GetCSharpType(sqlDbType) ?? throw new InvalidOperationException("Could not get C# type for sys type: " + sysType.Name);
-                        typeInfo.SqlTypeId = sqlTypeId;
-                        typeInfo.CSharpTypeRef = csharpType.Name;
-                        typeInfo.CSharpTypeIsValueType = csharpType.IsValueType;
-                    }
-                    else
-                    {
-                        // TODO: warning
-                    }
-                }
-
-                sysTypeInfo.Add(sqlTypeId, typeInfo);
-            }
-
-            _sysTypeInfo = sysTypeInfo;
+            return csharpTypeInfo2;
         }
 
-        if (!_sysTypeInfo.TryGetValue(id, out var output)) throw new InvalidOperationException("Could not find type info for: " + id.ToString());
-        return output;
+        if (await GetNativeTypeAsync(systemTypeId, userTypeId) is { } nativeType)
+        {
+            if (await GetSqlDbTypeAsync(systemTypeId, userTypeId) is { } sqlDbType)
+            {
+                var type = GetCSharpTypeForSqlDbType(sqlDbType) ?? throw new InvalidOperationException("Have SqlDbType without C# type for it" + sqlDbType);
+
+                _csharpTypeInfosById[(systemTypeId, userTypeId)] = csharpTypeInfo2 = new()
+                {
+                    TypeRef = type.Name,
+                    TypeRefNullable = type.Name + "?",
+                    IsValueType = type.IsValueType,
+                };
+
+                return csharpTypeInfo2;
+            }
+        }
+
+        // Not a native type
+        throw new NotImplementedException("User types not implemented yet: " + systemTypeId + ", " + userTypeId);
     }
 
-    private string GetCSharpTypeRef(SqlTypeInfo propertyTypeInfo, bool isNullable) => propertyTypeInfo.CSharpTypeRef + (isNullable ? "?" : "");
+    private readonly SortedDictionary<String, Sql2.DmDescribeFirstResultSetRow> _sqlTypeDeclarations = new();
+    private async Task<Sql2.DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(String declaration)
+    {
+        if (_sqlTypeDeclarations.TryGetValue(declaration, out var row)) { return row; }
+
+        using var server = await OpenSqlConnectionAsync();
+        row = Proxy2.DmDescribeFirstResultSet(server, $"DECLARE @x {declaration}; SELECT @x;", "").FirstOrDefault();
+        if (row is not null)
+        {
+            _sqlTypeDeclarations[declaration] = row;
+            WriteLine($"SQL type declaration: {declaration} => {row}");
+        }
+        return row;
+    }
+
+    private readonly SortedDictionary<String, SqlDbType> _sqlDbTypesByDeclaration = new();
+    private async Task<SqlDbType?> GetSqlDbTypeAsync(String declaration)
+    {
+        if (_sqlDbTypesByDeclaration.TryGetValue(declaration, out var sqlDbType)) { return sqlDbType; }
+
+        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) throw new InvalidOperationException("No result set for SQL type declaration");
+        if (await GetSqlDbTypeAsync(row.SystemTypeId, row.UserTypeId) is { } sqlDbType2)
+        {
+            _sqlDbTypesByDeclaration[declaration] = sqlDbType2;
+            return sqlDbType2;
+        }
+        return null;
+    }
+
+    private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(String declaration)
+    {
+        // TODO: CACHE
+
+        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) throw new InvalidOperationException("No result set for SQL type declaration");
+        return await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId);
+    }
+
+    /////////////////////////////////////
+
+    public static (String?, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text[..i];
+            var item = text[(i + 1)..];
+            return (schema, item);
+        }
+        else
+        {
+            return (null, text); // schema-less
+        }
+    }
+
+    public static (String, String?) ParseSubscript(String text)
+    {
+        if (text.IndexOf('(') is int i and > 0)
+        {
+            if (text.IndexOf(')') is int j && j > i)
+            {
+                return (text[..i], text[(i + 1)..j]);
+            }
+        }
+
+        return (text, null);
+    }
 }
 
 public class CodeFile

@@ -42,14 +42,14 @@ public class ConsoleSynchronizationContext : SynchronizationContext
                 {
                     if (stop)
                     {
-                        WriteLine("DEBUG: Stop");
+                        WriteLine("----- Stopping Context -----");
 
                         break;
                     }
                     Thread.Yield();
                     continue;
                 }
-                WriteLine("DEBUG: Dequeue");
+                WriteLine("----- Continuation -----");
                 MainThread();
                 item.Callback(item.State);
                 MainThread();
@@ -59,32 +59,32 @@ public class ConsoleSynchronizationContext : SynchronizationContext
         }
         finally
         {
-            WriteLine("DEBUG: Finally");
+            WriteLine("----- Revert Context -----");
             SynchronizationContext.SetSynchronizationContext(previous);
         }
     }
 
     public override void Post(SendOrPostCallback d, object? state)
     {
-        WriteLine("DEBUG: Post");
+        WriteLine("----- Post -----");
         queue.Enqueue(new(d, state));
     }
 
     public override void Send(SendOrPostCallback d, object? state)
     {
-        WriteLine("DEBUG: Send");
+        WriteLine("----- Send -----");
         queue.Enqueue(new(d, state));
     }
 
     public override void OperationStarted()
     {
-        WriteLine("DEBUG: OperationStarted");
+        WriteLine("----- Op: Start -----");
         base.OperationStarted();
     }
 
     public override void OperationCompleted()
     {
-        WriteLine("DEBUG: OperationCompleted");
+        WriteLine("----- Op: Done -----");
         base.OperationCompleted();
     }
 }

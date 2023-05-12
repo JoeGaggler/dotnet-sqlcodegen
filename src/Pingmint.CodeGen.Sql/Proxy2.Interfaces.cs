@@ -10,6 +10,7 @@ public interface ISqlTypeId2
     Int32 UserTypeId { get; set; }
 }
 
+// TODO: the schema is not a key for the type
 public record struct SqlTypeId2 : IComparable<SqlTypeId2> // TODO: rename this back to SqlTypeId
 {
     public Int32 SchemaId;

@@ -7,6 +7,24 @@ using Microsoft.Data.SqlClient;
 
 namespace Pingmint.CodeGen.Sql2;
 
+public partial record class GetNativeTypesRow
+{
+	  public String Name { get; set; }
+	  public Byte SystemTypeId { get; set; }
+	  public Int32 UserTypeId { get; set; }
+	  public Int32 SchemaId { get; set; }
+	  public Int32? PrincipalId { get; set; }
+	  public Int16 MaxLength { get; set; }
+	  public Byte Precision { get; set; }
+	  public Byte Scale { get; set; }
+	  public String? CollationName { get; set; }
+	  public Boolean? IsNullable { get; set; }
+	  public Boolean IsUserDefined { get; set; }
+	  public Boolean IsAssemblyType { get; set; }
+	  public Int32 DefaultObjectId { get; set; }
+	  public Int32 RuleObjectId { get; set; }
+	  public Boolean IsTableType { get; set; }
+}
 public partial record class DmDescribeFirstResultSetForObjectRow
 {
 	  public String? Name { get; set; }
@@ -119,6 +137,54 @@ public partial class Proxy2
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
+	public static List<GetNativeTypesRow> GetNativeTypes(SqlConnection connection)
+	{
+		using SqlCommand cmd = CreateStatement(connection, "select * from sys.types where schema_id = (SELECT schema_id from sys.schemas where name = 'sys') order by system_type_id, user_type_id, schema_id");
+
+
+		var result = new List<GetNativeTypesRow>();
+		using var reader = cmd.ExecuteReader();
+		if (reader.Read())
+		{
+			var ordName = reader.GetOrdinal("name");
+			var ordSystemTypeId = reader.GetOrdinal("system_type_id");
+			var ordUserTypeId = reader.GetOrdinal("user_type_id");
+			var ordSchemaId = reader.GetOrdinal("schema_id");
+			var ordPrincipalId = reader.GetOrdinal("principal_id");
+			var ordMaxLength = reader.GetOrdinal("max_length");
+			var ordPrecision = reader.GetOrdinal("precision");
+			var ordScale = reader.GetOrdinal("scale");
+			var ordCollationName = reader.GetOrdinal("collation_name");
+			var ordIsNullable = reader.GetOrdinal("is_nullable");
+			var ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+			var ordIsAssemblyType = reader.GetOrdinal("is_assembly_type");
+			var ordDefaultObjectId = reader.GetOrdinal("default_object_id");
+			var ordRuleObjectId = reader.GetOrdinal("rule_object_id");
+			var ordIsTableType = reader.GetOrdinal("is_table_type");
+			do
+			{
+				result.Add(new GetNativeTypesRow
+				{
+					Name = GetNonNullField<String>(reader, ordName),
+					SystemTypeId = GetNonNullFieldValue<Byte>(reader, ordSystemTypeId),
+					UserTypeId = GetNonNullFieldValue<Int32>(reader, ordUserTypeId),
+					SchemaId = GetNonNullFieldValue<Int32>(reader, ordSchemaId),
+					PrincipalId = GetFieldValue<Int32>(reader, ordPrincipalId),
+					MaxLength = GetNonNullFieldValue<Int16>(reader, ordMaxLength),
+					Precision = GetNonNullFieldValue<Byte>(reader, ordPrecision),
+					Scale = GetNonNullFieldValue<Byte>(reader, ordScale),
+					CollationName = GetField<String>(reader, ordCollationName),
+					IsNullable = GetFieldValue<Boolean>(reader, ordIsNullable),
+					IsUserDefined = GetNonNullFieldValue<Boolean>(reader, ordIsUserDefined),
+					IsAssemblyType = GetNonNullFieldValue<Boolean>(reader, ordIsAssemblyType),
+					DefaultObjectId = GetNonNullFieldValue<Int32>(reader, ordDefaultObjectId),
+					RuleObjectId = GetNonNullFieldValue<Int32>(reader, ordRuleObjectId),
+					IsTableType = GetNonNullFieldValue<Boolean>(reader, ordIsTableType),
+				});
+			} while (reader.Read());
+		}
+		return result;
+	}
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32 objectid)
 	{
 		using SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
