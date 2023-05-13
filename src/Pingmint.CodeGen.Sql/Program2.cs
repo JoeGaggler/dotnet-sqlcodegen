@@ -17,13 +17,15 @@ internal sealed class Program2
         sync.Go(async () =>
         {
             var codeFile = new CodeFile();
-            var analyzer = new Analyzer(codeFile, config); // TODO: must analyze each database separately (connection string and caches cannot be shared)
+            codeFile.Namespace = config.CSharp.Namespace;
+            codeFile.ClassName = config.CSharp.ClassName;
 
             if (config.Databases?.Items is { } databases)
             {
                 foreach (var database in databases)
                 {
                     var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
+                    var analyzer = new Analyzer(databaseName, codeFile, config);
                     if (database.Statements?.Items is { } statements)
                     {
                         foreach (var statement in statements)
@@ -71,7 +73,7 @@ internal sealed class Program2
                                 {
                                     if (IsExcluded(schema, row.Name)) { continue; }
                                     var newProc = new Procedure();
-                                    await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, row.ObjectId);
+                                    await analyzer.AnalyzeProcedureAsync(databaseName, schema, row.Name, row.ObjectId);
                                 }
                             }
                             else
@@ -117,15 +119,14 @@ public class Analyzer
 {
     private CodeFile codeFile;
     private Config config;
+    private String database;
     private String connectionString;
 
-    public Analyzer(CodeFile codeFile, Config config)
+    public Analyzer(String database, CodeFile codeFile, Config config)
     {
+        this.database = database;
         this.codeFile = codeFile;
         this.config = config;
-
-        codeFile.Namespace = config.CSharp.Namespace;
-        codeFile.ClassName = config.CSharp.ClassName;
 
         this.connectionString = config.Connection.ConnectionString;
     }
@@ -136,6 +137,7 @@ public class Analyzer
         WriteLine($"Opening connection {++connectionCount}");
         var sql = new SqlConnection(connectionString);
         await sql.OpenAsync();
+        sql.ChangeDatabase(database);
         return sql;
     }
 
@@ -147,13 +149,18 @@ public class Analyzer
         var commandText = database + "." + schema + "." + proc;
         var name = proc;
 
-        var procParameters = await Proxy.GetParametersForObjectAsync(await OpenSqlConnectionAsync(), procId);
-        var statementParameters = procParameters.Select(p => new SqlStatementParameter(p.Name, p.TypeName)).ToList();
+        using var server = await OpenSqlConnectionAsync();
+        server.ChangeDatabase(database);
+        var procParameters = await Proxy.GetParametersForObjectAsync(server, procId);
+        foreach (var procParameter in procParameters)
+        {
+            WriteLine("Parameter: {0} {1}", commandText, procParameter);
+        }
+        var statementParameters = procParameters.Select(p => new SqlStatementParameter(p.Name.TrimStart('@'), p.TypeName)).ToList();
 
         var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
         WriteLine("Parameters: {0}", parametersText);
 
-        using var server = await OpenSqlConnectionAsync();
         var columsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
 
         var recordName = GetPascalCase(name + "Row");
@@ -170,22 +177,21 @@ public class Analyzer
         // TODO: pull parameters from the YAML definition
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
-        foreach (var statementParameter in statementParameters)
+        foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
         {
-            var csharpIdentifier = GetCamelCase(statementParameter.Name);
+            var csharpIdentifier = GetCamelCase(procParam.Name);
 
             var methodParameter = new MethodParameter
             {
                 CSharpName = csharpIdentifier,
-                CSharpType = (await GetCSharpTypeInfoAsync(statementParameter.Type)).TypeRef,
+                CSharpType = (await GetCSharpTypeInfoAsync(procParam.SystemTypeId, procParam.UserTypeId)).TypeRef,
             };
             methodParameters.Add(methodParameter);
 
             var commandParameter = new CommandParameter
             {
-                SqlName = statementParameter.Name,
-                SqlType = statementParameter.Type,
-                SqlDbType = await GetSqlDbTypeAsync(statementParameter.Type),
+                SqlName = procParam.Name.TrimStart('@'),
+                SqlDbType = null, // TODO: await GetSqlDbTypeAsync(procParam.Type),
                 CSharpExpression = csharpIdentifier,
             };
             commandParameters.Add(commandParameter);
@@ -271,7 +277,6 @@ public class Analyzer
             var commandParameter = new CommandParameter
             {
                 SqlName = statementParameter.Name,
-                SqlType = statementParameter.Type,
                 SqlDbType = await GetSqlDbTypeAsync(statementParameter.Type),
                 CSharpExpression = csharpIdentifier,
             };
@@ -319,6 +324,14 @@ public class Analyzer
         codeFile.Methods.Add(methodSync);
 
         WriteLine("Analyze Done: {0}", name);
+    }
+
+    private List<GetSysTypesRow>? _sysTypes;
+    private async Task<List<GetSysTypesRow>> GetSysTypesAsync()
+    {
+        if (_sysTypes is not null) return _sysTypes;
+        using var server = await OpenSqlConnectionAsync();
+        return _sysTypes ??= Proxy.GetSysTypes(server);
     }
 
     private List<GetNativeTypesRow>? _nativeTypes;
@@ -493,6 +506,26 @@ public class Analyzer
             }
         }
 
+        if ((await GetSysTypesAsync()).FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } foundSysType)
+        {
+            throw new InvalidOperationException("Could not find sys.types row for " + systemTypeId + ", " + userTypeId);
+        }
+
+        // TODO: this is not done yet
+        if (foundSysType.IsTableType)
+        {
+            this.codeFile.Records.Add(new()
+            {
+                CSharpName = foundSysType.Name + "_TABLE",
+            });
+            return new()
+            {
+                TypeRef = foundSysType.Name + "_TABLE",
+                TypeRefNullable = foundSysType.Name + "_TABLE?",
+                IsValueType = false,
+            };
+        }
+
         // Not a native type
         throw new NotImplementedException("User types not implemented yet: " + systemTypeId + ", " + userTypeId);
     }
@@ -531,8 +564,8 @@ public class Analyzer
     {
         if (_csharpTypeInfoByDeclaration.TryGetValue(declaration, out var value)) { return value; }
 
-        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) { throw new InvalidOperationException("No result set for SQL type declaration"); }
-        if (await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId) is not { } output) { throw new InvalidOperationException("No CSharpTypeInfo for SQL type declaration"); }
+        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) { throw new InvalidOperationException("No result set for SQL type declaration: " + declaration); }
+        if (await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId) is not { } output) { throw new InvalidOperationException("No CSharpTypeInfo for SQL type declaration: " + declaration); }
         _csharpTypeInfoByDeclaration[declaration] = output;
         return output;
     }
@@ -775,11 +808,6 @@ public class CommandParameter
     /// Name of the parameter in the SQL command
     /// </summary>
     public String? SqlName { get; set; }
-
-    /// <summary>
-    /// Type of the parameter in the SQL command
-    /// </summary>
-    public String? SqlType { get; set; }
 
     /// <summary>
     /// SqlDbType of the parameter in the SQL command

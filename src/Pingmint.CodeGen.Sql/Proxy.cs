@@ -87,6 +87,7 @@ public partial record class GetSysTypesRow
 	  public Byte SystemTypeId { get; set; }
 	  public Int32 UserTypeId { get; set; }
 	  public Boolean IsUserDefined { get; set; }
+	  public Boolean IsTableType { get; set; }
 }
 public partial record class GetSysTypeRow
 {
@@ -613,7 +614,7 @@ public partial class Proxy
 	}
 	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id, is_user_defined, is_table_type FROM sys.types");
 
 
 		var result = new List<GetSysTypesRow>();
@@ -625,6 +626,7 @@ public partial class Proxy
 			var ordSystemTypeId = reader.GetOrdinal("system_type_id");
 			var ordUserTypeId = reader.GetOrdinal("user_type_id");
 			var ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+			var ordIsTableType = reader.GetOrdinal("is_table_type");
 			do
 			{
 				result.Add(new GetSysTypesRow
@@ -634,6 +636,7 @@ public partial class Proxy
 					SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
 					UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
 					IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
+					IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
 				});
 			} while (reader.Read());
 		}
@@ -641,7 +644,7 @@ public partial class Proxy
 	}
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
 	{
-		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types");
+		using SqlCommand cmd = CreateStatement(connection, "SELECT name, schema_id, system_type_id, user_type_id, is_user_defined, is_table_type FROM sys.types");
 
 
 		var result = new List<GetSysTypesRow>();
@@ -653,6 +656,7 @@ public partial class Proxy
 			var ordSystemTypeId = reader.GetOrdinal("system_type_id");
 			var ordUserTypeId = reader.GetOrdinal("user_type_id");
 			var ordIsUserDefined = reader.GetOrdinal("is_user_defined");
+			var ordIsTableType = reader.GetOrdinal("is_table_type");
 			do
 			{
 				result.Add(new GetSysTypesRow
@@ -662,6 +666,7 @@ public partial class Proxy
 					SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
 					UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
 					IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
+					IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
 				});
 			} while (await reader.ReadAsync());
 		}

@@ -11,7 +11,11 @@ databases:
     #     - pingmint.*
     statements:
       - name: GetNativeTypes
-        text: select * from sys.types where schema_id = (SELECT schema_id from sys.schemas where name = 'sys') order by system_type_id, user_type_id, schema_id
+        text: >
+          SELECT * FROM sys.types
+          WHERE schema_id = (SELECT schema_id FROM sys.schemas WHERE name = 'sys')
+          AND is_user_defined = 0
+          ORDER BY system_type_id, user_type_id, schema_id
       - name: DmDescribeFirstResultSetForObject
         text: |
           SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
@@ -73,7 +77,7 @@ databases:
           INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id)
           ORDER BY S.name, T.name
       - name: GetSysTypes
-        text: SELECT name, schema_id, system_type_id, user_type_id, is_user_defined FROM sys.types
+        text: SELECT name, schema_id, system_type_id, user_type_id, is_user_defined, is_table_type FROM sys.types
       - name: GetSysType
         text: |
           SELECT system_type_id, is_table_type, name
