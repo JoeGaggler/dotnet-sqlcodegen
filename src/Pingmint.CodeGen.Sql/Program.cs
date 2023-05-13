@@ -20,34 +20,6 @@ internal sealed class Program
         var config = ParseYaml(yaml);
 
         await Refactor.Program2.Run(config, args);
-
-        var configMemo = await MetaAsync(config);
-        var code = new CodeWriter();
-        Generator.Generate(configMemo, code);
-
-        // using TextWriter textWriter = args.Length switch
-        // {
-        //     > 1 => new StreamWriter(args[1]),
-        //     _ => Console.Out
-        // };
-        // textWriter.Write(code.ToString());
-        // await textWriter.FlushAsync();
-        // textWriter.Close();
-
-        // bootstrap test
-        // using var sql = new SqlConnection();
-        // sql.ConnectionString = config.Connection?.ConnectionString;
-        // await sql.OpenAsync();
-        // var arg = new List<ScopesRow> {
-        //     new ScopesRow { Scope = "A" },
-        //     new ScopesRow { Scope = "B" },
-        //     new ScopesRow { Scope = "C" },
-        // };
-        // var echoScopes = await Proxy.EchoScopes2Async(sql, arg, arg);
-        // foreach (var row in echoScopes)
-        // {
-        //     Console.WriteLine($"Echo Scope: {row.Scope}");
-        // }
     }
 
     private static Config ParseYaml(String yaml)

@@ -23,12 +23,63 @@ internal sealed class Program2
             {
                 foreach (var database in databases)
                 {
+                    var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
                     if (database.Statements?.Items is { } statements)
                     {
                         foreach (var statement in statements)
                         {
                             var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
                             await analyzer.AnalyzeStatementAsync(statement.Name, statement.Text, parameters);
+                        }
+                    }
+
+                    if (database.Procedures?.Included is { } included)
+                    {
+                        List<(String Schema, String Name)> excludeSchemaProcList = new();
+                        if (database.Procedures?.Excluded is { } excludeProcs)
+                        {
+                            foreach (var item in excludeProcs)
+                            {
+                                var (schema, procName) = ParseSchemaItem(item.Text);
+                                if (schema is not null && procName is not null)
+                                {
+                                    excludeSchemaProcList.Add((schema, procName));
+                                }
+                            }
+                        }
+                        Boolean IsExcluded(String procSchema, String procName)
+                        {
+                            foreach (var (exSchema, exName) in excludeSchemaProcList)
+                            {
+                                if (procSchema != exSchema) continue;
+                                if (procName == exName) return true;
+                                if (exName == "*") return true;
+                            }
+                            return false;
+                        }
+
+                        foreach (var include in included)
+                        {
+                            if (String.IsNullOrEmpty(include.Text)) { continue; }
+                            using var sql = new SqlConnection(config.Connection.ConnectionString);
+                            await sql.OpenAsync();
+                            await sql.ChangeDatabaseAsync(databaseName);
+                            var (schema, procName) = ParseSchemaItem(include.Text);
+                            if (procName == "*")
+                            {
+                                foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
+                                {
+                                    if (IsExcluded(schema, row.Name)) { continue; }
+                                    var newProc = new Procedure();
+                                    await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, row.ObjectId);
+                                }
+                            }
+                            else
+                            {
+                                if (IsExcluded(schema, procName)) { continue; }
+                                if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
+                                await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, row.ObjectId);
+                            }
                         }
                     }
                 }
@@ -43,6 +94,20 @@ internal sealed class Program2
             await textWriter.FlushAsync();
             textWriter.Close();
         });
+    }
+
+    public static (String?, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text[..i];
+            var item = text[(i + 1)..];
+            return (schema, item);
+        }
+        else
+        {
+            return (null, text); // schema-less
+        }
     }
 }
 
@@ -74,15 +139,22 @@ public class Analyzer
         return sql;
     }
 
-    public async Task AnalyzeStatementAsync(String name, String commandText, List<SqlStatementParameter> statementParameters)
+    public async Task AnalyzeProcedureAsync(string database, string schema, string proc, int procId)
     {
-        WriteLine("Analyze Statement: {0}", name);
+        WriteLine("Analyze Procedure: {0}.{1}.{2}", database, schema, proc);
+
+        // To match statements
+        var commandText = database + "." + schema + "." + proc;
+        var name = proc;
+
+        var procParameters = await Proxy.GetParametersForObjectAsync(await OpenSqlConnectionAsync(), procId);
+        var statementParameters = procParameters.Select(p => new SqlStatementParameter(p.Name, p.TypeName)).ToList();
 
         var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
         WriteLine("Parameters: {0}", parametersText);
 
         using var server = await OpenSqlConnectionAsync();
-        var columsRows = Proxy.DmDescribeFirstResultSet(server, commandText, parametersText);
+        var columsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
 
         var recordName = GetPascalCase(name + "Row");
 
@@ -122,6 +194,94 @@ public class Analyzer
         var methodSync = new Method
         {
             Name = GetPascalCase(name),
+            IsStoredProc = true,
+            MakeSync = true,
+            MakeAsync = false,
+            DataType = returnType,
+            CommandText = commandText,
+            Record = record,
+            CSharpParameters = methodParameters,
+            SqlParameters = commandParameters,
+        };
+
+        var recordColumns = new List<RecordProperty>();
+
+        foreach (var (columnRow, columnIndex) in columsRows.WithIndex())
+        {
+            var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
+            var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
+            var propertyName = GetPascalCase(columnName);
+            var csharpTypeInfo = await GetCSharpTypeInfoAsync(columnRow.SystemTypeId, columnRow.UserTypeId);
+            var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
+            var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
+            var isValueType = csharpTypeInfo.IsValueType;
+
+            var recordProperty = new RecordProperty
+            {
+                FieldName = propertyName,
+                FieldType = propertyType,
+                FieldTypeForGeneric = propertyTypeWithoutNullable,
+                FieldTypeIsValueType = isValueType,
+                ColumnName = columnName,
+                ColumnIsNullable = isNullable,
+            };
+            record.Properties.Add(recordProperty);
+        }
+
+        codeFile.Records.Add(record);
+        codeFile.Methods.Add(methodSync);
+
+        WriteLine("Analyze Done: {0}.{1}.{2}", database, schema, proc);
+    }
+
+    public async Task AnalyzeStatementAsync(String name, String commandText, List<SqlStatementParameter> statementParameters)
+    {
+        WriteLine("Analyze Statement: {0}", name);
+
+        var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
+        WriteLine("Parameters: {0}", parametersText);
+
+        using var server = await OpenSqlConnectionAsync();
+        var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+
+        var recordName = GetPascalCase(name + "Row");
+
+        var record = new Record
+        {
+            CSharpName = recordName,
+        };
+
+        // TODO: return type for statements that are not recordsets
+        var isRecordSet = true;
+        var returnType = isRecordSet ? $"List<{recordName}>" : throw new NotImplementedException("TODO: return type for statements that are not recordsets");
+
+        var methodParameters = new List<MethodParameter>();
+        var commandParameters = new List<CommandParameter>();
+        foreach (var statementParameter in statementParameters)
+        {
+            var csharpIdentifier = GetCamelCase(statementParameter.Name);
+
+            var methodParameter = new MethodParameter
+            {
+                CSharpName = csharpIdentifier,
+                CSharpType = (await GetCSharpTypeInfoAsync(statementParameter.Type)).TypeRef,
+            };
+            methodParameters.Add(methodParameter);
+
+            var commandParameter = new CommandParameter
+            {
+                SqlName = statementParameter.Name,
+                SqlType = statementParameter.Type,
+                SqlDbType = await GetSqlDbTypeAsync(statementParameter.Type),
+                CSharpExpression = csharpIdentifier,
+            };
+            commandParameters.Add(commandParameter);
+        }
+
+        var methodSync = new Method
+        {
+            Name = GetPascalCase(name),
+            IsStoredProc = false,
             MakeSync = true,
             MakeAsync = false,
             DataType = returnType,
@@ -376,35 +536,6 @@ public class Analyzer
         _csharpTypeInfoByDeclaration[declaration] = output;
         return output;
     }
-
-    /////////////////////////////////////
-
-    public static (String?, String) ParseSchemaItem(String text)
-    {
-        if (text.IndexOf('.') is int i and > 0)
-        {
-            var schema = text[..i];
-            var item = text[(i + 1)..];
-            return (schema, item);
-        }
-        else
-        {
-            return (null, text); // schema-less
-        }
-    }
-
-    public static (String, String?) ParseSubscript(String text)
-    {
-        if (text.IndexOf('(') is int i and > 0)
-        {
-            if (text.IndexOf(')') is int j && j > i)
-            {
-                return (text[..i], text[(i + 1)..j]);
-            }
-        }
-
-        return (text, null);
-    }
 }
 
 public class CodeFile
@@ -470,9 +601,9 @@ public class CodeFile
         Value = value ?? DBNull.Value,
     };
 
-    private static T? OptionalField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
     private static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-    private static T RequiredField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
     private static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
@@ -497,7 +628,8 @@ public class CodeFile
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
                     using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString);
-                    code.Line($"using SqlCommand cmd = CreateStatement(connection, \"{commandText}\");");
+                    var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
+                    code.Line($"using SqlCommand cmd = {cmdMethod}(connection, \"{commandText}\");");
                     code.Line();
 
                     // TODO: generate parameters
@@ -564,9 +696,9 @@ public class CodeFile
                                         var ordinalVarName = $"ord{GetPascalCase(columnName)}";
                                         var line = (IsValueType, ColumnIsNullable) switch
                                         {
-                                            (false, true) => String.Format("{0} = OptionalField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
                                             (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (false, false) => String.Format("{0} = RequiredField<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
                                             (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
                                         };
                                         code.Line(line);
@@ -601,6 +733,8 @@ public class Method
     /// Data type returned by the method
     /// </summary>
     public String? DataType { get; set; }
+
+    public Boolean IsStoredProc { get; set; }
 
     public List<MethodParameter> CSharpParameters { get; set; } = new();
 
