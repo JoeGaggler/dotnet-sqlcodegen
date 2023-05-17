@@ -19,6 +19,8 @@ internal sealed class Program
         var yaml = File.ReadAllText(args[0]);
         var config = ParseYaml(yaml);
 
+        var t0 = DateTime.Now;
+
         if (!false)
         {
             await Refactor.Program2.Run(config, args);
@@ -39,6 +41,9 @@ internal sealed class Program
             await textWriter.FlushAsync();
             textWriter.Close();
         }
+
+        var t1 = DateTime.Now;
+        Console.WriteLine($"Elapsed: {(t1 - t0).TotalSeconds:0.0} seconds");
     }
 
     private static Config ParseYaml(String yaml)

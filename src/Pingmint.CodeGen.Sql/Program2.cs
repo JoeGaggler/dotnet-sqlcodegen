@@ -13,6 +13,8 @@ internal sealed class Program2
 {
     public static async Task Run(Config config, string[] args)
     {
+        const int chunkSize = 10;
+
         var sync = new ConsoleSynchronizationContext();
         sync.Go(async () =>
         {
@@ -28,10 +30,15 @@ internal sealed class Program2
                     var analyzer = new Analyzer(databaseName, codeFile, config);
                     if (database.Statements?.Items is { } statements)
                     {
-                        foreach (var statement in statements)
+                        foreach (var chunk in statements.Chunk(chunkSize))
                         {
-                            var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
-                            await analyzer.AnalyzeStatementAsync(statement.Name, statement.Text, parameters);
+                            var tasks = new Task[chunk.Length];
+                            foreach (var (statement, index) in chunk.WithIndex())
+                            {
+                                var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
+                                tasks[index] = analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters);
+                            }
+                            await Task.WhenAll(tasks);
                         }
                     }
 
@@ -60,6 +67,7 @@ internal sealed class Program2
                             return false;
                         }
 
+                        var actualIncluded = new List<(String, String, Int32)>();
                         foreach (var include in included)
                         {
                             if (String.IsNullOrEmpty(include.Text)) { continue; }
@@ -73,15 +81,25 @@ internal sealed class Program2
                                 {
                                     if (IsExcluded(schema, row.Name)) { continue; }
                                     var newProc = new Procedure();
-                                    await analyzer.AnalyzeProcedureAsync(databaseName, schema, row.Name, row.ObjectId);
+                                    actualIncluded.Add((schema, row.Name, row.ObjectId));
                                 }
                             }
                             else
                             {
                                 if (IsExcluded(schema, procName)) { continue; }
                                 if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
-                                await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, row.ObjectId);
+                                actualIncluded.Add((schema, procName, row.ObjectId));
                             }
+                        }
+
+                        foreach (var chunk in actualIncluded.Chunk(chunkSize))
+                        {
+                            var tasks = new Task[chunk.Length];
+                            foreach (var (schema, procName, objectId) in chunk)
+                            {
+                                await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId);
+                            }
+                            await Task.WhenAll(tasks);
                         }
                     }
                 }
@@ -155,68 +173,35 @@ public class Analyzer
 
     public async Task AnalyzeProcedureAsync(string database, string schema, string proc, int procId)
     {
-        WriteLine("Analyze Procedure: {0}.{1}.{2}", database, schema, proc);
+        WriteLine("Analyze Procedure: {0}.{1}.{2}", database, schema, (object)proc);
 
         // To match statements
         var commandText = database + "." + schema + "." + proc;
-        var name = proc;
 
         using var server = await OpenSqlConnectionAsync();
         server.ChangeDatabase(database);
-        var procParameters = await Proxy.GetParametersForObjectAsync(server, procId);
-        foreach (var procParameter in procParameters)
+
+        var methodParameters = new List<MethodParameter>();
+        var commandParameters = new List<CommandParameter>();
+        foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
         {
-            WriteLine("Parameter: {0} {1}", commandText, procParameter);
+            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId);
+            methodParameters.Add(methodParameter);
+            commandParameters.Add(commandParameter);
         }
-        var statementParameters = procParameters.Select(p => new SqlStatementParameter(p.Name.TrimStart('@'), p.TypeName)).ToList();
 
-        var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
-        WriteLine("Parameters: {0}", parametersText);
-
-        var columsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
-
-        var recordName = GetPascalCase(name + "Row");
-
+        var recordName = GetPascalCase(proc + "Row");
         var record = new Record
         {
             CSharpName = recordName,
         };
 
-        // TODO: return type for statements that are not recordsets
-        var isRecordSet = true;
+        var isRecordSet = true; // TODO: other return types
         var returnType = isRecordSet ? $"List<{recordName}>" : throw new NotImplementedException("TODO: return type for statements that are not recordsets");
-
-        // TODO: pull parameters from the YAML definition
-        var methodParameters = new List<MethodParameter>();
-        var commandParameters = new List<CommandParameter>();
-        foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
-        {
-            var csharpTypeInfo = await GetCSharpTypeInfoAsync(procParam.SystemTypeId, procParam.UserTypeId);
-            var csharpIdentifier = GetCamelCase(procParam.Name);
-
-            var methodParameter = new MethodParameter
-            {
-                CSharpName = csharpIdentifier,
-                CSharpType = csharpTypeInfo.TypeRef,
-            };
-            methodParameters.Add(methodParameter);
-
-            var commandExpression = csharpTypeInfo.IsTableType ? $"new {csharpTypeInfo.TableTypeRef}({csharpIdentifier})" : csharpIdentifier;
-            var commandParameter = new CommandParameter
-            {
-                SqlName = procParam.Name.TrimStart('@'),
-                SqlDbType = await GetSqlDbTypeAsync(procParam.SystemTypeId, procParam.UserTypeId),
-                CSharpExpression = commandExpression,
-            };
-            commandParameters.Add(commandParameter);
-        }
-
         var methodSync = new Method
         {
-            Name = GetPascalCase(name),
+            Name = GetPascalCase(proc),
             IsStoredProc = true,
-            MakeSync = true,
-            MakeAsync = false,
             DataType = returnType,
             CommandText = commandText,
             Record = record,
@@ -226,83 +211,50 @@ public class Analyzer
 
         var recordColumns = new List<RecordProperty>();
 
-        foreach (var (columnRow, columnIndex) in columsRows.WithIndex())
+        var columnsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
+        foreach (var (columnRow, columnIndex) in columnsRows.WithIndex())
         {
-            var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
-            var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
-            var propertyName = GetPascalCase(columnName);
-            var csharpTypeInfo = await GetCSharpTypeInfoAsync(columnRow.SystemTypeId, columnRow.UserTypeId);
-            var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
-            var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
-            var isValueType = csharpTypeInfo.IsValueType;
-
-            var recordProperty = new RecordProperty
+            if (await AnalyzeResultAsync(server, columnRow, columnIndex) is { } recordProperty)
             {
-                FieldName = propertyName,
-                FieldType = propertyType,
-                FieldTypeForGeneric = propertyTypeWithoutNullable,
-                FieldTypeIsValueType = isValueType,
-                ColumnName = columnName,
-                ColumnIsNullable = isNullable,
-            };
-            record.Properties.Add(recordProperty);
+                record.Properties.Add(recordProperty);
+            }
         }
 
         codeFile.Records.Add(record);
         codeFile.Methods.Add(methodSync);
 
-        WriteLine("Analyze Done: {0}.{1}.{2}", database, schema, proc);
+        WriteLine("Analyze Done: {0}.{1}.{2}", database, schema, (object)proc);
     }
 
-    public async Task AnalyzeStatementAsync(String name, String commandText, List<SqlStatementParameter> statementParameters)
+    public async Task AnalyzeStatementAsync(String database, String name, String commandText, List<SqlStatementParameter> statementParameters)
     {
         WriteLine("Analyze Statement: {0}", name);
 
-        var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
-        WriteLine("Parameters: {0}", parametersText);
-
         using var server = await OpenSqlConnectionAsync();
-        var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+        server.ChangeDatabase(database);
+
+        var methodParameters = new List<MethodParameter>();
+        var commandParameters = new List<CommandParameter>();
+        foreach (var procParam in statementParameters)
+        {
+            var sysType = await GetSysTypeByNameAsync(server, procParam.Type);
+            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, sysType.SystemTypeId, sysType.UserTypeId);
+            methodParameters.Add(methodParameter);
+            commandParameters.Add(commandParameter);
+        }
 
         var recordName = GetPascalCase(name + "Row");
-
         var record = new Record
         {
             CSharpName = recordName,
         };
 
-        // TODO: return type for statements that are not recordsets
-        var isRecordSet = true;
+        var isRecordSet = true; // TODO: other return types
         var returnType = isRecordSet ? $"List<{recordName}>" : throw new NotImplementedException("TODO: return type for statements that are not recordsets");
-
-        var methodParameters = new List<MethodParameter>();
-        var commandParameters = new List<CommandParameter>();
-        foreach (var statementParameter in statementParameters)
-        {
-            var csharpIdentifier = GetCamelCase(statementParameter.Name);
-
-            var methodParameter = new MethodParameter
-            {
-                CSharpName = csharpIdentifier,
-                CSharpType = (await GetCSharpTypeInfoAsync(statementParameter.Type)).TypeRef,
-            };
-            methodParameters.Add(methodParameter);
-
-            var commandParameter = new CommandParameter
-            {
-                SqlName = statementParameter.Name,
-                SqlDbType = await GetSqlDbTypeAsync(statementParameter.Type),
-                CSharpExpression = csharpIdentifier,
-            };
-            commandParameters.Add(commandParameter);
-        }
-
         var methodSync = new Method
         {
             Name = GetPascalCase(name),
             IsStoredProc = false,
-            MakeSync = true,
-            MakeAsync = false,
             DataType = returnType,
             CommandText = commandText,
             Record = record,
@@ -312,26 +264,14 @@ public class Analyzer
 
         var recordColumns = new List<RecordProperty>();
 
+        var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
+        var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
         foreach (var (columnRow, columnIndex) in columsRows.WithIndex())
         {
-            var columnName = columnRow.Name ?? $"Column{columnIndex}"; // TODO: generated column names will not work with "GetOrdinal", use ColumnIndex as backup?
-            var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
-            var propertyName = GetPascalCase(columnName);
-            var csharpTypeInfo = await GetCSharpTypeInfoAsync(columnRow.SystemTypeId, columnRow.UserTypeId);
-            var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
-            var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
-            var isValueType = csharpTypeInfo.IsValueType;
-
-            var recordProperty = new RecordProperty
+            if (await AnalyzeResultAsync(server, columnRow, columnIndex) is { } recordProperty)
             {
-                FieldName = propertyName,
-                FieldType = propertyType,
-                FieldTypeForGeneric = propertyTypeWithoutNullable,
-                FieldTypeIsValueType = isValueType,
-                ColumnName = columnName,
-                ColumnIsNullable = isNullable,
-            };
-            record.Properties.Add(recordProperty);
+                record.Properties.Add(recordProperty);
+            }
         }
 
         codeFile.Records.Add(record);
@@ -340,26 +280,90 @@ public class Analyzer
         WriteLine("Analyze Done: {0}", name);
     }
 
+    /***************************************************************************/
+
+    private async Task<(MethodParameter, CommandParameter)> AnalyzeParameterAsync(SqlConnection server, String Name, int SystemTypeId, int UserTypeId)
+    {
+        var csharpTypeInfo = await GetCSharpTypeInfoAsync(server, SystemTypeId, UserTypeId);
+        var csharpIdentifier = GetCamelCase(Name);
+
+        var methodParameter = new MethodParameter
+        {
+            CSharpName = csharpIdentifier,
+            CSharpType = csharpTypeInfo.TypeRef,
+        };
+
+        var commandExpression = csharpTypeInfo.IsTableType ? $"new {csharpTypeInfo.TableTypeRef}({csharpIdentifier})" : csharpIdentifier;
+        var commandParameter = new CommandParameter
+        {
+            SqlName = Name.TrimStart('@'),
+            SqlDbType = await GetSqlDbTypeAsync(server, SystemTypeId, UserTypeId),
+            CSharpExpression = commandExpression,
+        };
+
+        return (methodParameter, commandParameter);
+    }
+
+    private async Task<RecordProperty?> AnalyzeResultAsync(SqlConnection server, IDmDescribeFirstResultSetRow columnRow, int columnIndex)
+    {
+        if (columnRow.Name is not { } columnName)
+        {
+            WriteLine("WARNING: Column {0} has no name", columnIndex);
+            return null;
+        }
+        var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
+        var propertyName = GetPascalCase(columnName);
+        var csharpTypeInfo = await GetCSharpTypeInfoAsync(server, columnRow.SystemTypeId, columnRow.UserTypeId);
+        var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
+        var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
+        var isValueType = csharpTypeInfo.IsValueType;
+
+        var recordProperty = new RecordProperty
+        {
+            FieldName = propertyName,
+            FieldType = propertyType,
+            FieldTypeForGeneric = propertyTypeWithoutNullable,
+            FieldTypeIsValueType = isValueType,
+            ColumnName = columnName,
+            ColumnIsNullable = isNullable,
+        };
+        return recordProperty;
+    }
+
+    /***************************************************************************/
+
     private List<GetSysTypesRow>? _sysTypes;
-    private async Task<List<GetSysTypesRow>> GetSysTypesAsync()
+    private async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection server)
     {
         if (_sysTypes is not null) return _sysTypes;
-        using var server = await OpenSqlConnectionAsync();
-        return _sysTypes ??= Proxy.GetSysTypes(server);
+        return _sysTypes ??= await Proxy.GetSysTypesAsync(server);
+    }
+
+    private readonly SortedDictionary<String, GetSysTypesRow> _sysTypesByName = new();
+    private async Task<GetSysTypesRow> GetSysTypeByNameAsync(SqlConnection server, string typeName)
+    {
+        if (_sysTypesByName.TryGetValue(typeName, out var sysType)) { return sysType; }
+
+        var xxx = Proxy.DmDescribeFirstResultSet(server, $"DECLARE @x {typeName}; SELECT @x AS x;", "");
+        if (xxx.Count != 1) throw new Exception("TODO: handle this");
+        var yyy = xxx[0];
+
+        sysType = (await GetSysTypesAsync(server)).FirstOrDefault(t => t.SystemTypeId == yyy.SystemTypeId && t.UserTypeId == yyy.UserTypeId) ?? throw new Exception("TODO: handle this2");
+        _sysTypesByName[typeName] = sysType;
+        return sysType;
     }
 
     private List<GetTableTypesRow>? _tableTypes;
-    private async Task<List<GetTableTypesRow>> GetTableTypesAsync()
+    private async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection server)
     {
         if (_tableTypes is not null) return _tableTypes;
-        using var server = await OpenSqlConnectionAsync();
-        return _tableTypes ??= Proxy.GetTableTypes(server);
+        return _tableTypes ??= await Proxy.GetTableTypesAsync(server);
     }
 
     private SortedDictionary<Int32, GetTableTypesRow>? _tableTypesByObjectId;
-    private async Task<GetTableTypesRow?> GetTableTypeAsync(int objectId)
+    private async Task<GetTableTypesRow?> GetTableTypeAsync(SqlConnection server, int objectId)
     {
-        var types = await GetTableTypesAsync();
+        var types = await GetTableTypesAsync(server);
 
         if (_tableTypesByObjectId is not { } tableTypesByObjectId)
         {
@@ -374,19 +378,18 @@ public class Analyzer
     }
 
     // TODO: cache
-    private async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(int systemTypeId, int userTypeId)
+    private async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
-        var types = await GetTableTypesAsync();
+        var types = await GetTableTypesAsync(server);
         if (types.FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } tableType) { throw new InvalidOperationException($"Table type not found: {systemTypeId}, {userTypeId}"); }
 
-        using var server = await OpenSqlConnectionAsync();
-        return Proxy.GetTableTypeColumns(server, tableType.TypeTableObjectId);
+        return await Proxy.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId);
     }
 
     private SortedDictionary<(Int32, Int32), GetSysTypesRow>? _sysTypesById;
-    private async Task<GetSysTypesRow?> GetSysTypeAsync(int systemTypeId, int userTypeId)
+    private async Task<GetSysTypesRow?> GetSysTypeAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
-        var types = await GetSysTypesAsync();
+        var types = await GetSysTypesAsync(server);
 
         if (_sysTypesById is not { } sysTypesById)
         {
@@ -400,38 +403,13 @@ public class Analyzer
         return null;
     }
 
-    private List<GetNativeTypesRow>? _nativeTypes;
-    private async Task<List<GetNativeTypesRow>> GetNativeTypesAsync()
-    {
-        if (_nativeTypes is not null) return _nativeTypes;
-        using var server = await OpenSqlConnectionAsync();
-        return _nativeTypes ??= Proxy.GetNativeTypes(server);
-    }
-
-    private SortedDictionary<(Int32, Int32), GetNativeTypesRow>? _nativeTypesById;
-    private async Task<GetNativeTypesRow?> GetNativeTypeAsync(int systemTypeId, int userTypeId)
-    {
-        var nativeTypes = await GetNativeTypesAsync();
-
-        if (_nativeTypesById is not { } nativeTypesById)
-        {
-            _nativeTypesById = nativeTypesById = new(nativeTypes.ToDictionary(t => ((int)t.SystemTypeId, t.UserTypeId)));
-        }
-
-        if (nativeTypesById.TryGetValue((systemTypeId, userTypeId), out var nativeType))
-        {
-            return nativeType;
-        }
-        return null;
-    }
-
     private SortedDictionary<(Int32, Int32), SqlDbType>? _sqlDbTypesById2;
-    private async Task<SqlDbType?> GetSqlDbTypeAsync(int systemTypeId, int userTypeId)
+    private async Task<SqlDbType?> GetSqlDbTypeAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
         if (_sqlDbTypesById2 is not { } sqlDbTypesById)
         {
             sqlDbTypesById = new();
-            foreach (var nativeTypeRow in await GetNativeTypesAsync())
+            foreach (var nativeTypeRow in (await GetSysTypesAsync(server)).Where(i => i.IsFromSysSchema))
             {
                 if (nativeTypeRow.Name switch
                 {
@@ -491,7 +469,7 @@ public class Analyzer
             return sqlDbType;
         }
 
-        if (await GetSysTypeAsync(systemTypeId, userTypeId) is { } sysType)
+        if (await GetSysTypeAsync(server, systemTypeId, userTypeId) is { } sysType)
         {
             if (sysType.IsTableType) { return SqlDbType.Structured; }
         }
@@ -553,7 +531,7 @@ public class Analyzer
         public Boolean IsTableType { get; init; }
         public String? TableTypeRef { get; init; }
     }
-    private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(int systemTypeId, int userTypeId)
+    private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
         // Determine if the type reference by the column is already known
         // If not, then try matching it to a system type
@@ -564,11 +542,11 @@ public class Analyzer
             return csharpTypeInfo2;
         }
 
-        if (await GetNativeTypeAsync(systemTypeId, userTypeId) is { } nativeType)
+        if (await GetSysTypeAsync(server, systemTypeId, userTypeId) is { } nativeType && !nativeType.IsUserDefined)
         {
-            if (await GetSqlDbTypeAsync(systemTypeId, userTypeId) is { } sqlDbType)
+            if (await GetSqlDbTypeAsync(server, systemTypeId, userTypeId) is { } sqlDbType)
             {
-                var type = GetCSharpTypeForSqlDbType(sqlDbType) ?? throw new InvalidOperationException("Have SqlDbType without C# type for it" + sqlDbType);
+                var type = GetCSharpTypeForSqlDbType(sqlDbType) ?? throw new InvalidOperationException("Have SqlDbType without C# type for it: " + sqlDbType);
 
                 _csharpTypeInfosById[(systemTypeId, userTypeId)] = csharpTypeInfo2 = new()
                 {
@@ -581,7 +559,7 @@ public class Analyzer
             }
         }
 
-        if ((await GetSysTypesAsync()).FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } foundSysType)
+        if ((await GetSysTypesAsync(server)).FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } foundSysType)
         {
             throw new InvalidOperationException("Could not find sys.types row for " + systemTypeId + ", " + userTypeId);
         }
@@ -601,14 +579,13 @@ public class Analyzer
                 TableTypeCSharpName = tableCSharpTypeName,
             };
 
-            using var server = await OpenSqlConnectionAsync();
-            var cols = await GetTableTypeColumnsAsync(foundSysType.SystemTypeId, foundSysType.UserTypeId);
+            var cols = await GetTableTypeColumnsAsync(server, foundSysType.SystemTypeId, foundSysType.UserTypeId);
             foreach (var columnRow in cols)
             {
                 var columnName = columnRow.Name ?? throw new InvalidOperationException("Column name is null for table type column");
                 var isNullable = columnRow.IsNullable.GetValueOrDefault(true); // nullable by default
                 var propertyName = GetPascalCase(columnName);
-                var csharpTypeInfo = await GetCSharpTypeInfoAsync(columnRow.SystemTypeId, columnRow.UserTypeId);
+                var csharpTypeInfo = await GetCSharpTypeInfoAsync(server, columnRow.SystemTypeId, columnRow.UserTypeId);
                 var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
                 var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
                 var isValueType = csharpTypeInfo.IsValueType;
@@ -645,11 +622,10 @@ public class Analyzer
     }
 
     private readonly SortedDictionary<String, DmDescribeFirstResultSetRow> _sqlTypeDeclarations = new();
-    private async Task<DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(String declaration)
+    private async Task<DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(SqlConnection server, String declaration)
     {
         if (_sqlTypeDeclarations.TryGetValue(declaration, out var row)) { return row; }
 
-        using var server = await OpenSqlConnectionAsync();
         row = Proxy.DmDescribeFirstResultSet(server, $"DECLARE @x {declaration}; SELECT @x;", "").FirstOrDefault();
         if (row is not null)
         {
@@ -657,31 +633,6 @@ public class Analyzer
             WriteLine($"SQL type declaration: {declaration} => {row}");
         }
         return row;
-    }
-
-    private readonly SortedDictionary<String, SqlDbType> _sqlDbTypesByDeclaration = new();
-    private async Task<SqlDbType?> GetSqlDbTypeAsync(String declaration)
-    {
-        if (_sqlDbTypesByDeclaration.TryGetValue(declaration, out var sqlDbType)) { return sqlDbType; }
-
-        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) throw new InvalidOperationException("No result set for SQL type declaration");
-        if (await GetSqlDbTypeAsync(row.SystemTypeId, row.UserTypeId) is { } sqlDbType2)
-        {
-            _sqlDbTypesByDeclaration[declaration] = sqlDbType2;
-            return sqlDbType2;
-        }
-        return null;
-    }
-
-    private readonly SortedDictionary<String, CSharpTypeInfo> _csharpTypeInfoByDeclaration = new();
-    private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(String declaration)
-    {
-        if (_csharpTypeInfoByDeclaration.TryGetValue(declaration, out var value)) { return value; }
-
-        if (await GetSqlTypeDeclarationAsync(declaration) is not { } row) { throw new InvalidOperationException("No result set for SQL type declaration: " + declaration); }
-        if (await GetCSharpTypeInfoAsync(row.SystemTypeId, row.UserTypeId) is not { } output) { throw new InvalidOperationException("No CSharpTypeInfo for SQL type declaration: " + declaration); }
-        _csharpTypeInfoByDeclaration[declaration] = output;
-        return output;
     }
 }
 
@@ -865,8 +816,8 @@ public class CodeFile
                         IDisposable ifScope;
                         if (isAsync)
                         {
-                            code.Line($"using var reader = await cmd.ExecuteReaderAsync();");
-                            ifScope = code.If("await reader.ReadAsync()");
+                            code.Line($"using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);");
+                            ifScope = code.If("await reader.ReadAsync().ConfigureAwait(false)");
                         }
                         else
                         {
@@ -885,7 +836,7 @@ public class CodeFile
                             IDisposable doWhileScope;
                             if (isAsync)
                             {
-                                doWhileScope = code.DoWhile("await reader.ReadAsync()");
+                                doWhileScope = code.DoWhile("await reader.ReadAsync().ConfigureAwait(false)");
                             }
                             else
                             {
@@ -952,16 +903,6 @@ public class Method
     public List<MethodParameter> CSharpParameters { get; set; } = new();
 
     public List<CommandParameter> SqlParameters { get; set; } = new();
-
-    /// <summary>
-    /// Instruction to make an async method
-    /// </summary>
-    public Boolean MakeAsync { get; set; }
-
-    /// <summary>
-    /// Instruction to make a sync method
-    /// </summary>
-    public Boolean MakeSync { get; set; }
 
     /// <summary>
     /// Type of recordset
