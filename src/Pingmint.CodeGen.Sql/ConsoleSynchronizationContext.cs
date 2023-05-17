@@ -27,20 +27,20 @@ public class ConsoleSynchronizationContext : SynchronizationContext
                 exception = t.Exception;
                 stop = true;
             });
-            
+
             while (true)
             {
                 if (!queue.TryDequeue(out var item))
                 {
                     if (stop)
                     {
-                        WriteLine("----- Stopping Context -----");
+                        //WriteLine("----- Stopping Context -----");
                         break;
                     }
                     Thread.Yield();
                     continue;
                 }
-                WriteLine("----- Continuation -----");
+                //WriteLine("----- Continuation -----");
                 item.Callback(item.State);
             }
 
@@ -48,32 +48,32 @@ public class ConsoleSynchronizationContext : SynchronizationContext
         }
         finally
         {
-            WriteLine("----- Revert Context -----");
+            //WriteLine("----- Revert Context -----");
             SynchronizationContext.SetSynchronizationContext(previous);
         }
     }
 
     public override void Post(SendOrPostCallback d, object? state)
     {
-        WriteLine("----- Post -----");
+        //WriteLine("----- Post -----");
         queue.Enqueue(new(d, state));
     }
 
     public override void Send(SendOrPostCallback d, object? state)
     {
-        WriteLine("----- Send -----");
+        //WriteLine("----- Send -----");
         queue.Enqueue(new(d, state));
     }
 
     public override void OperationStarted()
     {
-        WriteLine("----- Op: Start -----");
+        //WriteLine("----- Op: Start -----");
         base.OperationStarted();
     }
 
     public override void OperationCompleted()
     {
-        WriteLine("----- Op: Done -----");
+        //WriteLine("----- Op: Done -----");
         base.OperationCompleted();
     }
 }

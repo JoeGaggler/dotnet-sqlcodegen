@@ -15,9 +15,24 @@ internal sealed class Program2
     {
         const int chunkSize = 10;
 
+        // TODO: ChangeDatabase is slow
+        // TODO: Connecting using unique connection strings is faster?!
+        // TODO: Warming up connections doesn't seem to help
+
         var sync = new ConsoleSynchronizationContext();
         sync.Go(async () =>
         {
+            // Warming up connections for testing performance
+            // var cn = new SqlConnection[chunkSize];
+            // var ct = new Task[chunkSize];
+            // for (var i = 0; i < chunkSize; i++)
+            // {
+            //     var sqlsql = new SqlConnection(config.Connection.ConnectionString);
+            //     cn[i] = sqlsql;
+            //     ct[i] = sqlsql.OpenAsync().ContinueWith(_ => sqlsql.Close());
+            // }
+            // await Task.WhenAny(ct);
+
             var codeFile = new CodeFile();
             codeFile.Namespace = config.CSharp.Namespace;
             codeFile.ClassName = config.CSharp.ClassName;
@@ -95,9 +110,9 @@ internal sealed class Program2
                         foreach (var chunk in actualIncluded.Chunk(chunkSize))
                         {
                             var tasks = new Task[chunk.Length];
-                            foreach (var (schema, procName, objectId) in chunk)
+                            foreach (var ((schema, procName, objectId), index) in chunk.WithIndex())
                             {
-                                await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId);
+                                tasks[index] = analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId);
                             }
                             await Task.WhenAll(tasks);
                         }
@@ -173,6 +188,7 @@ public class Analyzer
 
     public async Task AnalyzeProcedureAsync(string database, string schema, string proc, int procId)
     {
+        var t0 = DateTime.UtcNow;
         WriteLine("Analyze Procedure: {0}.{1}.{2}", database, schema, (object)proc);
 
         // To match statements
@@ -223,7 +239,7 @@ public class Analyzer
         codeFile.Records.Add(record);
         codeFile.Methods.Add(methodSync);
 
-        WriteLine("Analyze Done: {0}.{1}.{2}", database, schema, (object)proc);
+        WriteLine("Analyze Done: {0}.{1}.{2} ({3:0.0}s)", database, schema, proc, (DateTime.UtcNow - t0).TotalSeconds);
     }
 
     public async Task AnalyzeStatementAsync(String database, String name, String commandText, List<SqlStatementParameter> statementParameters)
@@ -297,7 +313,7 @@ public class Analyzer
         var commandParameter = new CommandParameter
         {
             SqlName = Name.TrimStart('@'),
-            SqlDbType = await GetSqlDbTypeAsync(server, SystemTypeId, UserTypeId),
+            SqlDbType = csharpTypeInfo.SqlDbType,
             CSharpExpression = commandExpression,
         };
 
@@ -530,45 +546,37 @@ public class Analyzer
         public Boolean IsValueType { get; init; }
         public Boolean IsTableType { get; init; }
         public String? TableTypeRef { get; init; }
+        public SqlDbType SqlDbType { get; init; }
     }
     private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
-        // Determine if the type reference by the column is already known
-        // If not, then try matching it to a system type
-        // If not, then generate a new record type, and return it
+        if (_csharpTypeInfosById.TryGetValue((systemTypeId, userTypeId), out var cachedValue)) { return cachedValue; }
 
-        if (_csharpTypeInfosById.TryGetValue((systemTypeId, userTypeId), out var csharpTypeInfo2))
+        if (await GetSysTypeAsync(server, systemTypeId, userTypeId) is not { } foundSysType)
         {
-            return csharpTypeInfo2;
+            throw new InvalidOperationException("Could not find sys.types row for " + systemTypeId + ", " + userTypeId);
         }
 
-        if (await GetSysTypeAsync(server, systemTypeId, userTypeId) is { } nativeType && !nativeType.IsUserDefined)
+        if (!foundSysType.IsUserDefined)
         {
             if (await GetSqlDbTypeAsync(server, systemTypeId, userTypeId) is { } sqlDbType)
             {
                 var type = GetCSharpTypeForSqlDbType(sqlDbType) ?? throw new InvalidOperationException("Have SqlDbType without C# type for it: " + sqlDbType);
 
-                _csharpTypeInfosById[(systemTypeId, userTypeId)] = csharpTypeInfo2 = new()
+                _csharpTypeInfosById[(systemTypeId, userTypeId)] = cachedValue = new()
                 {
                     TypeRef = type.Name,
                     TypeRefNullable = type.Name + "?",
                     IsValueType = type.IsValueType,
+                    SqlDbType = sqlDbType,
                 };
 
-                return csharpTypeInfo2;
+                return cachedValue;
             }
         }
 
-        if ((await GetSysTypesAsync(server)).FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } foundSysType)
-        {
-            throw new InvalidOperationException("Could not find sys.types row for " + systemTypeId + ", " + userTypeId);
-        }
-
-        // TODO: this is not done yet
         if (foundSysType.IsTableType)
         {
-            // TODO: already cached?
-
             string rowCSharpTypeName = GetPascalCase(foundSysType.Name + "Row");
             string tableCSharpTypeName = GetPascalCase(foundSysType.Name + "Table");
 
@@ -605,7 +613,6 @@ public class Analyzer
             }
             this.codeFile.Records.Add(record);
 
-
             var listName = $"List<{rowCSharpTypeName}>";
             return new()
             {
@@ -614,54 +621,17 @@ public class Analyzer
                 IsValueType = false,
                 IsTableType = true,
                 TableTypeRef = tableCSharpTypeName,
+                SqlDbType = SqlDbType.Structured,
             };
         }
 
         // Not a native type
-        throw new NotImplementedException("User types not implemented yet: " + systemTypeId + ", " + userTypeId);
-    }
-
-    private readonly SortedDictionary<String, DmDescribeFirstResultSetRow> _sqlTypeDeclarations = new();
-    private async Task<DmDescribeFirstResultSetRow?> GetSqlTypeDeclarationAsync(SqlConnection server, String declaration)
-    {
-        if (_sqlTypeDeclarations.TryGetValue(declaration, out var row)) { return row; }
-
-        row = Proxy.DmDescribeFirstResultSet(server, $"DECLARE @x {declaration}; SELECT @x;", "").FirstOrDefault();
-        if (row is not null)
-        {
-            _sqlTypeDeclarations[declaration] = row;
-            WriteLine($"SQL type declaration: {declaration} => {row}");
-        }
-        return row;
+        throw new NotImplementedException("User type not implemented yet: " + systemTypeId + ", " + userTypeId);
     }
 }
-
-/**************************************************************************************************************/
-public partial record class IntTableTypeRow
-{
-    public Int32 ID { get; set; }
-}
-
-public sealed partial class IntTableTypeRowDataTable : DataTable
-{
-    public IntTableTypeRowDataTable() : this(new List<IntTableTypeRow>()) { }
-    public IntTableTypeRowDataTable(List<IntTableTypeRow> rows) : base()
-    {
-        ArgumentNullException.ThrowIfNull(rows);
-
-        base.Columns.Add(new DataColumn() { ColumnName = "ID", DataType = typeof(Int32), AllowDBNull = false });
-        foreach (var row in rows)
-        {
-            var iD = row.ID;
-            base.Rows.Add(iD);
-        }
-    }
-}
-/**************************************************************************************************************/
 
 public class CodeFile
 {
-
     /// <summary>
     /// Name of the file namespace
     /// </summary>
@@ -687,11 +657,18 @@ public class CodeFile
         code.UsingNamespace("Microsoft.Data.SqlClient");
         code.Line();
 
+        code.Line("#nullable enable");
+        code.Line();
+
         code.FileNamespace(Namespace);
         code.Line();
 
+        var isFirstRecord = true;
         foreach (var record in Records.OrderBy(i => i.CSharpName).ThenBy(i => i.TableTypeCSharpName))
         {
+            if (isFirstRecord) { isFirstRecord = false; }
+            else { code.Line(); }
+
             string? rowClassName = record.CSharpName;
             using (var recordClass = code.PartialRecordClass("public", rowClassName))
             {
@@ -742,6 +719,7 @@ public class CodeFile
             }
         }
 
+        code.Line();
         using (code.PartialClass("public", ClassName))
         {
             code.Text(
@@ -774,15 +752,20 @@ public class CodeFile
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
 """);
+            var isFirstMethod = true;
             foreach (var method in Methods.OrderBy(i => i.Name))
             {
-                // var methodName = method.Name;
+                if (isFirstMethod) { isFirstMethod = false; }
+                else { code.Line(); }
+
                 var commandText = method.CommandText.ReplaceLineEndings(" ").Trim();
                 var csharpParameters = method.CSharpParameters;
                 var commandParameters = method.SqlParameters;
 
                 foreach (var isAsync in new[] { false, true })
                 {
+                    if (isAsync) { code.Line(); } // Assumes async always comes after sync
+
                     var methodParameters = csharpParameters.ToList(); // NOTE THE COPY!
                     methodParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
                     var parametersString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
@@ -797,17 +780,20 @@ public class CodeFile
                     code.Line();
 
                     // TODO: generate parameters
-                    foreach (var parameter in commandParameters)
+                    if (commandParameters.Count > 0)
                     {
-                        code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
+                        foreach (var parameter in commandParameters)
+                        {
+                            code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
 
-                        // TODO:
-                        // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                        // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                        // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
+                            // TODO:
+                            // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                            // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                            // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
+                        }
+
+                        code.Line();
                     }
-
-                    code.Line();
 
                     if (method.Record is { } record)
                     {
@@ -827,10 +813,14 @@ public class CodeFile
 
                         using (ifScope)
                         {
-                            foreach (var recordProperty in record.Properties)
+                            if (record.Properties.Count != 0)
                             {
-                                String columnName = recordProperty.ColumnName;
-                                code.Line($"var ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
+                                foreach (var recordProperty in record.Properties)
+                                {
+                                    String columnName = recordProperty.ColumnName;
+                                    code.Line($"int ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
+                                }
+                                code.Line();
                             }
 
                             IDisposable doWhileScope;

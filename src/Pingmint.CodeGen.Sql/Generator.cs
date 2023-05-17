@@ -9,6 +9,8 @@ public static class Generator
 {
     private static void CodeRecords(CodeWriter code, SortedDictionary<String, DatabaseMemo> databaseScopeMemos)
     {
+        var allRecords = new List<(String, Action)>();
+
         foreach (var dbItem in databaseScopeMemos)
         {
             var db = dbItem.Value;
@@ -20,7 +22,7 @@ public static class Generator
                 foreach (var record in schema.Records.Values)
                 {
                     if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
-                    CodeRecord(code, record);
+                    allRecords.Add((record.Name, () => CodeRecord(code, record)));
 
                     code.Line();
                 }
@@ -28,7 +30,7 @@ public static class Generator
                 foreach (var tableType in schema.TableTypes.Values)
                 {
                     if (!tableType.IsReferenced) { continue; }
-                    CodeRecord(code, tableType);
+                    allRecords.Add((tableType.RowClassName, () => CodeRecord(code, tableType)));
 
                     code.Line();
                 }
@@ -38,10 +40,15 @@ public static class Generator
             {
                 var record = recordItem.Value;
                 if (record.ParentTableType is { } tableType && !tableType.IsReferenced) { continue; }
-                CodeRecord(code, record);
+                allRecords.Add((record.Name, () => CodeRecord(code, record)));
 
                 code.Line();
             }
+        }
+
+        foreach (var record in allRecords.OrderBy(i => i.Item1))
+        {
+            record.Item2();
         }
     }
 
@@ -172,22 +179,29 @@ public static class Generator
             WriteHelperMethods(code);
             code.Line();
 
+            var allCommands = new List<(String, Action)>();
+
             foreach (var databaseMemo in databaseMemos.Values)
             {
                 foreach (var schemaMemo in databaseMemo.Schemas.Values)
                 {
                     foreach (var procMemo in schemaMemo.Procedures.Values)
                     {
-                        CodeSqlStatement(code, procMemo);
+                        allCommands.Add((procMemo.MethodName, () => CodeSqlStatement(code, procMemo)));
                         code.Line();
                     }
                 }
 
                 foreach (var memo in databaseMemo.Statements)
                 {
-                    CodeSqlStatement(code, memo.Value);
+                    allCommands.Add((memo.Value.MethodName, () => CodeSqlStatement(code, memo.Value)));
                     code.Line();
                 }
+            }
+
+            foreach (var mmm in allCommands.OrderBy(x => x.Item1))
+            {
+                mmm.Item2();
             }
         }
     }
@@ -227,10 +241,10 @@ public static class Generator
         Value = value ?? DBNull.Value,
     };
 
-    private static T? GetField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-    private static T? GetFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-    private static T GetNonNullField<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
-    private static T GetNonNullFieldValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+    private static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+    private static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
@@ -391,10 +405,10 @@ public static class Generator
                                 {
                                     var line = (column.PropertyType.IsValueType, column.ColumnIsNullable) switch
                                     {
-                                        (false, true) => String.Format("{0} = GetField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                        (true, true) => String.Format("{0} = GetFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                        (false, false) => String.Format("{0} = GetNonNullField<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
-                                        (true, false) => String.Format("{0} = GetNonNullFieldValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
+                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", column.PropertyName, column.OrdinalVarName, column.FieldTypeName),
                                     };
                                     code.Line(line);
                                 }
