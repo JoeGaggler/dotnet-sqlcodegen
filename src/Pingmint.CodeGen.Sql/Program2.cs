@@ -13,8 +13,10 @@ internal sealed class Program2
 {
     public static async Task Run(Config config, string[] args)
     {
-        const int chunkSize = 10;
+        const int chunkSize = 20;
 
+        // TODO: Add CancellationToken to all async methods
+        // TODO: Add optional Transaction to all methods
         // TODO: ChangeDatabase is slow
         // TODO: Connecting using unique connection strings is faster?!
         // TODO: Warming up connections doesn't seem to help
@@ -164,25 +166,35 @@ public class Analyzer
         this.connectionString = config.Connection.ConnectionString;
     }
 
+    // TODO: remove stats
     private static int connectionCount = 0;
     private static int totalOpened = 0;
     private async Task<SqlConnection> OpenSqlConnectionAsync([System.Runtime.CompilerServices.CallerMemberName] String? caller = null)
     {
         var instance = ++connectionCount;
-        var sql = new SqlConnection(connectionString);
-        var openTask = sql.OpenAsync();
-        if (openTask.IsCompleted)
+
+        var callerString = caller == null ? "" : $" ({caller})";
+
+        // OpenAsync tries to consume some time on the current sync-context
+        var sql = await Task.Run(async () =>
         {
-            WriteLine($"Dequeued connection {instance}/{totalOpened}{(caller == null ? "" : $" ({caller})")}");
-        }
-        else
-        {
-            var total = ++totalOpened;
-            WriteLine($"Opening connection {instance}/{total}{(caller == null ? "" : $" ({caller})")}");
-            await openTask;
-            WriteLine($"Opened connection {instance}/{total}{(caller == null ? "" : $" ({caller})")}");
-        }
-        sql.ChangeDatabase(database);
+            var sql = new SqlConnection(connectionString);
+            var openTask = sql.OpenAsync();
+            if (openTask.IsCompleted)
+            {
+                WriteLine($"Dequeued connection {instance}/{totalOpened}{callerString}");
+            }
+            else
+            {
+                var total = Interlocked.Increment(ref totalOpened);
+                WriteLine($"Opening connection {instance}/{total}{callerString}");
+                await openTask.ConfigureAwait(false);
+                WriteLine($"Opened connection {instance}/{total}{callerString}");
+            }
+            await sql.ChangeDatabaseAsync(database).ConfigureAwait(false);
+            return sql;
+        }).ConfigureAwait(false);
+
         return sql;
     }
 
@@ -195,7 +207,6 @@ public class Analyzer
         var commandText = database + "." + schema + "." + proc;
 
         using var server = await OpenSqlConnectionAsync();
-        server.ChangeDatabase(database);
 
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
@@ -247,7 +258,6 @@ public class Analyzer
         WriteLine("Analyze Statement: {0}", name);
 
         using var server = await OpenSqlConnectionAsync();
-        server.ChangeDatabase(database);
 
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
@@ -752,6 +762,7 @@ public class CodeFile
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
 """);
+            code.Line();
             var isFirstMethod = true;
             foreach (var method in Methods.OrderBy(i => i.Name))
             {

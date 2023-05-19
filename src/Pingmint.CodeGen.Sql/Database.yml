@@ -10,12 +10,13 @@ databases:
     #   exclude:
     #     - pingmint.*
     statements:
-      - name: GetNativeTypes
+      - name: GetSysTypes
         text: >
-          SELECT * FROM sys.types
-          WHERE schema_id = (SELECT schema_id FROM sys.schemas WHERE name = 'sys')
-          AND is_user_defined = 0
-          ORDER BY system_type_id, user_type_id, schema_id
+          SELECT
+            T.*,
+            ISNULL(CAST(CASE WHEN S.name = 'sys' THEN 1 ELSE 0 END as bit), 0) AS [is_from_sys_schema]
+          FROM sys.types T
+          JOIN sys.schemas S ON (T.schema_id = S.schema_id)
       - name: DmDescribeFirstResultSetForObject
         text: |
           SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name]
