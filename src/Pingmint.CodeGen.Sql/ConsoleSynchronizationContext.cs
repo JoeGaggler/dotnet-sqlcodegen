@@ -3,7 +3,7 @@
 using System.Collections.Concurrent;
 using static System.Console;
 
-namespace Pingmint.CodeGen.Sql.Refactor;
+namespace Pingmint.CodeGen.Sql;
 
 internal record struct SendOrPostCallbackWithState(SendOrPostCallback Callback, Object? State);
 

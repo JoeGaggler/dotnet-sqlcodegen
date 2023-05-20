@@ -2,6 +2,19 @@ using System.Data;
 
 namespace Pingmint.CodeGen.Sql;
 
+public interface IDmDescribeFirstResultSetRow
+{
+    Int32 SchemaId { get; set; }
+    Byte SystemTypeId { get; set; }
+    Int32 UserTypeId { get; set; }
+    String? Name { get; set; }
+    Boolean? IsNullable { get; set; }
+    Int32? ColumnOrdinal { get; set; }
+    String SqlTypeName { get; set; }
+}
+public partial record class DmDescribeFirstResultSetRow : IDmDescribeFirstResultSetRow { }
+public partial record class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRow { }
+
 public static class Globals
 {
     public static String GetCamelCase(String originalName)
@@ -101,27 +114,4 @@ public static class Globals
             return (null, text); // schema-less
         }
     }
-
-    public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
-        $"{GetShortestNameForType(type)}?" :
-        $"{GetShortestNameForType(type)}";
-
-    public static String GetShortestNameForType(Type type) => type switch
-    {
-        var x when x == typeof(DateTime) => "DateTime",
-        var x when x == typeof(DateTimeOffset) => "DateTimeOffset",
-        var x when x == typeof(TimeSpan) => "TimeSpan",
-        var x when x == typeof(Int16) => "Int16",
-        var x when x == typeof(Int32) => "Int32",
-        var x when x == typeof(Int64) => "Int64",
-        var x when x == typeof(Single) => "Single",
-        var x when x == typeof(Double) => "Double",
-        var x when x == typeof(Decimal) => "Decimal",
-        var x when x == typeof(String) => "String",
-        var x when x == typeof(Boolean) => "Boolean",
-        var x when x == typeof(Byte) => "Byte",
-        var x when x == typeof(Guid) => "Guid",
-        var x when x == typeof(Byte[]) => "Byte[]",
-        _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
-    };
 }
