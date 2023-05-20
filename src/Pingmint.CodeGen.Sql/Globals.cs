@@ -77,6 +77,7 @@ public static class Globals
         return sb.ToString();
     }
 
+    // TODO: this is not deterministic, so it is unstable across regenerations (use the original SQL namespace instead?)
     public static String GetUniqueName(String baseName, HashSet<String> hashSet)
     {
         String recordName = baseName;

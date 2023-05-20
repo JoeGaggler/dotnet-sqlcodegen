@@ -14,6 +14,7 @@ databases:
         text: >
           SELECT
             T.*,
+            S.name as [schema_name],
             ISNULL(CAST(CASE WHEN S.name = 'sys' THEN 1 ELSE 0 END as bit), 0) AS [is_from_sys_schema]
           FROM sys.types T
           JOIN sys.schemas S ON (T.schema_id = S.schema_id)

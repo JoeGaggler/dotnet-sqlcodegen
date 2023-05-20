@@ -17,6 +17,7 @@ internal sealed class Program2
 
         // TODO: Add CancellationToken to all async methods
         // TODO: Add optional Transaction to all methods
+        // TODO: ExecuteNonQuery
 
         var sync = new ConsoleSynchronizationContext();
         sync.Go(async () =>
@@ -191,7 +192,7 @@ public class Analyzer
         WriteLine("Proxy.GetParametersForObjectAsync");
         foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
         {
-            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId);
+            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId, procParam.MaxLength);
             methodParameters.Add(methodParameter);
             commandParameters.Add(commandParameter);
         }
@@ -244,7 +245,7 @@ public class Analyzer
         foreach (var procParam in statementParameters)
         {
             var sysType = await GetSysTypeByNameAsync(server, procParam.Type);
-            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, sysType.SystemTypeId, sysType.UserTypeId);
+            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, sysType.SystemTypeId, sysType.UserTypeId, sysType.MaxLength);
             methodParameters.Add(methodParameter);
             commandParameters.Add(commandParameter);
         }
@@ -289,7 +290,7 @@ public class Analyzer
 
     /***************************************************************************/
 
-    private async Task<(MethodParameter, CommandParameter)> AnalyzeParameterAsync(SqlConnection server, String Name, int SystemTypeId, int UserTypeId)
+    private async Task<(MethodParameter, CommandParameter)> AnalyzeParameterAsync(SqlConnection server, String Name, int SystemTypeId, int UserTypeId, short? maxLength)
     {
         var csharpTypeInfo = await GetCSharpTypeInfoAsync(server, SystemTypeId, UserTypeId);
         var csharpIdentifier = GetCamelCase(Name);
@@ -305,7 +306,9 @@ public class Analyzer
         {
             SqlName = Name.TrimStart('@'),
             SqlDbType = csharpTypeInfo.SqlDbType,
+            SqlTypeName = csharpTypeInfo.SqlTableTypeRef,
             CSharpExpression = commandExpression,
+            MaxLength = maxLength,
         };
 
         return (methodParameter, commandParameter);
@@ -539,8 +542,9 @@ public class Analyzer
         public String TypeRefNullable { get; init; }
         public Boolean IsValueType { get; init; }
         public Boolean IsTableType { get; init; }
-        public String? TableTypeRef { get; init; }
         public SqlDbType SqlDbType { get; init; }
+        public String? TableTypeRef { get; init; }
+        public String? SqlTableTypeRef { get; init; }
     }
     private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
@@ -616,6 +620,7 @@ public class Analyzer
                 IsTableType = true,
                 TableTypeRef = tableCSharpTypeName,
                 SqlDbType = SqlDbType.Structured,
+                SqlTableTypeRef = foundSysType.IsTableType ? foundSysType.SchemaName + "." + foundSysType.Name : null,
             };
         }
 
@@ -784,12 +789,22 @@ public class CodeFile
                     {
                         foreach (var parameter in commandParameters)
                         {
-                            code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}));");
+                            var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                            var needsSize = parameter.SqlDbType switch
+                            {
+                                SqlDbType.Xml or
+                                SqlDbType.Text or
+                                SqlDbType.Char or
+                                SqlDbType.NChar or
+                                SqlDbType.VarChar or
+                                SqlDbType.NVarChar or
+                                SqlDbType.Binary or
+                                SqlDbType.VarBinary => true,
 
-                            // TODO:
-                            // var withTableTypeName = (parameter.ParameterTableRef is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                            // var withSize = (parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                            // code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.ParameterName.TrimStart('@')}\", {parameter.ArgumentExpression}, SqlDbType.{parameter.ParameterType}{withTableTypeName}{withSize}));");
+                                _ => false,
+                            };
+                            var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                            code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}));");
                         }
 
                         code.Line();
@@ -926,9 +941,16 @@ public class CommandParameter
     public SqlDbType? SqlDbType { get; set; }
 
     /// <summary>
+    /// Argument to CreateParameter if needed, e.g. for table types
+    /// </summary>
+    public String? SqlTypeName { get; set; }
+
+    /// <summary>
     /// Reference to the value passed in to the command
     /// </summary>
     public string CSharpExpression { get; internal set; }
+
+    public short? MaxLength { get; internal set; }
 }
 
 public class Record
