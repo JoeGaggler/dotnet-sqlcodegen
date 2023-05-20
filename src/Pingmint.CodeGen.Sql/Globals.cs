@@ -77,6 +77,30 @@ public static class Globals
         return sb.ToString();
     }
 
+    public static String GetUniqueName(String baseName, HashSet<String> hashSet)
+    {
+        String recordName = baseName;
+        for (int i = 1; !hashSet.Add(recordName); i++) // Fairly safe to assume that we would never see more duplicate types than ints
+        {
+            recordName = GetPascalCase(baseName + i.ToString());
+        }
+        return recordName;
+    }
+
+    public static (String?, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text[..i];
+            var item = text[(i + 1)..];
+            return (schema, item);
+        }
+        else
+        {
+            return (null, text); // schema-less
+        }
+    }
+
     public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
         $"{GetShortestNameForType(type)}?" :
         $"{GetShortestNameForType(type)}";

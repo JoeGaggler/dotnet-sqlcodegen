@@ -17,24 +17,10 @@ internal sealed class Program2
 
         // TODO: Add CancellationToken to all async methods
         // TODO: Add optional Transaction to all methods
-        // TODO: ChangeDatabase is slow
-        // TODO: Connecting using unique connection strings is faster?!
-        // TODO: Warming up connections doesn't seem to help
 
         var sync = new ConsoleSynchronizationContext();
         sync.Go(async () =>
         {
-            // Warming up connections for testing performance
-            // var cn = new SqlConnection[chunkSize];
-            // var ct = new Task[chunkSize];
-            // for (var i = 0; i < chunkSize; i++)
-            // {
-            //     var sqlsql = new SqlConnection(config.Connection.ConnectionString);
-            //     cn[i] = sqlsql;
-            //     ct[i] = sqlsql.OpenAsync().ContinueWith(_ => sqlsql.Close());
-            // }
-            // await Task.WhenAny(ct);
-
             var codeFile = new CodeFile();
             codeFile.Namespace = config.CSharp.Namespace;
             codeFile.ClassName = config.CSharp.ClassName;
@@ -45,17 +31,20 @@ internal sealed class Program2
                 {
                     var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
                     var analyzer = new Analyzer(databaseName, codeFile, config);
+
+                    var tasks = new Task<int>[chunkSize];
+                    for (int i = 0; i < tasks.Length; i++)
+                    {
+                        tasks[i] = Task.FromResult(i);
+                    }
+
                     if (database.Statements?.Items is { } statements)
                     {
-                        foreach (var chunk in statements.Chunk(chunkSize))
+                        foreach (var statement in statements)
                         {
-                            var tasks = new Task[chunk.Length];
-                            foreach (var (statement, index) in chunk.WithIndex())
-                            {
-                                var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
-                                tasks[index] = analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters);
-                            }
-                            await Task.WhenAll(tasks);
+                            var index = await await Task.WhenAny(tasks);
+                            var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
+                            tasks[index] = analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters).ContinueWith(_ => index);
                         }
                     }
 
@@ -104,21 +93,24 @@ internal sealed class Program2
                             else
                             {
                                 if (IsExcluded(schema, procName)) { continue; }
+                                WriteLine("Proxy.GetProcedureForSchemaAsync");
                                 if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
                                 actualIncluded.Add((schema, procName, row.ObjectId));
                             }
                         }
 
-                        foreach (var chunk in actualIncluded.Chunk(chunkSize))
+                        for (int i = 0; i < tasks.Length; i++)
                         {
-                            var tasks = new Task[chunk.Length];
-                            foreach (var ((schema, procName, objectId), index) in chunk.WithIndex())
-                            {
-                                tasks[index] = analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId);
-                            }
-                            await Task.WhenAll(tasks);
+                            tasks[i] = Task.FromResult(i);
+                        }
+                        foreach (var (schema, procName, objectId) in actualIncluded)
+                        {
+                            var index = await await Task.WhenAny(tasks);
+                            tasks[index] = analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId).ContinueWith(_ => index);
                         }
                     }
+
+                    await Task.WhenAll(tasks);
                 }
             }
 
@@ -131,20 +123,6 @@ internal sealed class Program2
             await textWriter.FlushAsync();
             textWriter.Close();
         });
-    }
-
-    public static (String?, String) ParseSchemaItem(String text)
-    {
-        if (text.IndexOf('.') is int i and > 0)
-        {
-            var schema = text[..i];
-            var item = text[(i + 1)..];
-            return (schema, item);
-        }
-        else
-        {
-            return (null, text); // schema-less
-        }
     }
 }
 
@@ -210,6 +188,7 @@ public class Analyzer
 
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
+        WriteLine("Proxy.GetParametersForObjectAsync");
         foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
         {
             var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId);
@@ -217,7 +196,7 @@ public class Analyzer
             commandParameters.Add(commandParameter);
         }
 
-        var recordName = GetPascalCase(proc + "Row");
+        String recordName = GetUniqueName(GetPascalCase(proc + "Row"), codeFile.TypeNames);
         var record = new Record
         {
             CSharpName = recordName,
@@ -238,6 +217,7 @@ public class Analyzer
 
         var recordColumns = new List<RecordProperty>();
 
+        WriteLine("Proxy.DmDescribeFirstResultSetForObjectAsync");
         var columnsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
         foreach (var (columnRow, columnIndex) in columnsRows.WithIndex())
         {
@@ -269,7 +249,7 @@ public class Analyzer
             commandParameters.Add(commandParameter);
         }
 
-        var recordName = GetPascalCase(name + "Row");
+        var recordName = GetUniqueName(GetPascalCase(name + "Row"), codeFile.TypeNames);
         var record = new Record
         {
             CSharpName = recordName,
@@ -291,6 +271,7 @@ public class Analyzer
         var recordColumns = new List<RecordProperty>();
 
         var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
+        WriteLine("Proxy.DmDescribeFirstResultSetAsync");
         var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
         foreach (var (columnRow, columnIndex) in columsRows.WithIndex())
         {
@@ -362,6 +343,7 @@ public class Analyzer
     private async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection server)
     {
         if (_sysTypes is not null) return _sysTypes;
+        WriteLine("Proxy.GetSysTypesAsync");
         return _sysTypes ??= await Proxy.GetSysTypesAsync(server);
     }
 
@@ -383,6 +365,7 @@ public class Analyzer
     private async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection server)
     {
         if (_tableTypes is not null) return _tableTypes;
+        WriteLine("Proxy.GetTableTypesAsync");
         return _tableTypes ??= await Proxy.GetTableTypesAsync(server);
     }
 
@@ -409,6 +392,7 @@ public class Analyzer
         var types = await GetTableTypesAsync(server);
         if (types.FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } tableType) { throw new InvalidOperationException($"Table type not found: {systemTypeId}, {userTypeId}"); }
 
+        WriteLine("Proxy.GetTableTypeColumnsAsync");
         return await Proxy.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId);
     }
 
@@ -587,8 +571,8 @@ public class Analyzer
 
         if (foundSysType.IsTableType)
         {
-            string rowCSharpTypeName = GetPascalCase(foundSysType.Name + "Row");
-            string tableCSharpTypeName = GetPascalCase(foundSysType.Name + "Table");
+            string rowCSharpTypeName = GetUniqueName(GetPascalCase(foundSysType.Name + "Row"), codeFile.TypeNames);
+            string tableCSharpTypeName = GetUniqueName(GetPascalCase(foundSysType.Name + "Table"), codeFile.TypeNames);
 
             var record = new Record()
             {
@@ -652,6 +636,11 @@ public class CodeFile
     /// </summary>
     public String? ClassName { get; set; }
 
+    /// <summary>
+    /// All the type names used in this file, so we can avoid collisions
+    /// </summary>
+    public HashSet<String> TypeNames { get; } = new();
+
     public List<Record> Records { get; } = new();
     public List<Method> Methods { get; } = new();
 
@@ -702,7 +691,7 @@ public class CodeFile
                     {
                         var allowDbNull = col.ColumnIsNullable ? "true" : "false";
                         var maxLength = (col.MaxLength is short s && col.FieldType?.ToLowerInvariant() == "string") ? $", MaxLength = {s}" : String.Empty; // the default is already "-1", so we do not have to emit this in code.
-                        var propertyTypeName = col.FieldType; // TODO: col.PropertyTypeName.TrimEnd('?');
+                        var propertyTypeName = col.FieldTypeForGeneric;
                         code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, propertyTypeName, allowDbNull, maxLength);
                     }
                     using (code.ForEach("var row in rows"))
