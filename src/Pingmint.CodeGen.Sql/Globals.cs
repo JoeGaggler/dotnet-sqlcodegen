@@ -2,6 +2,19 @@ using System.Data;
 
 namespace Pingmint.CodeGen.Sql;
 
+public interface IDmDescribeFirstResultSetRow
+{
+    Int32 SchemaId { get; set; }
+    Byte SystemTypeId { get; set; }
+    Int32 UserTypeId { get; set; }
+    String? Name { get; set; }
+    Boolean? IsNullable { get; set; }
+    Int32? ColumnOrdinal { get; set; }
+    String SqlTypeName { get; set; }
+}
+public partial record class DmDescribeFirstResultSetRow : IDmDescribeFirstResultSetRow { }
+public partial record class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRow { }
+
 public static class Globals
 {
     public static String GetCamelCase(String originalName)
@@ -77,26 +90,28 @@ public static class Globals
         return sb.ToString();
     }
 
-    public static String GetStringForType(Type type, Boolean isColumnNullable) => (isColumnNullable) ?
-        $"{GetShortestNameForType(type)}?" :
-        $"{GetShortestNameForType(type)}";
-
-    public static String GetShortestNameForType(Type type) => type switch
+    // TODO: this is not deterministic, so it is unstable across regenerations (use the original SQL namespace instead?)
+    public static String GetUniqueName(String baseName, HashSet<String> hashSet)
     {
-        var x when x == typeof(DateTime) => "DateTime",
-        var x when x == typeof(DateTimeOffset) => "DateTimeOffset",
-        var x when x == typeof(TimeSpan) => "TimeSpan",
-        var x when x == typeof(Int16) => "Int16",
-        var x when x == typeof(Int32) => "Int32",
-        var x when x == typeof(Int64) => "Int64",
-        var x when x == typeof(Single) => "Single",
-        var x when x == typeof(Double) => "Double",
-        var x when x == typeof(Decimal) => "Decimal",
-        var x when x == typeof(String) => "String",
-        var x when x == typeof(Boolean) => "Boolean",
-        var x when x == typeof(Byte) => "Byte",
-        var x when x == typeof(Guid) => "Guid",
-        var x when x == typeof(Byte[]) => "Byte[]",
-        _ => throw new ArgumentException($"GetShortestNameForType({type.FullName}) not defined."),
-    };
+        String recordName = baseName;
+        for (int i = 1; !hashSet.Add(recordName); i++) // Fairly safe to assume that we would never see more duplicate types than ints
+        {
+            recordName = GetPascalCase(baseName + i.ToString());
+        }
+        return recordName;
+    }
+
+    public static (String?, String) ParseSchemaItem(String text)
+    {
+        if (text.IndexOf('.') is int i and > 0)
+        {
+            var schema = text[..i];
+            var item = text[(i + 1)..];
+            return (schema, item);
+        }
+        else
+        {
+            return (null, text); // schema-less
+        }
+    }
 }
