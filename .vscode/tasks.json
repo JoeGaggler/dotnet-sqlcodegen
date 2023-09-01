@@ -82,11 +82,11 @@
         },
         {
             "label": "build and run",
-			"dependsOrder": "sequence",
-			"dependsOn": [
-				"build",
-				"dotnet run"
-			],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "build",
+                "dotnet run"
+            ],
             "problemMatcher": "$msCompile"
         }
     ]

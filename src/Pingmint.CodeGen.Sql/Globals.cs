@@ -4,13 +4,13 @@ namespace Pingmint.CodeGen.Sql;
 
 public interface IDmDescribeFirstResultSetRow
 {
-    Int32 SchemaId { get; set; }
-    Byte SystemTypeId { get; set; }
-    Int32 UserTypeId { get; set; }
-    String? Name { get; set; }
-    Boolean? IsNullable { get; set; }
-    Int32? ColumnOrdinal { get; set; }
-    String SqlTypeName { get; set; }
+    Int32 SchemaId { get; init; }
+    Byte SystemTypeId { get; init; }
+    Int32 UserTypeId { get; init; }
+    String? Name { get; init; }
+    Boolean? IsNullable { get; init; }
+    Int32? ColumnOrdinal { get; init; }
+    String SqlTypeName { get; init; }
 }
 public partial record class DmDescribeFirstResultSetRow : IDmDescribeFirstResultSetRow { }
 public partial record class DmDescribeFirstResultSetForObjectRow : IDmDescribeFirstResultSetRow { }
