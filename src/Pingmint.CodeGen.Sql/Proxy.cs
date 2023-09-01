@@ -11,108 +11,108 @@ namespace Pingmint.CodeGen.Sql;
 
 public partial record class DmDescribeFirstResultSetForObjectRow
 {
-	  public String? Name { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
-	  public Boolean? IsNullable { get; set; }
-	  public Int32? ColumnOrdinal { get; set; }
-	  public String SqlTypeName { get; set; }
+	  public required String? Name { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
+	  public required Boolean? IsNullable { get; init; }
+	  public required Int32? ColumnOrdinal { get; init; }
+	  public required String SqlTypeName { get; init; }
 }
 
 public partial record class DmDescribeFirstResultSetRow
 {
-	  public String? Name { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
-	  public Boolean? IsNullable { get; set; }
-	  public Int32? ColumnOrdinal { get; set; }
-	  public String SqlTypeName { get; set; }
+	  public required String? Name { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
+	  public required Boolean? IsNullable { get; init; }
+	  public required Int32? ColumnOrdinal { get; init; }
+	  public required String SqlTypeName { get; init; }
 }
 
 public partial record class GetParametersForObjectRow
 {
-	  public Int32 ParameterId { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
-	  public String? Name { get; set; }
-	  public Boolean IsOutput { get; set; }
-	  public Int16 MaxLength { get; set; }
-	  public Boolean IsTableType { get; set; }
-	  public String TypeName { get; set; }
+	  public required Int32 ParameterId { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
+	  public required String? Name { get; init; }
+	  public required Boolean IsOutput { get; init; }
+	  public required Int16 MaxLength { get; init; }
+	  public required Boolean IsTableType { get; init; }
+	  public required String TypeName { get; init; }
 }
 
 public partial record class GetProcedureForSchemaRow
 {
-	  public String Name { get; set; }
-	  public Int32 ObjectId { get; set; }
-	  public String SchemaName { get; set; }
-	  public String? ObsoleteMessage { get; set; }
+	  public required String Name { get; init; }
+	  public required Int32 ObjectId { get; init; }
+	  public required String SchemaName { get; init; }
+	  public required String? ObsoleteMessage { get; init; }
 }
 
 public partial record class GetProceduresForSchemaRow
 {
-	  public String Name { get; set; }
-	  public Int32 ObjectId { get; set; }
-	  public String SchemaName { get; set; }
-	  public String? ObsoleteMessage { get; set; }
+	  public required String Name { get; init; }
+	  public required Int32 ObjectId { get; init; }
+	  public required String SchemaName { get; init; }
+	  public required String? ObsoleteMessage { get; init; }
 }
 
 public partial record class GetSchemasRow
 {
-	  public String Name { get; set; }
-	  public Int32 SchemaId { get; set; }
+	  public required String Name { get; init; }
+	  public required Int32 SchemaId { get; init; }
 }
 
 public partial record class GetSysTypeRow
 {
-	  public Byte SystemTypeId { get; set; }
-	  public Boolean IsTableType { get; set; }
-	  public String Name { get; set; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Boolean IsTableType { get; init; }
+	  public required String Name { get; init; }
 }
 
 public partial record class GetSysTypesRow
 {
-	  public String Name { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Int32? PrincipalId { get; set; }
-	  public Int16 MaxLength { get; set; }
-	  public Byte Precision { get; set; }
-	  public Byte Scale { get; set; }
-	  public String? CollationName { get; set; }
-	  public Boolean? IsNullable { get; set; }
-	  public Boolean IsUserDefined { get; set; }
-	  public Boolean IsAssemblyType { get; set; }
-	  public Int32 DefaultObjectId { get; set; }
-	  public Int32 RuleObjectId { get; set; }
-	  public Boolean IsTableType { get; set; }
-	  public String SchemaName { get; set; }
-	  public Boolean IsFromSysSchema { get; set; }
+	  public required String Name { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Int32? PrincipalId { get; init; }
+	  public required Int16 MaxLength { get; init; }
+	  public required Byte Precision { get; init; }
+	  public required Byte Scale { get; init; }
+	  public required String? CollationName { get; init; }
+	  public required Boolean? IsNullable { get; init; }
+	  public required Boolean IsUserDefined { get; init; }
+	  public required Boolean IsAssemblyType { get; init; }
+	  public required Int32 DefaultObjectId { get; init; }
+	  public required Int32 RuleObjectId { get; init; }
+	  public required Boolean IsTableType { get; init; }
+	  public required String SchemaName { get; init; }
+	  public required Boolean IsFromSysSchema { get; init; }
 }
 
 public partial record class GetTableTypeColumnsRow
 {
-	  public Boolean? IsNullable { get; set; }
-	  public Int16 MaxLength { get; set; }
-	  public String? Name { get; set; }
-	  public String TypeName { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
+	  public required Boolean? IsNullable { get; init; }
+	  public required Int16 MaxLength { get; init; }
+	  public required String? Name { get; init; }
+	  public required String TypeName { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
 }
 
 public partial record class GetTableTypesRow
 {
-	  public String Name { get; set; }
-	  public Int32 TypeTableObjectId { get; set; }
-	  public String SchemaName { get; set; }
-	  public Int32 SchemaId { get; set; }
-	  public Byte SystemTypeId { get; set; }
-	  public Int32 UserTypeId { get; set; }
+	  public required String Name { get; init; }
+	  public required Int32 TypeTableObjectId { get; init; }
+	  public required String SchemaName { get; init; }
+	  public required Int32 SchemaId { get; init; }
+	  public required Byte SystemTypeId { get; init; }
+	  public required Int32 UserTypeId { get; init; }
 }
 
 public partial class Proxy

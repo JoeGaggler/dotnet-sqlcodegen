@@ -53,7 +53,7 @@ public class CodeFile
             {
                 foreach (var property in record.Properties)
                 {
-                    code.Line("  public {0} {1} {{ get; set; }}", property.FieldType, property.FieldName);
+                    code.Line("  public required {0} {1} {{ get; init; }}", property.FieldType, property.FieldName);
                 }
             }
             if (record.IsTableType)
