@@ -177,7 +177,7 @@ public class Analyzer
         var methodParameter = new MethodParameter
         {
             CSharpName = csharpIdentifier,
-            CSharpType = csharpTypeInfo.TypeRef,
+            CSharpType = csharpTypeInfo.TypeRefNullable,
         };
 
         var commandExpression = csharpTypeInfo.IsTableType ? $"new {csharpTypeInfo.TableTypeRef}({csharpIdentifier})" : csharpIdentifier;
@@ -425,6 +425,7 @@ public class Analyzer
         public String? TableTypeRef { get; init; }
         public String? SqlTableTypeRef { get; init; }
     }
+
     private async Task<CSharpTypeInfo> GetCSharpTypeInfoAsync(SqlConnection server, int systemTypeId, int userTypeId)
     {
         if (_csharpTypeInfosById.TryGetValue((systemTypeId, userTypeId), out var cachedValue)) { return cachedValue; }
