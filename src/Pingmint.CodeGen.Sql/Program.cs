@@ -34,6 +34,7 @@ internal sealed class Program
             var codeFile = new CodeFile();
             codeFile.Namespace = config.CSharp.Namespace;
             codeFile.ClassName = config.CSharp.ClassName;
+            codeFile.TypeKeyword = config.CSharp.TypeKeyword;
 
             if (config.Databases?.Items is { } databases)
             {

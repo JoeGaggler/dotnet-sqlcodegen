@@ -29,7 +29,8 @@ public class CSharp
     // mapping
     public String? Namespace { get; set; }
     public String? ClassName { get; set; }
-
+    public String? TypeKeyword { get; set; }
+    
     // sequence
 }
 

@@ -24,6 +24,8 @@ public class CodeFile
     public List<Record> Records { get; } = new();
     public List<Method> Methods { get; } = new();
 
+    public String TypeKeyword { get; set; } = "record class";
+
     public String GenerateCode()
     {
         var code = new CodeWriter();
@@ -49,7 +51,14 @@ public class CodeFile
             else { code.Line(); }
 
             string? rowClassName = record.CSharpName;
-            using (var recordClass = code.PartialRecordClass("public", rowClassName))
+
+            IDisposable recordClass =  this.TypeKeyword switch {
+                "class" => code.PartialClass("public", rowClassName),
+                "record class" => code.PartialRecordClass("public", rowClassName),
+                "record struct" => code.PartialRecordStruct("public", rowClassName),
+                _ => throw new NotImplementedException("Unknown type keyword: " + this.TypeKeyword ?? "null" + ". Expected: 'class' or 'record class' or 'record struct'."),
+            };
+            using (recordClass)
             {
                 foreach (var property in record.Properties)
                 {

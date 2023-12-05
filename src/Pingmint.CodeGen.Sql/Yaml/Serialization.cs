@@ -48,6 +48,7 @@ internal sealed class CSharpMapping : Mapping<Model.CSharp>
         {
             case "namespace": this.Model.Namespace = value; return true;
             case "class": this.Model.ClassName = value; return true;
+            case "row type": this.Model.TypeKeyword = value; return true;
             default: return false;
         }
     }
