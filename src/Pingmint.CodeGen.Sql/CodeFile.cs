@@ -52,7 +52,8 @@ public class CodeFile
 
             string? rowClassName = record.CSharpName;
 
-            IDisposable recordClass =  this.TypeKeyword switch {
+            IDisposable recordClass = this.TypeKeyword switch
+            {
                 "class" => code.PartialClass("public", rowClassName),
                 "record class" => code.PartialRecordClass("public", rowClassName),
                 "record struct" => code.PartialRecordStruct("public", rowClassName),
@@ -194,8 +195,10 @@ public class CodeFile
                         code.Line();
                     }
 
-                    if (method.Record is { } record)
+                    if (method.HasResultSet)
                     {
+                        if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
+
                         code.Line($"var result = new List<{record.CSharpName}>();");
 
                         IDisposable ifScope;
@@ -259,9 +262,26 @@ public class CodeFile
                                 }
                             }
                         }
-                    }
 
-                    code.Return("result");
+                        code.Return("result");
+                    }
+                    else if (method.HasResultSet == false)
+                    {
+                        if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
+
+                        if (isAsync)
+                        {
+                            code.Line($"return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);");
+                        }
+                        else
+                        {
+                            code.Line($"return cmd.ExecuteNonQuery();");
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException("Unknown method return type: " + method.DataType ?? "null");
+                    }
                 }
             }
         }

@@ -25,6 +25,8 @@ public class Method
 
     public Boolean IsStoredProc { get; set; }
 
+    public Boolean HasResultSet { get; set; }
+
     public List<MethodParameter> CSharpParameters { get; set; } = new();
 
     public List<CommandParameter> SqlParameters { get; set; } = new();
@@ -32,7 +34,7 @@ public class Method
     /// <summary>
     /// Type of recordset
     /// </summary>
-    public Record? Record { get; internal set; }
+    public Record? ResultSetRecord { get; internal set; }
 }
 
 public class MethodParameter

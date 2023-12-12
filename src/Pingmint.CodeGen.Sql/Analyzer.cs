@@ -76,21 +76,11 @@ public class Analyzer
             commandParameters.Add(commandParameter);
         }
 
-        String recordName = GetUniqueName(GetPascalCase(proc + "Row"), codeFile.TypeNames);
-        var record = new Record
-        {
-            CSharpName = recordName,
-        };
-
-        var isRecordSet = true; // TODO: other return types
-        var returnType = isRecordSet ? $"List<{recordName}>" : throw new NotImplementedException("TODO: return type for statements that are not recordsets");
         var methodSync = new Method
         {
             Name = GetPascalCase(proc),
             IsStoredProc = true,
-            DataType = returnType,
             CommandText = commandText,
-            Record = record,
             CSharpParameters = methodParameters,
             SqlParameters = commandParameters,
         };
@@ -99,15 +89,32 @@ public class Analyzer
 
         WriteLine("Proxy.DmDescribeFirstResultSetForObjectAsync");
         var columnsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
-        foreach (var columnRow in columnsRows)
+        if (columnsRows.Count == 0)
         {
-            if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
-            {
-                record.Properties.Add(recordProperty);
-            }
+            methodSync.HasResultSet = false;
+            methodSync.DataType = "int";
         }
+        else
+        {
+            String recordName = GetUniqueName(GetPascalCase(proc + "Row"), codeFile.TypeNames);
+            var record = new Record
+            {
+                CSharpName = recordName,
+            };
 
-        codeFile.Records.Add(record);
+            foreach (var columnRow in columnsRows)
+            {
+                if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
+                {
+                    record.Properties.Add(recordProperty);
+                }
+            }
+
+            methodSync.HasResultSet = true;
+            methodSync.ResultSetRecord = record;
+            methodSync.DataType = $"List<{recordName}>";
+            codeFile.Records.Add(record);
+        }
         codeFile.Methods.Add(methodSync);
 
         WriteLine("Analyze Done: {0}.{1}.{2} ({3:0.0}s)", database, schema, proc, (DateTime.UtcNow - t0).TotalSeconds);
@@ -129,21 +136,11 @@ public class Analyzer
             commandParameters.Add(commandParameter);
         }
 
-        var recordName = GetUniqueName(GetPascalCase(name + "Row"), codeFile.TypeNames);
-        var record = new Record
-        {
-            CSharpName = recordName,
-        };
-
-        var isRecordSet = true; // TODO: other return types
-        var returnType = isRecordSet ? $"List<{recordName}>" : throw new NotImplementedException("TODO: return type for statements that are not recordsets");
         var methodSync = new Method
         {
             Name = GetPascalCase(name),
             IsStoredProc = false,
-            DataType = returnType,
             CommandText = commandText,
-            Record = record,
             CSharpParameters = methodParameters,
             SqlParameters = commandParameters,
         };
@@ -152,22 +149,37 @@ public class Analyzer
 
         var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
         WriteLine("Proxy.DmDescribeFirstResultSetAsync");
-        var columsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
-        foreach (var columnRow in columsRows)
+        var columnsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+        if (columnsRows.Count == 0)
         {
-            if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
-            {
-                record.Properties.Add(recordProperty);
-            }
+            methodSync.HasResultSet = false;
+            methodSync.DataType = "int";
         }
+        else
+        {
+            String recordName = GetUniqueName(GetPascalCase(name + "Row"), codeFile.TypeNames);
+            var record = new Record
+            {
+                CSharpName = recordName,
+            };
 
-        codeFile.Records.Add(record);
+            foreach (var columnRow in columnsRows)
+            {
+                if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
+                {
+                    record.Properties.Add(recordProperty);
+                }
+            }
+
+            methodSync.HasResultSet = true;
+            methodSync.ResultSetRecord = record;
+            methodSync.DataType = $"List<{recordName}>";
+            codeFile.Records.Add(record);
+        }
         codeFile.Methods.Add(methodSync);
 
         WriteLine("Analyze Done: {0}", name);
     }
-
-    /***************************************************************************/
 
     private async Task<(MethodParameter, CommandParameter)> AnalyzeParameterAsync(SqlConnection server, String Name, int SystemTypeId, int UserTypeId, short? maxLength)
     {
