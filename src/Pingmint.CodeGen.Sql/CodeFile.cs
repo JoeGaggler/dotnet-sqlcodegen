@@ -172,6 +172,8 @@ public class CodeFile
                     // TODO: generate parameters
                     if (commandParameters.Count > 0)
                     {
+                        code.Line($"cmd.Parameters.AddRange([");
+                        code.Indent();
                         foreach (var parameter in commandParameters)
                         {
                             var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
@@ -189,9 +191,10 @@ public class CodeFile
                                 _ => false,
                             };
                             var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                            code.Line($"cmd.Parameters.Add(CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}));");
+                            code.Line($"CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}),");
                         }
-
+                        code.Dedent();
+                        code.Line("]);");
                         code.Line();
                     }
 
