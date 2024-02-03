@@ -159,44 +159,56 @@ public class CodeFile
                     var methodParameters = csharpParameters.ToList(); // NOTE THE COPY!
                     methodParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
                     var parametersString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
+                    var argumentsString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpName}"));
 
                     var asyncKeyword = isAsync ? " async" : "";
                     var returnType = isAsync ? $"Task<{method.DataType}>" : method.DataType;
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
-                    using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString);
-                    var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
-                    code.Line($"using SqlCommand cmd = {cmdMethod}(connection, \"{commandText}\");");
-                    code.Line();
-
-                    // TODO: generate parameters
-                    if (commandParameters.Count > 0)
+                    if (!isAsync) // command comes before sync method
                     {
-                        code.Line($"cmd.Parameters.AddRange([");
-                        code.Indent();
-                        foreach (var parameter in commandParameters)
+                        using (var _2 = code.Method($"public static", "SqlCommand", method.Name + "Command", parametersString))
                         {
-                            var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                            var needsSize = parameter.SqlDbType switch
-                            {
-                                SqlDbType.Xml or
-                                SqlDbType.Text or
-                                SqlDbType.Char or
-                                SqlDbType.NChar or
-                                SqlDbType.VarChar or
-                                SqlDbType.NVarChar or
-                                SqlDbType.Binary or
-                                SqlDbType.VarBinary => true,
+                            var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
 
-                                _ => false,
-                            };
-                            var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                            code.Line($"CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}),");
+                            if (commandParameters.Count == 0)
+                            {
+                                code.Return($"{cmdMethod}(connection, \"{commandText}\")");
+                            }
+                            else
+                            {
+                                code.Line($"SqlCommand cmd = {cmdMethod}(connection, \"{commandText}\");");
+                                code.Line($"cmd.Parameters.AddRange([");
+                                code.Indent();
+                                foreach (var parameter in commandParameters)
+                                {
+                                    var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                                    var needsSize = parameter.SqlDbType switch
+                                    {
+                                        SqlDbType.Xml or
+                                        SqlDbType.Text or
+                                        SqlDbType.Char or
+                                        SqlDbType.NChar or
+                                        SqlDbType.VarChar or
+                                        SqlDbType.NVarChar or
+                                        SqlDbType.Binary or
+                                        SqlDbType.VarBinary => true,
+
+                                        _ => false,
+                                    };
+                                    var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                                    code.Line($"CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}),");
+                                }
+                                code.Dedent();
+                                code.Line("]);");
+                                code.Return("cmd");
+                            }
                         }
-                        code.Dedent();
-                        code.Line("]);");
                         code.Line();
                     }
+
+                    using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString);
+                    code.Line($"using var cmd = {method.Name}Command({argumentsString});");
 
                     if (method.HasResultSet)
                     {
