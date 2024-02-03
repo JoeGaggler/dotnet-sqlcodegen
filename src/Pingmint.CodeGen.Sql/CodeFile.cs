@@ -168,43 +168,42 @@ public class CodeFile
 
                     if (!isAsync) // command comes before sync method
                     {
-                        using (var _2 = code.Method($"public static", "SqlCommand", method.Name + "Command", parametersString))
+                        var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
+
+                        if (commandParameters.Count == 0)
                         {
-                            var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
-
-                            if (commandParameters.Count == 0)
-                            {
-                                code.Return($"{cmdMethod}(connection, \"{commandText}\")");
-                            }
-                            else
-                            {
-                                code.Line($"SqlCommand cmd = {cmdMethod}(connection, \"{commandText}\");");
-                                code.Line($"cmd.Parameters.AddRange([");
-                                code.Indent();
-                                foreach (var parameter in commandParameters)
-                                {
-                                    var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
-                                    var needsSize = parameter.SqlDbType switch
-                                    {
-                                        SqlDbType.Xml or
-                                        SqlDbType.Text or
-                                        SqlDbType.Char or
-                                        SqlDbType.NChar or
-                                        SqlDbType.VarChar or
-                                        SqlDbType.NVarChar or
-                                        SqlDbType.Binary or
-                                        SqlDbType.VarBinary => true,
-
-                                        _ => false,
-                                    };
-                                    var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
-                                    code.Line($"CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}),");
-                                }
-                                code.Dedent();
-                                code.Line("]);");
-                                code.Return("cmd");
-                            }
+                            code.MethodExpression($"public static", "SqlCommand", method.Name + "Command", parametersString, $"{cmdMethod}(connection, \"{commandText}\")");
                         }
+                        else
+                        {
+                            using var _2 = code.Method($"public static", "SqlCommand", method.Name + "Command", parametersString);
+                            code.Line($"SqlCommand cmd = {cmdMethod}(connection, \"{commandText}\");");
+                            code.Line($"cmd.Parameters.AddRange([");
+                            code.Indent();
+                            foreach (var parameter in commandParameters)
+                            {
+                                var withTableTypeName = (parameter.SqlTypeName is String tableTypeName) ? $", \"{tableTypeName}\"" : "";
+                                var needsSize = parameter.SqlDbType switch
+                                {
+                                    SqlDbType.Xml or
+                                    SqlDbType.Text or
+                                    SqlDbType.Char or
+                                    SqlDbType.NChar or
+                                    SqlDbType.VarChar or
+                                    SqlDbType.NVarChar or
+                                    SqlDbType.Binary or
+                                    SqlDbType.VarBinary => true,
+
+                                    _ => false,
+                                };
+                                var withSize = (needsSize && parameter.MaxLength is { } maxLength and not -1) ? $", {maxLength}" : "";
+                                code.Line($"CreateParameter(\"@{parameter.SqlName}\", {parameter.CSharpExpression}, SqlDbType.{parameter.SqlDbType}{withTableTypeName}{withSize}),");
+                            }
+                            code.Dedent();
+                            code.Line("]);");
+                            code.Return("cmd");
+                        }
+
                         code.Line();
                     }
 
@@ -231,67 +230,65 @@ public class CodeFile
 
                         code.Line($"var result = new List<{record.CSharpName}>();");
 
-                        IDisposable ifScope;
                         if (isAsync)
                         {
                             code.Line($"using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);");
-                            ifScope = code.If("await reader.ReadAsync().ConfigureAwait(false)");
+                            code.Line("if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }");
                         }
                         else
                         {
                             code.Line($"using var reader = cmd.ExecuteReader();");
-                            ifScope = code.If("reader.Read()");
+                            code.Line("if (!reader.Read()) { return result; }");
                         }
+                        code.Line();
 
-                        using (ifScope)
+                        if (record.Properties.Count != 0)
                         {
-                            if (record.Properties.Count != 0)
+                            foreach (var recordProperty in record.Properties)
                             {
-                                foreach (var recordProperty in record.Properties)
-                                {
-                                    String columnName = recordProperty.ColumnName;
-                                    code.Line($"int ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
-                                }
-                                code.Line();
+                                String columnName = recordProperty.ColumnName;
+                                code.Line($"int ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
                             }
+                            code.Line();
+                        }
 
-                            IDisposable doWhileScope;
-                            if (isAsync)
-                            {
-                                doWhileScope = code.DoWhile("await reader.ReadAsync().ConfigureAwait(false)");
-                            }
-                            else
-                            {
-                                doWhileScope = code.DoWhile("reader.Read()");
-                            }
+                        IDisposable doWhileScope;
+                        if (isAsync)
+                        {
+                            doWhileScope = code.DoWhile("await reader.ReadAsync().ConfigureAwait(false)");
+                        }
+                        else
+                        {
+                            doWhileScope = code.DoWhile("reader.Read()");
+                        }
 
-                            using (doWhileScope)
+                        using (doWhileScope)
+                        {
+                            code.Line($"result.Add(new {record.CSharpName}");
+                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ");"))
                             {
-                                code.Line($"result.Add(new {record.CSharpName}");
-                                using (code.CreateBraceScope(preamble: null, withClosingBrace: ");"))
+                                foreach (var property in record.Properties)
                                 {
-                                    foreach (var property in record.Properties)
+                                    var fieldName = property.FieldName;
+                                    var fieldType = property.FieldType;
+                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                                    var columnName = property.ColumnName;
+                                    var IsValueType = property.FieldTypeIsValueType;
+                                    var ColumnIsNullable = property.ColumnIsNullable;
+
+                                    var ordinalVarName = $"ord{GetPascalCase(columnName)}";
+                                    var line = (IsValueType, ColumnIsNullable) switch
                                     {
-                                        var fieldName = property.FieldName;
-                                        var fieldType = property.FieldType;
-                                        var fieldTypeForGeneric = property.FieldTypeForGeneric;
-                                        var columnName = property.ColumnName;
-                                        var IsValueType = property.FieldTypeIsValueType;
-                                        var ColumnIsNullable = property.ColumnIsNullable;
-
-                                        var ordinalVarName = $"ord{GetPascalCase(columnName)}";
-                                        var line = (IsValueType, ColumnIsNullable) switch
-                                        {
-                                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        };
-                                        code.Line(line);
-                                    }
+                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                    };
+                                    code.Line(line);
                                 }
                             }
                         }
+
 
                         code.Return("result");
                     }
