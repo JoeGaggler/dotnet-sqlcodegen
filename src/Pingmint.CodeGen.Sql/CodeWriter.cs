@@ -167,6 +167,11 @@ public static class CodeWriterExtensions
         return new BraceScope(writer);
     }
 
+    public static void MethodExpression(this CodeWriter writer, String modifiers, String returnType, String name, String args, String expressionBody)
+    {
+        writer.Line("{0} {1} {2}({3}) => {4};", modifiers, returnType, name, args, expressionBody);
+    }
+
     public static IDisposable While(this CodeWriter writer, String whileCondition) => new BraceScope(writer, String.Format("while ({0})", whileCondition));
 
     public static IDisposable DoWhile(this CodeWriter writer, String whileCondition)

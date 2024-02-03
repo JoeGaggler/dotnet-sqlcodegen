@@ -156,14 +156,15 @@ public class CodeFile
                 {
                     if (isAsync) { code.Line(); } // Assumes async always comes after sync
 
-                    var methodParameters = csharpParameters.ToList(); // NOTE THE COPY!
-                    methodParameters.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
-                    var parametersString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpType} {i.CSharpName}"));
-                    var argumentsString = String.Join(", ", methodParameters.Select(i => $"{i.CSharpName}"));
+                    var methodParametersWithConnection = csharpParameters.ToList(); // NOTE THE COPY!
+                    var methodParametersWithCommand = csharpParameters.ToList(); // NOTE THE COPY!
+                    methodParametersWithConnection.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
+                    methodParametersWithCommand.Insert(0, new MethodParameter() { CSharpType = "SqlCommand", CSharpName = "cmd" });
+                    var parametersString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpType} {i.CSharpName}"));
+                    var argumentsString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpName}"));
 
                     var asyncKeyword = isAsync ? " async" : "";
                     var returnType = isAsync ? $"Task<{method.DataType}>" : method.DataType;
-                    var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
                     if (!isAsync) // command comes before sync method
                     {
@@ -207,11 +208,25 @@ public class CodeFile
                         code.Line();
                     }
 
-                    using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString);
-                    code.Line($"using var cmd = {method.Name}Command({argumentsString});");
+                    var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
+                    var actualMethodName2 = isAsync ? $"{method.Name}ExecuteAsync" : $"{method.Name}Execute";
+                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
+                    {
+                        code.Line($"using var cmd = {method.Name}Command({argumentsString});");
+                        if (isAsync)
+                        {
+                            code.Line($"return await {actualMethodName2}(cmd);");
+                        }
+                        else
+                        {
+                            code.Line($"return {actualMethodName2}(cmd);");
+                        }
+                    }
+                    code.Line();
 
                     if (method.HasResultSet)
                     {
+                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd");
                         if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
 
                         code.Line($"var result = new List<{record.CSharpName}>();");
@@ -284,14 +299,17 @@ public class CodeFile
                     {
                         if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
 
+                        String expressionBody;
                         if (isAsync)
                         {
-                            code.Line($"return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);");
+                            expressionBody = $"await cmd.ExecuteNonQueryAsync().ConfigureAwait(false)";
                         }
                         else
                         {
-                            code.Line($"return cmd.ExecuteNonQuery();");
+                            expressionBody = "cmd.ExecuteNonQuery()";
                         }
+                        code.MethodExpression($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd", expressionBody);
+
                     }
                     else
                     {

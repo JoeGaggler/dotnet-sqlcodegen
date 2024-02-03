@@ -157,6 +157,11 @@ public partial class Proxy
 	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
+		return DmDescribeFirstResultSetExecute(cmd);
+	}
+
+	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSetExecute(SqlCommand cmd)
+	{
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -189,6 +194,11 @@ public partial class Proxy
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
+		return await DmDescribeFirstResultSetExecuteAsync(cmd);
+	}
+
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -230,6 +240,11 @@ public partial class Proxy
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
+		return DmDescribeFirstResultSetForObjectExecute(cmd);
+	}
+
+	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObjectExecute(SqlCommand cmd)
+	{
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -262,6 +277,11 @@ public partial class Proxy
 	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
+		return await DmDescribeFirstResultSetForObjectExecuteAsync(cmd);
+	}
+
+	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -303,6 +323,11 @@ public partial class Proxy
 	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
+		return GetParametersForObjectExecute(cmd);
+	}
+
+	public static List<GetParametersForObjectRow> GetParametersForObjectExecute(SqlCommand cmd)
+	{
 		var result = new List<GetParametersForObjectRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -339,6 +364,11 @@ public partial class Proxy
 	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
+		return await GetParametersForObjectExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetParametersForObjectRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -385,6 +415,11 @@ public partial class Proxy
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
+		return GetProcedureForSchemaExecute(cmd);
+	}
+
+	public static List<GetProcedureForSchemaRow> GetProcedureForSchemaExecute(SqlCommand cmd)
+	{
 		var result = new List<GetProcedureForSchemaRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -411,6 +446,11 @@ public partial class Proxy
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
+		return await GetProcedureForSchemaExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetProcedureForSchemaRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -446,6 +486,11 @@ public partial class Proxy
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
+		return GetProceduresForSchemaExecute(cmd);
+	}
+
+	public static List<GetProceduresForSchemaRow> GetProceduresForSchemaExecute(SqlCommand cmd)
+	{
 		var result = new List<GetProceduresForSchemaRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -472,6 +517,11 @@ public partial class Proxy
 	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
+		return await GetProceduresForSchemaExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetProceduresForSchemaRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -503,6 +553,11 @@ public partial class Proxy
 	public static List<GetSchemasRow> GetSchemas(SqlConnection connection)
 	{
 		using var cmd = GetSchemasCommand(connection);
+		return GetSchemasExecute(cmd);
+	}
+
+	public static List<GetSchemasRow> GetSchemasExecute(SqlCommand cmd)
+	{
 		var result = new List<GetSchemasRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -525,6 +580,11 @@ public partial class Proxy
 	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection)
 	{
 		using var cmd = GetSchemasCommand(connection);
+		return await GetSchemasExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetSchemasRow>> GetSchemasExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetSchemasRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -556,6 +616,11 @@ public partial class Proxy
 	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
+		return GetSysTypeExecute(cmd);
+	}
+
+	public static List<GetSysTypeRow> GetSysTypeExecute(SqlCommand cmd)
+	{
 		var result = new List<GetSysTypeRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -580,6 +645,11 @@ public partial class Proxy
 	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
+		return await GetSysTypeExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetSysTypeRow>> GetSysTypeExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetSysTypeRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -609,6 +679,11 @@ public partial class Proxy
 	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
 	{
 		using var cmd = GetSysTypesCommand(connection);
+		return GetSysTypesExecute(cmd);
+	}
+
+	public static List<GetSysTypesRow> GetSysTypesExecute(SqlCommand cmd)
+	{
 		var result = new List<GetSysTypesRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -661,6 +736,11 @@ public partial class Proxy
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetSysTypesCommand(connection);
+		return await GetSysTypesExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetSysTypesRow>> GetSysTypesExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetSysTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -722,6 +802,11 @@ public partial class Proxy
 	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
+		return GetTableTypeColumnsExecute(cmd);
+	}
+
+	public static List<GetTableTypeColumnsRow> GetTableTypeColumnsExecute(SqlCommand cmd)
+	{
 		var result = new List<GetTableTypeColumnsRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -754,6 +839,11 @@ public partial class Proxy
 	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
+		return await GetTableTypeColumnsExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetTableTypeColumnsRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -791,6 +881,11 @@ public partial class Proxy
 	public static List<GetTableTypesRow> GetTableTypes(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
+		return GetTableTypesExecute(cmd);
+	}
+
+	public static List<GetTableTypesRow> GetTableTypesExecute(SqlCommand cmd)
+	{
 		var result = new List<GetTableTypesRow>();
 		using var reader = cmd.ExecuteReader();
 		if (reader.Read())
@@ -821,6 +916,11 @@ public partial class Proxy
 	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
+		return await GetTableTypesExecuteAsync(cmd);
+	}
+
+	public static async Task<List<GetTableTypesRow>> GetTableTypesExecuteAsync(SqlCommand cmd)
+	{
 		var result = new List<GetTableTypesRow>();
 		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 		if (await reader.ReadAsync().ConfigureAwait(false))
@@ -862,12 +962,16 @@ public partial class Proxy
 	public static int SSBEndConversation(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
 	{
 		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return cmd.ExecuteNonQuery();
+		return SSBEndConversationExecute(cmd);
 	}
+
+	public static int SSBEndConversationExecute(SqlCommand cmd) => cmd.ExecuteNonQuery();
 
 	public static async Task<int> SSBEndConversationAsync(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
 	{
 		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+		return await SSBEndConversationExecuteAsync(cmd);
 	}
+
+	public static async Task<int> SSBEndConversationExecuteAsync(SqlCommand cmd) => await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 }
