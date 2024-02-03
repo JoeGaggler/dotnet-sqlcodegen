@@ -160,6 +160,17 @@ public partial class Proxy
 		return DmDescribeFirstResultSetExecute(cmd);
 	}
 
+	private static DmDescribeFirstResultSetRow DmDescribeFirstResultSetReadRow(SqlDataReader reader, int ordName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordIsNullable, int ordColumnOrdinal, int ordSqlTypeName)	 => new DmDescribeFirstResultSetRow
+	{
+		Name = OptionalClass<String>(reader, ordName),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
+		ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
+		SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
+	};
+
 	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSetExecute(SqlCommand cmd)
 	{
 		var result = new List<DmDescribeFirstResultSetRow>();
@@ -176,16 +187,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new DmDescribeFirstResultSetRow
-			{
-				Name = OptionalClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-				SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-			});
+			result.Add(DmDescribeFirstResultSetReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
 		} while (reader.Read());
 		return result;
 	}
@@ -212,16 +214,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new DmDescribeFirstResultSetRow
-			{
-				Name = OptionalClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-				SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-			});
+			result.Add(DmDescribeFirstResultSetReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -241,6 +234,17 @@ public partial class Proxy
 		return DmDescribeFirstResultSetForObjectExecute(cmd);
 	}
 
+	private static DmDescribeFirstResultSetForObjectRow DmDescribeFirstResultSetForObjectReadRow(SqlDataReader reader, int ordName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordIsNullable, int ordColumnOrdinal, int ordSqlTypeName)	 => new DmDescribeFirstResultSetForObjectRow
+	{
+		Name = OptionalClass<String>(reader, ordName),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
+		ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
+		SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
+	};
+
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObjectExecute(SqlCommand cmd)
 	{
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
@@ -257,16 +261,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new DmDescribeFirstResultSetForObjectRow
-			{
-				Name = OptionalClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-				SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-			});
+			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
 		} while (reader.Read());
 		return result;
 	}
@@ -293,16 +288,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new DmDescribeFirstResultSetForObjectRow
-			{
-				Name = OptionalClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-				SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-			});
+			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -322,6 +308,19 @@ public partial class Proxy
 		return GetParametersForObjectExecute(cmd);
 	}
 
+	private static GetParametersForObjectRow GetParametersForObjectReadRow(SqlDataReader reader, int ordParameterId, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordName, int ordIsOutput, int ordMaxLength, int ordIsTableType, int ordTypeName)	 => new GetParametersForObjectRow
+	{
+		ParameterId = RequiredValue<Int32>(reader, ordParameterId),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+		Name = OptionalClass<String>(reader, ordName),
+		IsOutput = RequiredValue<Boolean>(reader, ordIsOutput),
+		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
+		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
+		TypeName = RequiredClass<String>(reader, ordTypeName),
+	};
+
 	public static List<GetParametersForObjectRow> GetParametersForObjectExecute(SqlCommand cmd)
 	{
 		var result = new List<GetParametersForObjectRow>();
@@ -340,18 +339,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetParametersForObjectRow
-			{
-				ParameterId = RequiredValue<Int32>(reader, ordParameterId),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				Name = OptionalClass<String>(reader, ordName),
-				IsOutput = RequiredValue<Boolean>(reader, ordIsOutput),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				TypeName = RequiredClass<String>(reader, ordTypeName),
-			});
+			result.Add(GetParametersForObjectReadRow(reader, ordParameterId, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordName, ordIsOutput, ordMaxLength, ordIsTableType, ordTypeName));
 		} while (reader.Read());
 		return result;
 	}
@@ -380,18 +368,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetParametersForObjectRow
-			{
-				ParameterId = RequiredValue<Int32>(reader, ordParameterId),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				Name = OptionalClass<String>(reader, ordName),
-				IsOutput = RequiredValue<Boolean>(reader, ordIsOutput),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				TypeName = RequiredClass<String>(reader, ordTypeName),
-			});
+			result.Add(GetParametersForObjectReadRow(reader, ordParameterId, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordName, ordIsOutput, ordMaxLength, ordIsTableType, ordTypeName));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -412,6 +389,14 @@ public partial class Proxy
 		return GetProcedureForSchemaExecute(cmd);
 	}
 
+	private static GetProcedureForSchemaRow GetProcedureForSchemaReadRow(SqlDataReader reader, int ordName, int ordObjectId, int ordSchemaName, int ordObsoleteMessage)	 => new GetProcedureForSchemaRow
+	{
+		Name = RequiredClass<String>(reader, ordName),
+		ObjectId = RequiredValue<Int32>(reader, ordObjectId),
+		SchemaName = RequiredClass<String>(reader, ordSchemaName),
+		ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
+	};
+
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchemaExecute(SqlCommand cmd)
 	{
 		var result = new List<GetProcedureForSchemaRow>();
@@ -425,13 +410,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetProcedureForSchemaRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-			});
+			result.Add(GetProcedureForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
 		} while (reader.Read());
 		return result;
 	}
@@ -455,13 +434,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetProcedureForSchemaRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-			});
+			result.Add(GetProcedureForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -481,6 +454,14 @@ public partial class Proxy
 		return GetProceduresForSchemaExecute(cmd);
 	}
 
+	private static GetProceduresForSchemaRow GetProceduresForSchemaReadRow(SqlDataReader reader, int ordName, int ordObjectId, int ordSchemaName, int ordObsoleteMessage)	 => new GetProceduresForSchemaRow
+	{
+		Name = RequiredClass<String>(reader, ordName),
+		ObjectId = RequiredValue<Int32>(reader, ordObjectId),
+		SchemaName = RequiredClass<String>(reader, ordSchemaName),
+		ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
+	};
+
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchemaExecute(SqlCommand cmd)
 	{
 		var result = new List<GetProceduresForSchemaRow>();
@@ -494,13 +475,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetProceduresForSchemaRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-			});
+			result.Add(GetProceduresForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
 		} while (reader.Read());
 		return result;
 	}
@@ -524,13 +499,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetProceduresForSchemaRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-			});
+			result.Add(GetProceduresForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -543,6 +512,12 @@ public partial class Proxy
 		return GetSchemasExecute(cmd);
 	}
 
+	private static GetSchemasRow GetSchemasReadRow(SqlDataReader reader, int ordName, int ordSchemaId)	 => new GetSchemasRow
+	{
+		Name = RequiredClass<String>(reader, ordName),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+	};
+
 	public static List<GetSchemasRow> GetSchemasExecute(SqlCommand cmd)
 	{
 		var result = new List<GetSchemasRow>();
@@ -554,11 +529,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSchemasRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-			});
+			result.Add(GetSchemasReadRow(reader, ordName, ordSchemaId));
 		} while (reader.Read());
 		return result;
 	}
@@ -580,11 +551,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSchemasRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-			});
+			result.Add(GetSchemasReadRow(reader, ordName, ordSchemaId));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -604,6 +571,13 @@ public partial class Proxy
 		return GetSysTypeExecute(cmd);
 	}
 
+	private static GetSysTypeRow GetSysTypeReadRow(SqlDataReader reader, int ordSystemTypeId, int ordIsTableType, int ordName)	 => new GetSysTypeRow
+	{
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
+		Name = RequiredClass<String>(reader, ordName),
+	};
+
 	public static List<GetSysTypeRow> GetSysTypeExecute(SqlCommand cmd)
 	{
 		var result = new List<GetSysTypeRow>();
@@ -616,12 +590,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSysTypeRow
-			{
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				Name = RequiredClass<String>(reader, ordName),
-			});
+			result.Add(GetSysTypeReadRow(reader, ordSystemTypeId, ordIsTableType, ordName));
 		} while (reader.Read());
 		return result;
 	}
@@ -644,12 +613,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSysTypeRow
-			{
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				Name = RequiredClass<String>(reader, ordName),
-			});
+			result.Add(GetSysTypeReadRow(reader, ordSystemTypeId, ordIsTableType, ordName));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -661,6 +625,27 @@ public partial class Proxy
 		using var cmd = GetSysTypesCommand(connection);
 		return GetSysTypesExecute(cmd);
 	}
+
+	private static GetSysTypesRow GetSysTypesReadRow(SqlDataReader reader, int ordName, int ordSystemTypeId, int ordUserTypeId, int ordSchemaId, int ordPrincipalId, int ordMaxLength, int ordPrecision, int ordScale, int ordCollationName, int ordIsNullable, int ordIsUserDefined, int ordIsAssemblyType, int ordDefaultObjectId, int ordRuleObjectId, int ordIsTableType, int ordSchemaName, int ordIsFromSysSchema)	 => new GetSysTypesRow
+	{
+		Name = RequiredClass<String>(reader, ordName),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		PrincipalId = OptionalValue<Int32>(reader, ordPrincipalId),
+		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
+		Precision = RequiredValue<Byte>(reader, ordPrecision),
+		Scale = RequiredValue<Byte>(reader, ordScale),
+		CollationName = OptionalClass<String>(reader, ordCollationName),
+		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
+		IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
+		IsAssemblyType = RequiredValue<Boolean>(reader, ordIsAssemblyType),
+		DefaultObjectId = RequiredValue<Int32>(reader, ordDefaultObjectId),
+		RuleObjectId = RequiredValue<Int32>(reader, ordRuleObjectId),
+		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
+		SchemaName = RequiredClass<String>(reader, ordSchemaName),
+		IsFromSysSchema = RequiredValue<Boolean>(reader, ordIsFromSysSchema),
+	};
 
 	public static List<GetSysTypesRow> GetSysTypesExecute(SqlCommand cmd)
 	{
@@ -688,26 +673,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSysTypesRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				PrincipalId = OptionalValue<Int32>(reader, ordPrincipalId),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				Precision = RequiredValue<Byte>(reader, ordPrecision),
-				Scale = RequiredValue<Byte>(reader, ordScale),
-				CollationName = OptionalClass<String>(reader, ordCollationName),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
-				IsAssemblyType = RequiredValue<Boolean>(reader, ordIsAssemblyType),
-				DefaultObjectId = RequiredValue<Int32>(reader, ordDefaultObjectId),
-				RuleObjectId = RequiredValue<Int32>(reader, ordRuleObjectId),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				IsFromSysSchema = RequiredValue<Boolean>(reader, ordIsFromSysSchema),
-			});
+			result.Add(GetSysTypesReadRow(reader, ordName, ordSystemTypeId, ordUserTypeId, ordSchemaId, ordPrincipalId, ordMaxLength, ordPrecision, ordScale, ordCollationName, ordIsNullable, ordIsUserDefined, ordIsAssemblyType, ordDefaultObjectId, ordRuleObjectId, ordIsTableType, ordSchemaName, ordIsFromSysSchema));
 		} while (reader.Read());
 		return result;
 	}
@@ -744,26 +710,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetSysTypesRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				PrincipalId = OptionalValue<Int32>(reader, ordPrincipalId),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				Precision = RequiredValue<Byte>(reader, ordPrecision),
-				Scale = RequiredValue<Byte>(reader, ordScale),
-				CollationName = OptionalClass<String>(reader, ordCollationName),
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
-				IsAssemblyType = RequiredValue<Boolean>(reader, ordIsAssemblyType),
-				DefaultObjectId = RequiredValue<Int32>(reader, ordDefaultObjectId),
-				RuleObjectId = RequiredValue<Int32>(reader, ordRuleObjectId),
-				IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				IsFromSysSchema = RequiredValue<Boolean>(reader, ordIsFromSysSchema),
-			});
+			result.Add(GetSysTypesReadRow(reader, ordName, ordSystemTypeId, ordUserTypeId, ordSchemaId, ordPrincipalId, ordMaxLength, ordPrecision, ordScale, ordCollationName, ordIsNullable, ordIsUserDefined, ordIsAssemblyType, ordDefaultObjectId, ordRuleObjectId, ordIsTableType, ordSchemaName, ordIsFromSysSchema));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -783,6 +730,17 @@ public partial class Proxy
 		return GetTableTypeColumnsExecute(cmd);
 	}
 
+	private static GetTableTypeColumnsRow GetTableTypeColumnsReadRow(SqlDataReader reader, int ordIsNullable, int ordMaxLength, int ordName, int ordTypeName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId)	 => new GetTableTypeColumnsRow
+	{
+		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
+		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
+		Name = OptionalClass<String>(reader, ordName),
+		TypeName = RequiredClass<String>(reader, ordTypeName),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+	};
+
 	public static List<GetTableTypeColumnsRow> GetTableTypeColumnsExecute(SqlCommand cmd)
 	{
 		var result = new List<GetTableTypeColumnsRow>();
@@ -799,16 +757,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetTableTypeColumnsRow
-			{
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				Name = OptionalClass<String>(reader, ordName),
-				TypeName = RequiredClass<String>(reader, ordTypeName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-			});
+			result.Add(GetTableTypeColumnsReadRow(reader, ordIsNullable, ordMaxLength, ordName, ordTypeName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
 		} while (reader.Read());
 		return result;
 	}
@@ -835,16 +784,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetTableTypeColumnsRow
-			{
-				IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-				MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-				Name = OptionalClass<String>(reader, ordName),
-				TypeName = RequiredClass<String>(reader, ordTypeName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-			});
+			result.Add(GetTableTypeColumnsReadRow(reader, ordIsNullable, ordMaxLength, ordName, ordTypeName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
@@ -856,6 +796,16 @@ public partial class Proxy
 		using var cmd = GetTableTypesCommand(connection);
 		return GetTableTypesExecute(cmd);
 	}
+
+	private static GetTableTypesRow GetTableTypesReadRow(SqlDataReader reader, int ordName, int ordTypeTableObjectId, int ordSchemaName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId)	 => new GetTableTypesRow
+	{
+		Name = RequiredClass<String>(reader, ordName),
+		TypeTableObjectId = RequiredValue<Int32>(reader, ordTypeTableObjectId),
+		SchemaName = RequiredClass<String>(reader, ordSchemaName),
+		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
+		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
+		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
+	};
 
 	public static List<GetTableTypesRow> GetTableTypesExecute(SqlCommand cmd)
 	{
@@ -872,15 +822,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetTableTypesRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				TypeTableObjectId = RequiredValue<Int32>(reader, ordTypeTableObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-			});
+			result.Add(GetTableTypesReadRow(reader, ordName, ordTypeTableObjectId, ordSchemaName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
 		} while (reader.Read());
 		return result;
 	}
@@ -906,15 +848,7 @@ public partial class Proxy
 
 		do
 		{
-			result.Add(new GetTableTypesRow
-			{
-				Name = RequiredClass<String>(reader, ordName),
-				TypeTableObjectId = RequiredValue<Int32>(reader, ordTypeTableObjectId),
-				SchemaName = RequiredClass<String>(reader, ordSchemaName),
-				SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-				SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-				UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-			});
+			result.Add(GetTableTypesReadRow(reader, ordName, ordTypeTableObjectId, ordSchemaName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
 		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}

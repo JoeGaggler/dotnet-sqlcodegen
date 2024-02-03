@@ -172,6 +172,12 @@ public static class CodeWriterExtensions
         writer.Line("{0} {1} {2}({3}) => {4};", modifiers, returnType, name, args, expressionBody);
     }
 
+    public static void StartMethod(this CodeWriter writer, String modifiers, String returnType, String name, String args)
+    {
+        writer.StartLine();
+        writer.Text("{0} {1} {2}({3})", modifiers, returnType, name, args);
+    }
+
     public static IDisposable While(this CodeWriter writer, String condition)
     {
         writer.Line("while ({0})", condition);

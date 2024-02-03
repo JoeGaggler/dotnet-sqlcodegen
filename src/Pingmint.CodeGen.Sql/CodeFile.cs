@@ -225,8 +225,48 @@ public class CodeFile
 
                     if (method.HasResultSet)
                     {
-                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd");
                         if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
+                        var ords1 = new List<String>();
+                        var ords2 = new List<String>();
+                        foreach (var property in record.Properties)
+                        {
+                            var fieldType = property.FieldType;
+                            var columnName = property.ColumnName;
+
+                            var ordinalVarName = $"ord{GetPascalCase(columnName)}";
+                            ords1.Add(ordinalVarName);
+                            ords2.Add("int " + ordinalVarName);
+                        }
+
+                        if (!isAsync) // command comes before sync method
+                        {
+                            code.StartMethod($"private static{asyncKeyword}", record.CSharpName, method.Name + "ReadRow", "SqlDataReader reader, " + String.Join(", ", ords2));
+
+                            code.Line($" => new {record.CSharpName}");
+                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
+                            {
+                                foreach (var property in record.Properties)
+                                {
+                                    var fieldName = property.FieldName;
+                                    var IsValueType = property.FieldTypeIsValueType;
+                                    var ColumnIsNullable = property.ColumnIsNullable;
+                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                                    var columnName = property.ColumnName;
+                                    var ordinalVarName = $"ord{GetPascalCase(columnName)}";
+                                    var line = (IsValueType, ColumnIsNullable) switch
+                                    {
+                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                    };
+                                    code.Line(line);
+                                }
+                            }
+                            code.Line();
+                        }
+
+                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd");
 
                         code.Line($"var result = new List<{record.CSharpName}>();");
 
@@ -264,31 +304,8 @@ public class CodeFile
 
                         using (doWhileScope)
                         {
-                            code.Line($"result.Add(new {record.CSharpName}");
-                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ");"))
-                            {
-                                foreach (var property in record.Properties)
-                                {
-                                    var fieldName = property.FieldName;
-                                    var fieldType = property.FieldType;
-                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
-                                    var columnName = property.ColumnName;
-                                    var IsValueType = property.FieldTypeIsValueType;
-                                    var ColumnIsNullable = property.ColumnIsNullable;
-
-                                    var ordinalVarName = $"ord{GetPascalCase(columnName)}";
-                                    var line = (IsValueType, ColumnIsNullable) switch
-                                    {
-                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                    };
-                                    code.Line(line);
-                                }
-                            }
+                            code.Line($"result.Add({method.Name + "ReadRow"}(reader, {String.Join(", ", ords1)}));");
                         }
-
 
                         code.Return("result");
                     }
