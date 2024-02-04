@@ -144,6 +144,27 @@ public partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
+	private static int[] DmDescribeFirstResultSetOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+		reader.GetOrdinal("is_nullable"),
+		reader.GetOrdinal("column_ordinal"),
+		reader.GetOrdinal("sql_type_name"),
+	];
+
+	private static DmDescribeFirstResultSetRow DmDescribeFirstResultSetReadRow(SqlDataReader reader, int[] ords) => new DmDescribeFirstResultSetRow
+	{
+		Name = OptionalClass<String>(reader, ords[0]),
+		SchemaId = RequiredValue<Int32>(reader, ords[1]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[2]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[3]),
+		IsNullable = OptionalValue<Boolean>(reader, ords[4]),
+		ColumnOrdinal = OptionalValue<Int32>(reader, ords[5]),
+		SqlTypeName = RequiredClass<String>(reader, ords[6]),
+	};
+
 	public static SqlCommand DmDescribeFirstResultSetCommand(SqlConnection connection, String? text, String? parameters)
 	{
 		SqlCommand cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
@@ -154,70 +175,64 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
-	{
-		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
-		return DmDescribeFirstResultSetExecute(cmd);
-	}
-
-	private static DmDescribeFirstResultSetRow DmDescribeFirstResultSetReadRow(SqlDataReader reader, int ordName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordIsNullable, int ordColumnOrdinal, int ordSqlTypeName)	 => new DmDescribeFirstResultSetRow
-	{
-		Name = OptionalClass<String>(reader, ordName),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-		ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-		SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-	};
-
-	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSetExecute(SqlCommand cmd)
+	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlCommand cmd)
 	{
 		var result = new List<DmDescribeFirstResultSetRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
-
+		var ords = DmDescribeFirstResultSetOrdinals(reader);
 		do
 		{
-			result.Add(DmDescribeFirstResultSetReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
+			result.Add(DmDescribeFirstResultSetReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
+	{
+		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
+		return DmDescribeFirstResultSet(cmd);
+	}
+
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlCommand cmd)
+	{
+		var result = new List<DmDescribeFirstResultSetRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = DmDescribeFirstResultSetOrdinals(reader);
+		do
+		{
+			result.Add(DmDescribeFirstResultSetReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
-		return await DmDescribeFirstResultSetExecuteAsync(cmd);
+		return await DmDescribeFirstResultSetAsync(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetExecuteAsync(SqlCommand cmd)
+	private static int[] DmDescribeFirstResultSetForObjectOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+		reader.GetOrdinal("is_nullable"),
+		reader.GetOrdinal("column_ordinal"),
+		reader.GetOrdinal("sql_type_name"),
+	];
+
+	private static DmDescribeFirstResultSetForObjectRow DmDescribeFirstResultSetForObjectReadRow(SqlDataReader reader, int[] ords) => new DmDescribeFirstResultSetForObjectRow
 	{
-		var result = new List<DmDescribeFirstResultSetRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
-
-		do
-		{
-			result.Add(DmDescribeFirstResultSetReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = OptionalClass<String>(reader, ords[0]),
+		SchemaId = RequiredValue<Int32>(reader, ords[1]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[2]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[3]),
+		IsNullable = OptionalValue<Boolean>(reader, ords[4]),
+		ColumnOrdinal = OptionalValue<Int32>(reader, ords[5]),
+		SqlTypeName = RequiredClass<String>(reader, ords[6]),
+	};
 
 	public static SqlCommand DmDescribeFirstResultSetForObjectCommand(SqlConnection connection, Int32? objectid)
 	{
@@ -228,70 +243,68 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
-	{
-		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
-		return DmDescribeFirstResultSetForObjectExecute(cmd);
-	}
-
-	private static DmDescribeFirstResultSetForObjectRow DmDescribeFirstResultSetForObjectReadRow(SqlDataReader reader, int ordName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordIsNullable, int ordColumnOrdinal, int ordSqlTypeName)	 => new DmDescribeFirstResultSetForObjectRow
-	{
-		Name = OptionalClass<String>(reader, ordName),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-		ColumnOrdinal = OptionalValue<Int32>(reader, ordColumnOrdinal),
-		SqlTypeName = RequiredClass<String>(reader, ordSqlTypeName),
-	};
-
-	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObjectExecute(SqlCommand cmd)
+	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlCommand cmd)
 	{
 		var result = new List<DmDescribeFirstResultSetForObjectRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
-
+		var ords = DmDescribeFirstResultSetForObjectOrdinals(reader);
 		do
 		{
-			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
+			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
+	{
+		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
+		return DmDescribeFirstResultSetForObject(cmd);
+	}
+
+	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlCommand cmd)
+	{
+		var result = new List<DmDescribeFirstResultSetForObjectRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = DmDescribeFirstResultSetForObjectOrdinals(reader);
+		do
+		{
+			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
-		return await DmDescribeFirstResultSetForObjectExecuteAsync(cmd);
+		return await DmDescribeFirstResultSetForObjectAsync(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectExecuteAsync(SqlCommand cmd)
+	private static int[] GetParametersForObjectOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("parameter_id"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("is_output"),
+		reader.GetOrdinal("max_length"),
+		reader.GetOrdinal("is_table_type"),
+		reader.GetOrdinal("Type_Name"),
+	];
+
+	private static GetParametersForObjectRow GetParametersForObjectReadRow(SqlDataReader reader, int[] ords) => new GetParametersForObjectRow
 	{
-		var result = new List<DmDescribeFirstResultSetForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordColumnOrdinal = reader.GetOrdinal("column_ordinal");
-		int ordSqlTypeName = reader.GetOrdinal("sql_type_name");
-
-		do
-		{
-			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ordName, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordIsNullable, ordColumnOrdinal, ordSqlTypeName));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		ParameterId = RequiredValue<Int32>(reader, ords[0]),
+		SchemaId = RequiredValue<Int32>(reader, ords[1]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[2]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[3]),
+		Name = OptionalClass<String>(reader, ords[4]),
+		IsOutput = RequiredValue<Boolean>(reader, ords[5]),
+		MaxLength = RequiredValue<Int16>(reader, ords[6]),
+		IsTableType = RequiredValue<Boolean>(reader, ords[7]),
+		TypeName = RequiredClass<String>(reader, ords[8]),
+	};
 
 	public static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id)
 	{
@@ -302,76 +315,58 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
-	{
-		using var cmd = GetParametersForObjectCommand(connection, id);
-		return GetParametersForObjectExecute(cmd);
-	}
-
-	private static GetParametersForObjectRow GetParametersForObjectReadRow(SqlDataReader reader, int ordParameterId, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId, int ordName, int ordIsOutput, int ordMaxLength, int ordIsTableType, int ordTypeName)	 => new GetParametersForObjectRow
-	{
-		ParameterId = RequiredValue<Int32>(reader, ordParameterId),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-		Name = OptionalClass<String>(reader, ordName),
-		IsOutput = RequiredValue<Boolean>(reader, ordIsOutput),
-		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-		TypeName = RequiredClass<String>(reader, ordTypeName),
-	};
-
-	public static List<GetParametersForObjectRow> GetParametersForObjectExecute(SqlCommand cmd)
+	public static List<GetParametersForObjectRow> GetParametersForObject(SqlCommand cmd)
 	{
 		var result = new List<GetParametersForObjectRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordParameterId = reader.GetOrdinal("parameter_id");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordName = reader.GetOrdinal("name");
-		int ordIsOutput = reader.GetOrdinal("is_output");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordTypeName = reader.GetOrdinal("Type_Name");
-
+		var ords = GetParametersForObjectOrdinals(reader);
 		do
 		{
-			result.Add(GetParametersForObjectReadRow(reader, ordParameterId, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordName, ordIsOutput, ordMaxLength, ordIsTableType, ordTypeName));
+			result.Add(GetParametersForObjectReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
+	{
+		using var cmd = GetParametersForObjectCommand(connection, id);
+		return GetParametersForObject(cmd);
+	}
+
+	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlCommand cmd)
+	{
+		var result = new List<GetParametersForObjectRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetParametersForObjectOrdinals(reader);
+		do
+		{
+			result.Add(GetParametersForObjectReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
-		return await GetParametersForObjectExecuteAsync(cmd);
+		return await GetParametersForObjectAsync(cmd);
 	}
 
-	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectExecuteAsync(SqlCommand cmd)
+	private static int[] GetProcedureForSchemaOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("object_id"),
+		reader.GetOrdinal("Schema_Name"),
+		reader.GetOrdinal("Obsolete_Message"),
+	];
+
+	private static GetProcedureForSchemaRow GetProcedureForSchemaReadRow(SqlDataReader reader, int[] ords) => new GetProcedureForSchemaRow
 	{
-		var result = new List<GetParametersForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordParameterId = reader.GetOrdinal("parameter_id");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordName = reader.GetOrdinal("name");
-		int ordIsOutput = reader.GetOrdinal("is_output");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordTypeName = reader.GetOrdinal("Type_Name");
-
-		do
-		{
-			result.Add(GetParametersForObjectReadRow(reader, ordParameterId, ordSchemaId, ordSystemTypeId, ordUserTypeId, ordName, ordIsOutput, ordMaxLength, ordIsTableType, ordTypeName));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = RequiredClass<String>(reader, ords[0]),
+		ObjectId = RequiredValue<Int32>(reader, ords[1]),
+		SchemaName = RequiredClass<String>(reader, ords[2]),
+		ObsoleteMessage = OptionalClass<String>(reader, ords[3]),
+	};
 
 	public static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc)
 	{
@@ -383,61 +378,58 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
-	{
-		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return GetProcedureForSchemaExecute(cmd);
-	}
-
-	private static GetProcedureForSchemaRow GetProcedureForSchemaReadRow(SqlDataReader reader, int ordName, int ordObjectId, int ordSchemaName, int ordObsoleteMessage)	 => new GetProcedureForSchemaRow
-	{
-		Name = RequiredClass<String>(reader, ordName),
-		ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-		SchemaName = RequiredClass<String>(reader, ordSchemaName),
-		ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-	};
-
-	public static List<GetProcedureForSchemaRow> GetProcedureForSchemaExecute(SqlCommand cmd)
+	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlCommand cmd)
 	{
 		var result = new List<GetProcedureForSchemaRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordObjectId = reader.GetOrdinal("object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
-
+		var ords = GetProcedureForSchemaOrdinals(reader);
 		do
 		{
-			result.Add(GetProcedureForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
+			result.Add(GetProcedureForSchemaReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
+	{
+		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
+		return GetProcedureForSchema(cmd);
+	}
+
+	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlCommand cmd)
+	{
+		var result = new List<GetProcedureForSchemaRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetProcedureForSchemaOrdinals(reader);
+		do
+		{
+			result.Add(GetProcedureForSchemaReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return await GetProcedureForSchemaExecuteAsync(cmd);
+		return await GetProcedureForSchemaAsync(cmd);
 	}
 
-	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaExecuteAsync(SqlCommand cmd)
+	private static int[] GetProceduresForSchemaOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("object_id"),
+		reader.GetOrdinal("Schema_Name"),
+		reader.GetOrdinal("Obsolete_Message"),
+	];
+
+	private static GetProceduresForSchemaRow GetProceduresForSchemaReadRow(SqlDataReader reader, int[] ords) => new GetProceduresForSchemaRow
 	{
-		var result = new List<GetProcedureForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordObjectId = reader.GetOrdinal("object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
-
-		do
-		{
-			result.Add(GetProcedureForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = RequiredClass<String>(reader, ords[0]),
+		ObjectId = RequiredValue<Int32>(reader, ords[1]),
+		SchemaName = RequiredClass<String>(reader, ords[2]),
+		ObsoleteMessage = OptionalClass<String>(reader, ords[3]),
+	};
 
 	public static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema)
 	{
@@ -448,113 +440,107 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
-	{
-		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return GetProceduresForSchemaExecute(cmd);
-	}
-
-	private static GetProceduresForSchemaRow GetProceduresForSchemaReadRow(SqlDataReader reader, int ordName, int ordObjectId, int ordSchemaName, int ordObsoleteMessage)	 => new GetProceduresForSchemaRow
-	{
-		Name = RequiredClass<String>(reader, ordName),
-		ObjectId = RequiredValue<Int32>(reader, ordObjectId),
-		SchemaName = RequiredClass<String>(reader, ordSchemaName),
-		ObsoleteMessage = OptionalClass<String>(reader, ordObsoleteMessage),
-	};
-
-	public static List<GetProceduresForSchemaRow> GetProceduresForSchemaExecute(SqlCommand cmd)
+	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlCommand cmd)
 	{
 		var result = new List<GetProceduresForSchemaRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordObjectId = reader.GetOrdinal("object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
-
+		var ords = GetProceduresForSchemaOrdinals(reader);
 		do
 		{
-			result.Add(GetProceduresForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
+			result.Add(GetProceduresForSchemaReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
+	{
+		using var cmd = GetProceduresForSchemaCommand(connection, schema);
+		return GetProceduresForSchema(cmd);
+	}
+
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlCommand cmd)
+	{
+		var result = new List<GetProceduresForSchemaRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetProceduresForSchemaOrdinals(reader);
+		do
+		{
+			result.Add(GetProceduresForSchemaReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return await GetProceduresForSchemaExecuteAsync(cmd);
+		return await GetProceduresForSchemaAsync(cmd);
 	}
 
-	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaExecuteAsync(SqlCommand cmd)
+	private static int[] GetSchemasOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("schema_id"),
+	];
+
+	private static GetSchemasRow GetSchemasReadRow(SqlDataReader reader, int[] ords) => new GetSchemasRow
 	{
-		var result = new List<GetProceduresForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordObjectId = reader.GetOrdinal("object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordObsoleteMessage = reader.GetOrdinal("Obsolete_Message");
-
-		do
-		{
-			result.Add(GetProceduresForSchemaReadRow(reader, ordName, ordObjectId, ordSchemaName, ordObsoleteMessage));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = RequiredClass<String>(reader, ords[0]),
+		SchemaId = RequiredValue<Int32>(reader, ords[1]),
+	};
 
 	public static SqlCommand GetSchemasCommand(SqlConnection connection) => CreateStatement(connection, "SELECT name, schema_id FROM sys.schemas");
 
-	public static List<GetSchemasRow> GetSchemas(SqlConnection connection)
-	{
-		using var cmd = GetSchemasCommand(connection);
-		return GetSchemasExecute(cmd);
-	}
-
-	private static GetSchemasRow GetSchemasReadRow(SqlDataReader reader, int ordName, int ordSchemaId)	 => new GetSchemasRow
-	{
-		Name = RequiredClass<String>(reader, ordName),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-	};
-
-	public static List<GetSchemasRow> GetSchemasExecute(SqlCommand cmd)
+	public static List<GetSchemasRow> GetSchemas(SqlCommand cmd)
 	{
 		var result = new List<GetSchemasRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-
+		var ords = GetSchemasOrdinals(reader);
 		do
 		{
-			result.Add(GetSchemasReadRow(reader, ordName, ordSchemaId));
+			result.Add(GetSchemasReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetSchemasRow> GetSchemas(SqlConnection connection)
+	{
+		using var cmd = GetSchemasCommand(connection);
+		return GetSchemas(cmd);
+	}
+
+	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlCommand cmd)
+	{
+		var result = new List<GetSchemasRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetSchemasOrdinals(reader);
+		do
+		{
+			result.Add(GetSchemasReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection)
 	{
 		using var cmd = GetSchemasCommand(connection);
-		return await GetSchemasExecuteAsync(cmd);
+		return await GetSchemasAsync(cmd);
 	}
 
-	public static async Task<List<GetSchemasRow>> GetSchemasExecuteAsync(SqlCommand cmd)
+	private static int[] GetSysTypeOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("is_table_type"),
+		reader.GetOrdinal("name"),
+	];
+
+	private static GetSysTypeRow GetSysTypeReadRow(SqlDataReader reader, int[] ords) => new GetSysTypeRow
 	{
-		var result = new List<GetSchemasRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-
-		do
-		{
-			result.Add(GetSchemasReadRow(reader, ordName, ordSchemaId));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		SystemTypeId = RequiredValue<Byte>(reader, ords[0]),
+		IsTableType = RequiredValue<Boolean>(reader, ords[1]),
+		Name = RequiredClass<String>(reader, ords[2]),
+	};
 
 	public static SqlCommand GetSysTypeCommand(SqlConnection connection, Int32? id)
 	{
@@ -565,155 +551,145 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
-	{
-		using var cmd = GetSysTypeCommand(connection, id);
-		return GetSysTypeExecute(cmd);
-	}
-
-	private static GetSysTypeRow GetSysTypeReadRow(SqlDataReader reader, int ordSystemTypeId, int ordIsTableType, int ordName)	 => new GetSysTypeRow
-	{
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-		Name = RequiredClass<String>(reader, ordName),
-	};
-
-	public static List<GetSysTypeRow> GetSysTypeExecute(SqlCommand cmd)
+	public static List<GetSysTypeRow> GetSysType(SqlCommand cmd)
 	{
 		var result = new List<GetSysTypeRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordName = reader.GetOrdinal("name");
-
+		var ords = GetSysTypeOrdinals(reader);
 		do
 		{
-			result.Add(GetSysTypeReadRow(reader, ordSystemTypeId, ordIsTableType, ordName));
+			result.Add(GetSysTypeReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
+	{
+		using var cmd = GetSysTypeCommand(connection, id);
+		return GetSysType(cmd);
+	}
+
+	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlCommand cmd)
+	{
+		var result = new List<GetSysTypeRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetSysTypeOrdinals(reader);
+		do
+		{
+			result.Add(GetSysTypeReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
-		return await GetSysTypeExecuteAsync(cmd);
+		return await GetSysTypeAsync(cmd);
 	}
 
-	public static async Task<List<GetSysTypeRow>> GetSysTypeExecuteAsync(SqlCommand cmd)
+	private static int[] GetSysTypesOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("principal_id"),
+		reader.GetOrdinal("max_length"),
+		reader.GetOrdinal("precision"),
+		reader.GetOrdinal("scale"),
+		reader.GetOrdinal("collation_name"),
+		reader.GetOrdinal("is_nullable"),
+		reader.GetOrdinal("is_user_defined"),
+		reader.GetOrdinal("is_assembly_type"),
+		reader.GetOrdinal("default_object_id"),
+		reader.GetOrdinal("rule_object_id"),
+		reader.GetOrdinal("is_table_type"),
+		reader.GetOrdinal("schema_name"),
+		reader.GetOrdinal("is_from_sys_schema"),
+	];
+
+	private static GetSysTypesRow GetSysTypesReadRow(SqlDataReader reader, int[] ords) => new GetSysTypesRow
 	{
-		var result = new List<GetSysTypeRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordName = reader.GetOrdinal("name");
-
-		do
-		{
-			result.Add(GetSysTypeReadRow(reader, ordSystemTypeId, ordIsTableType, ordName));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = RequiredClass<String>(reader, ords[0]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[1]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[2]),
+		SchemaId = RequiredValue<Int32>(reader, ords[3]),
+		PrincipalId = OptionalValue<Int32>(reader, ords[4]),
+		MaxLength = RequiredValue<Int16>(reader, ords[5]),
+		Precision = RequiredValue<Byte>(reader, ords[6]),
+		Scale = RequiredValue<Byte>(reader, ords[7]),
+		CollationName = OptionalClass<String>(reader, ords[8]),
+		IsNullable = OptionalValue<Boolean>(reader, ords[9]),
+		IsUserDefined = RequiredValue<Boolean>(reader, ords[10]),
+		IsAssemblyType = RequiredValue<Boolean>(reader, ords[11]),
+		DefaultObjectId = RequiredValue<Int32>(reader, ords[12]),
+		RuleObjectId = RequiredValue<Int32>(reader, ords[13]),
+		IsTableType = RequiredValue<Boolean>(reader, ords[14]),
+		SchemaName = RequiredClass<String>(reader, ords[15]),
+		IsFromSysSchema = RequiredValue<Boolean>(reader, ords[16]),
+	};
 
 	public static SqlCommand GetSysTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT   T.*,   S.name as [schema_name],   ISNULL(CAST(CASE WHEN S.name = 'sys' THEN 1 ELSE 0 END as bit), 0) AS [is_from_sys_schema] FROM sys.types T JOIN sys.schemas S ON (T.schema_id = S.schema_id)");
 
-	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
-	{
-		using var cmd = GetSysTypesCommand(connection);
-		return GetSysTypesExecute(cmd);
-	}
-
-	private static GetSysTypesRow GetSysTypesReadRow(SqlDataReader reader, int ordName, int ordSystemTypeId, int ordUserTypeId, int ordSchemaId, int ordPrincipalId, int ordMaxLength, int ordPrecision, int ordScale, int ordCollationName, int ordIsNullable, int ordIsUserDefined, int ordIsAssemblyType, int ordDefaultObjectId, int ordRuleObjectId, int ordIsTableType, int ordSchemaName, int ordIsFromSysSchema)	 => new GetSysTypesRow
-	{
-		Name = RequiredClass<String>(reader, ordName),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		PrincipalId = OptionalValue<Int32>(reader, ordPrincipalId),
-		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-		Precision = RequiredValue<Byte>(reader, ordPrecision),
-		Scale = RequiredValue<Byte>(reader, ordScale),
-		CollationName = OptionalClass<String>(reader, ordCollationName),
-		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-		IsUserDefined = RequiredValue<Boolean>(reader, ordIsUserDefined),
-		IsAssemblyType = RequiredValue<Boolean>(reader, ordIsAssemblyType),
-		DefaultObjectId = RequiredValue<Int32>(reader, ordDefaultObjectId),
-		RuleObjectId = RequiredValue<Int32>(reader, ordRuleObjectId),
-		IsTableType = RequiredValue<Boolean>(reader, ordIsTableType),
-		SchemaName = RequiredClass<String>(reader, ordSchemaName),
-		IsFromSysSchema = RequiredValue<Boolean>(reader, ordIsFromSysSchema),
-	};
-
-	public static List<GetSysTypesRow> GetSysTypesExecute(SqlCommand cmd)
+	public static List<GetSysTypesRow> GetSysTypes(SqlCommand cmd)
 	{
 		var result = new List<GetSysTypesRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordPrincipalId = reader.GetOrdinal("principal_id");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordPrecision = reader.GetOrdinal("precision");
-		int ordScale = reader.GetOrdinal("scale");
-		int ordCollationName = reader.GetOrdinal("collation_name");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
-		int ordIsAssemblyType = reader.GetOrdinal("is_assembly_type");
-		int ordDefaultObjectId = reader.GetOrdinal("default_object_id");
-		int ordRuleObjectId = reader.GetOrdinal("rule_object_id");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordSchemaName = reader.GetOrdinal("schema_name");
-		int ordIsFromSysSchema = reader.GetOrdinal("is_from_sys_schema");
-
+		var ords = GetSysTypesOrdinals(reader);
 		do
 		{
-			result.Add(GetSysTypesReadRow(reader, ordName, ordSystemTypeId, ordUserTypeId, ordSchemaId, ordPrincipalId, ordMaxLength, ordPrecision, ordScale, ordCollationName, ordIsNullable, ordIsUserDefined, ordIsAssemblyType, ordDefaultObjectId, ordRuleObjectId, ordIsTableType, ordSchemaName, ordIsFromSysSchema));
+			result.Add(GetSysTypesReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
+	{
+		using var cmd = GetSysTypesCommand(connection);
+		return GetSysTypes(cmd);
+	}
+
+	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlCommand cmd)
+	{
+		var result = new List<GetSysTypesRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetSysTypesOrdinals(reader);
+		do
+		{
+			result.Add(GetSysTypesReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetSysTypesCommand(connection);
-		return await GetSysTypesExecuteAsync(cmd);
+		return await GetSysTypesAsync(cmd);
 	}
 
-	public static async Task<List<GetSysTypesRow>> GetSysTypesExecuteAsync(SqlCommand cmd)
+	private static int[] GetTableTypeColumnsOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("is_nullable"),
+		reader.GetOrdinal("max_length"),
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("Type_Name"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+	];
+
+	private static GetTableTypeColumnsRow GetTableTypeColumnsReadRow(SqlDataReader reader, int[] ords) => new GetTableTypeColumnsRow
 	{
-		var result = new List<GetSysTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordPrincipalId = reader.GetOrdinal("principal_id");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordPrecision = reader.GetOrdinal("precision");
-		int ordScale = reader.GetOrdinal("scale");
-		int ordCollationName = reader.GetOrdinal("collation_name");
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordIsUserDefined = reader.GetOrdinal("is_user_defined");
-		int ordIsAssemblyType = reader.GetOrdinal("is_assembly_type");
-		int ordDefaultObjectId = reader.GetOrdinal("default_object_id");
-		int ordRuleObjectId = reader.GetOrdinal("rule_object_id");
-		int ordIsTableType = reader.GetOrdinal("is_table_type");
-		int ordSchemaName = reader.GetOrdinal("schema_name");
-		int ordIsFromSysSchema = reader.GetOrdinal("is_from_sys_schema");
-
-		do
-		{
-			result.Add(GetSysTypesReadRow(reader, ordName, ordSystemTypeId, ordUserTypeId, ordSchemaId, ordPrincipalId, ordMaxLength, ordPrecision, ordScale, ordCollationName, ordIsNullable, ordIsUserDefined, ordIsAssemblyType, ordDefaultObjectId, ordRuleObjectId, ordIsTableType, ordSchemaName, ordIsFromSysSchema));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		IsNullable = OptionalValue<Boolean>(reader, ords[0]),
+		MaxLength = RequiredValue<Int16>(reader, ords[1]),
+		Name = OptionalClass<String>(reader, ords[2]),
+		TypeName = RequiredClass<String>(reader, ords[3]),
+		SchemaId = RequiredValue<Int32>(reader, ords[4]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[5]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[6]),
+	};
 
 	public static SqlCommand GetTableTypeColumnsCommand(SqlConnection connection, Int32? id)
 	{
@@ -724,133 +700,101 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
-	{
-		using var cmd = GetTableTypeColumnsCommand(connection, id);
-		return GetTableTypeColumnsExecute(cmd);
-	}
-
-	private static GetTableTypeColumnsRow GetTableTypeColumnsReadRow(SqlDataReader reader, int ordIsNullable, int ordMaxLength, int ordName, int ordTypeName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId)	 => new GetTableTypeColumnsRow
-	{
-		IsNullable = OptionalValue<Boolean>(reader, ordIsNullable),
-		MaxLength = RequiredValue<Int16>(reader, ordMaxLength),
-		Name = OptionalClass<String>(reader, ordName),
-		TypeName = RequiredClass<String>(reader, ordTypeName),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-	};
-
-	public static List<GetTableTypeColumnsRow> GetTableTypeColumnsExecute(SqlCommand cmd)
+	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlCommand cmd)
 	{
 		var result = new List<GetTableTypeColumnsRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordName = reader.GetOrdinal("name");
-		int ordTypeName = reader.GetOrdinal("Type_Name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-
+		var ords = GetTableTypeColumnsOrdinals(reader);
 		do
 		{
-			result.Add(GetTableTypeColumnsReadRow(reader, ordIsNullable, ordMaxLength, ordName, ordTypeName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
+			result.Add(GetTableTypeColumnsReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
+	{
+		using var cmd = GetTableTypeColumnsCommand(connection, id);
+		return GetTableTypeColumns(cmd);
+	}
+
+	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlCommand cmd)
+	{
+		var result = new List<GetTableTypeColumnsRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetTableTypeColumnsOrdinals(reader);
+		do
+		{
+			result.Add(GetTableTypeColumnsReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
-		return await GetTableTypeColumnsExecuteAsync(cmd);
+		return await GetTableTypeColumnsAsync(cmd);
 	}
 
-	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsExecuteAsync(SqlCommand cmd)
+	private static int[] GetTableTypesOrdinals(SqlDataReader reader) => [
+		reader.GetOrdinal("name"),
+		reader.GetOrdinal("type_table_object_id"),
+		reader.GetOrdinal("Schema_Name"),
+		reader.GetOrdinal("schema_id"),
+		reader.GetOrdinal("system_type_id"),
+		reader.GetOrdinal("user_type_id"),
+	];
+
+	private static GetTableTypesRow GetTableTypesReadRow(SqlDataReader reader, int[] ords) => new GetTableTypesRow
 	{
-		var result = new List<GetTableTypeColumnsRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordIsNullable = reader.GetOrdinal("is_nullable");
-		int ordMaxLength = reader.GetOrdinal("max_length");
-		int ordName = reader.GetOrdinal("name");
-		int ordTypeName = reader.GetOrdinal("Type_Name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-
-		do
-		{
-			result.Add(GetTableTypeColumnsReadRow(reader, ordIsNullable, ordMaxLength, ordName, ordTypeName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+		Name = RequiredClass<String>(reader, ords[0]),
+		TypeTableObjectId = RequiredValue<Int32>(reader, ords[1]),
+		SchemaName = RequiredClass<String>(reader, ords[2]),
+		SchemaId = RequiredValue<Int32>(reader, ords[3]),
+		SystemTypeId = RequiredValue<Byte>(reader, ords[4]),
+		UserTypeId = RequiredValue<Int32>(reader, ords[5]),
+	};
 
 	public static SqlCommand GetTableTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.schema_id, T.system_type_id, T.user_type_id FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
 
-	public static List<GetTableTypesRow> GetTableTypes(SqlConnection connection)
-	{
-		using var cmd = GetTableTypesCommand(connection);
-		return GetTableTypesExecute(cmd);
-	}
-
-	private static GetTableTypesRow GetTableTypesReadRow(SqlDataReader reader, int ordName, int ordTypeTableObjectId, int ordSchemaName, int ordSchemaId, int ordSystemTypeId, int ordUserTypeId)	 => new GetTableTypesRow
-	{
-		Name = RequiredClass<String>(reader, ordName),
-		TypeTableObjectId = RequiredValue<Int32>(reader, ordTypeTableObjectId),
-		SchemaName = RequiredClass<String>(reader, ordSchemaName),
-		SchemaId = RequiredValue<Int32>(reader, ordSchemaId),
-		SystemTypeId = RequiredValue<Byte>(reader, ordSystemTypeId),
-		UserTypeId = RequiredValue<Int32>(reader, ordUserTypeId),
-	};
-
-	public static List<GetTableTypesRow> GetTableTypesExecute(SqlCommand cmd)
+	public static List<GetTableTypesRow> GetTableTypes(SqlCommand cmd)
 	{
 		var result = new List<GetTableTypesRow>();
 		using var reader = cmd.ExecuteReader();
 		if (!reader.Read()) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-
+		var ords = GetTableTypesOrdinals(reader);
 		do
 		{
-			result.Add(GetTableTypesReadRow(reader, ordName, ordTypeTableObjectId, ordSchemaName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
+			result.Add(GetTableTypesReadRow(reader, ords));
 		} while (reader.Read());
+		return result;
+	}
+
+	public static List<GetTableTypesRow> GetTableTypes(SqlConnection connection)
+	{
+		using var cmd = GetTableTypesCommand(connection);
+		return GetTableTypes(cmd);
+	}
+
+	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlCommand cmd)
+	{
+		var result = new List<GetTableTypesRow>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = GetTableTypesOrdinals(reader);
+		do
+		{
+			result.Add(GetTableTypesReadRow(reader, ords));
+		} while (await reader.ReadAsync().ConfigureAwait(false));
 		return result;
 	}
 
 	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
-		return await GetTableTypesExecuteAsync(cmd);
-	}
-
-	public static async Task<List<GetTableTypesRow>> GetTableTypesExecuteAsync(SqlCommand cmd)
-	{
-		var result = new List<GetTableTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-
-		int ordName = reader.GetOrdinal("name");
-		int ordTypeTableObjectId = reader.GetOrdinal("type_table_object_id");
-		int ordSchemaName = reader.GetOrdinal("Schema_Name");
-		int ordSchemaId = reader.GetOrdinal("schema_id");
-		int ordSystemTypeId = reader.GetOrdinal("system_type_id");
-		int ordUserTypeId = reader.GetOrdinal("user_type_id");
-
-		do
-		{
-			result.Add(GetTableTypesReadRow(reader, ordName, ordTypeTableObjectId, ordSchemaName, ordSchemaId, ordSystemTypeId, ordUserTypeId));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
+		return await GetTableTypesAsync(cmd);
 	}
 
 	public static SqlCommand SSBEndConversationCommand(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
@@ -864,19 +808,20 @@ public partial class Proxy
 		return cmd;
 	}
 
+	public static int SSBEndConversation(SqlCommand cmd) => cmd.ExecuteNonQuery();
+
 	public static int SSBEndConversation(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
 	{
 		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return SSBEndConversationExecute(cmd);
+		return SSBEndConversation(cmd);
 	}
 
-	public static int SSBEndConversationExecute(SqlCommand cmd) => cmd.ExecuteNonQuery();
+	public static async Task<int> SSBEndConversationAsync(SqlCommand cmd) => await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
 	public static async Task<int> SSBEndConversationAsync(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
 	{
 		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return await SSBEndConversationExecuteAsync(cmd);
+		return await SSBEndConversationAsync(cmd);
 	}
 
-	public static async Task<int> SSBEndConversationExecuteAsync(SqlCommand cmd) => await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 }

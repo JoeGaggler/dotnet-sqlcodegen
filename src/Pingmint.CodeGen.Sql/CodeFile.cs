@@ -146,15 +146,17 @@ public class CodeFile
             foreach (var method in Methods.OrderBy(i => i.Name))
             {
                 if (isFirstMethod) { isFirstMethod = false; }
-                else { code.Line(); }
 
                 var commandText = method.CommandText.ReplaceLineEndings(" ").Trim();
                 var csharpParameters = method.CSharpParameters;
                 var commandParameters = method.SqlParameters;
 
+                Boolean firstFlag = true;
                 foreach (var isAsync in new[] { false, true })
                 {
-                    if (isAsync) { code.Line(); } // Assumes async always comes after sync
+                    // HACK
+                    var isFirst = firstFlag;
+                    firstFlag = false;
 
                     var methodParametersWithConnection = csharpParameters.ToList(); // NOTE THE COPY!
                     var methodParametersWithCommand = csharpParameters.ToList(); // NOTE THE COPY!
@@ -166,10 +168,53 @@ public class CodeFile
                     var asyncKeyword = isAsync ? " async" : "";
                     var returnType = isAsync ? $"Task<{method.DataType}>" : method.DataType;
 
-                    if (!isAsync) // command comes before sync method
+                    // Ordinals/ReadRow/Command, which are shared between sync and async methods
+                    if (isFirst)
                     {
-                        var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
+                        if (method.ResultSetRecord is { } record)
+                        {
+                            code.StartMethod($"private static", "int[]", method.Name + "Ordinals", "SqlDataReader reader");
+                            code.Text($" => [");
+                            code.Line();
+                            code.Indent();
+                            foreach (var recordProperty in record.Properties)
+                            {
+                                code.Line($"reader.GetOrdinal(\"{recordProperty.ColumnName}\"),");
+                            }
+                            code.Dedent();
+                            code.Line("];");
+                            code.Line();
 
+                            code.StartMethod($"private static{asyncKeyword}", record.CSharpName, method.Name + "ReadRow", "SqlDataReader reader, int[] ords");
+
+                            code.Text($" => new {record.CSharpName}");
+                            code.Line();
+                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
+                            {
+                                int i = 0;
+                                foreach (var property in record.Properties)
+                                {
+                                    var fieldName = property.FieldName;
+                                    var IsValueType = property.FieldTypeIsValueType;
+                                    var ColumnIsNullable = property.ColumnIsNullable;
+                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                                    var columnName = property.ColumnName;
+                                    var ordinalVarName = $"ords[{i++}]";
+                                    var line = (IsValueType, ColumnIsNullable) switch
+                                    {
+                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                                    };
+                                    code.Line(line);
+                                }
+                            }
+                            code.Line();
+                        }
+
+                        // Command
+                        var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
                         if (commandParameters.Count == 0)
                         {
                             code.MethodExpression($"public static", "SqlCommand", method.Name + "Command", parametersString, $"{cmdMethod}(connection, \"{commandText}\")");
@@ -203,70 +248,16 @@ public class CodeFile
                             code.Line("]);");
                             code.Return("cmd");
                         }
-
                         code.Line();
                     }
 
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
-                    var actualMethodName2 = isAsync ? $"{method.Name}ExecuteAsync" : $"{method.Name}Execute";
-                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
-                    {
-                        code.Line($"using var cmd = {method.Name}Command({argumentsString});");
-                        if (isAsync)
-                        {
-                            code.Line($"return await {actualMethodName2}(cmd);");
-                        }
-                        else
-                        {
-                            code.Line($"return {actualMethodName2}(cmd);");
-                        }
-                    }
-                    code.Line();
 
                     if (method.HasResultSet)
                     {
                         if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
-                        var ords1 = new List<String>();
-                        var ords2 = new List<String>();
-                        foreach (var property in record.Properties)
-                        {
-                            var fieldType = property.FieldType;
-                            var columnName = property.ColumnName;
 
-                            var ordinalVarName = $"ord{GetPascalCase(columnName)}";
-                            ords1.Add(ordinalVarName);
-                            ords2.Add("int " + ordinalVarName);
-                        }
-
-                        if (!isAsync) // command comes before sync method
-                        {
-                            code.StartMethod($"private static{asyncKeyword}", record.CSharpName, method.Name + "ReadRow", "SqlDataReader reader, " + String.Join(", ", ords2));
-
-                            code.Line($" => new {record.CSharpName}");
-                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
-                            {
-                                foreach (var property in record.Properties)
-                                {
-                                    var fieldName = property.FieldName;
-                                    var IsValueType = property.FieldTypeIsValueType;
-                                    var ColumnIsNullable = property.ColumnIsNullable;
-                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
-                                    var columnName = property.ColumnName;
-                                    var ordinalVarName = $"ord{GetPascalCase(columnName)}";
-                                    var line = (IsValueType, ColumnIsNullable) switch
-                                    {
-                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                    };
-                                    code.Line(line);
-                                }
-                            }
-                            code.Line();
-                        }
-
-                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd");
+                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, "SqlCommand cmd");
 
                         code.Line($"var result = new List<{record.CSharpName}>();");
 
@@ -280,16 +271,10 @@ public class CodeFile
                             code.Line($"using var reader = cmd.ExecuteReader();");
                             code.Line("if (!reader.Read()) { return result; }");
                         }
-                        code.Line();
 
                         if (record.Properties.Count != 0)
                         {
-                            foreach (var recordProperty in record.Properties)
-                            {
-                                String columnName = recordProperty.ColumnName;
-                                code.Line($"int ord{GetPascalCase(columnName)} = reader.GetOrdinal(\"{columnName}\");");
-                            }
-                            code.Line();
+                            code.Line("var ords = {0}Ordinals(reader);", method.Name);
                         }
 
                         IDisposable doWhileScope;
@@ -304,7 +289,7 @@ public class CodeFile
 
                         using (doWhileScope)
                         {
-                            code.Line($"result.Add({method.Name + "ReadRow"}(reader, {String.Join(", ", ords1)}));");
+                            code.Line($"result.Add({method.Name + "ReadRow"}(reader, ords));");
                         }
 
                         code.Return("result");
@@ -322,13 +307,28 @@ public class CodeFile
                         {
                             expressionBody = "cmd.ExecuteNonQuery()";
                         }
-                        code.MethodExpression($"public static{asyncKeyword}", returnType, actualMethodName2, "SqlCommand cmd", expressionBody);
+                        code.MethodExpression($"public static{asyncKeyword}", returnType, actualMethodName, "SqlCommand cmd", expressionBody);
 
                     }
                     else
                     {
                         throw new NotImplementedException("Unknown method return type: " + method.DataType ?? "null");
                     }
+                    code.Line();
+
+                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
+                    {
+                        code.Line($"using var cmd = {method.Name}Command({argumentsString});");
+                        if (isAsync)
+                        {
+                            code.Line($"return await {actualMethodName}(cmd);");
+                        }
+                        else
+                        {
+                            code.Line($"return {actualMethodName}(cmd);");
+                        }
+                    }
+                    code.Line();
                 }
             }
         }
