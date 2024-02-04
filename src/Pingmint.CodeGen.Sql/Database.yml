@@ -2,6 +2,7 @@ connection: Data Source=localhost;Initial Catalog=tempdb;Integrated Security=Fal
 csharp:
   namespace: Pingmint.CodeGen.Sql
   class: Proxy
+  row type: record class
 databases:
   - database: tempdb
     # procedures:
