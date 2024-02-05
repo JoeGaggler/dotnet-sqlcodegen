@@ -140,6 +140,26 @@ public class CodeFile
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
+    private static List<T> ExecuteCommand<T>(SqlCommand cmd, Func<SqlDataReader, int[]> ordinals, Func<SqlDataReader, int[], T> readRow)
+	{
+		var result = new List<T>();
+		using var reader = cmd.ExecuteReader();
+		if (!reader.Read()) { return result; }
+		var ords = ordinals(reader);
+		do { result.Add(readRow(reader, ords)); } while (reader.Read());
+		return result;
+	}
+
+    private static async Task<List<T>> ExecuteCommandAsync<T>(SqlCommand cmd, Func<SqlDataReader, int[]> ordinals, Func<SqlDataReader, int[], T> readRow)
+	{
+		var result = new List<T>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (! await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = ordinals(reader);
+		do { result.Add(readRow(reader, ords)); } while (await reader.ReadAsync().ConfigureAwait(false));
+		return result;
+	}
+
 """);
             code.Line();
             var isFirstMethod = true;
@@ -257,42 +277,7 @@ public class CodeFile
                     {
                         if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
 
-                        using var _ = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, "SqlCommand cmd");
-
-                        code.Line($"var result = new List<{record.CSharpName}>();");
-
-                        if (isAsync)
-                        {
-                            code.Line($"using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);");
-                            code.Line("if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }");
-                        }
-                        else
-                        {
-                            code.Line($"using var reader = cmd.ExecuteReader();");
-                            code.Line("if (!reader.Read()) { return result; }");
-                        }
-
-                        if (record.Properties.Count != 0)
-                        {
-                            code.Line("var ords = {0}Ordinals(reader);", method.Name);
-                        }
-
-                        IDisposable doWhileScope;
-                        if (isAsync)
-                        {
-                            doWhileScope = code.DoWhile("await reader.ReadAsync().ConfigureAwait(false)");
-                        }
-                        else
-                        {
-                            doWhileScope = code.DoWhile("reader.Read()");
-                        }
-
-                        using (doWhileScope)
-                        {
-                            code.Line($"result.Add({method.Name + "ReadRow"}(reader, ords));");
-                        }
-
-                        code.Return("result");
+                        code.MethodExpression($"public static{asyncKeyword}", returnType, actualMethodName, "SqlCommand cmd", (isAsync ? "await " : "") + "ExecuteCommand" + (isAsync ? "Async" : "") + "(cmd, " + method.Name + "Ordinals, " + method.Name + "ReadRow)");
                     }
                     else if (method.HasResultSet == false)
                     {

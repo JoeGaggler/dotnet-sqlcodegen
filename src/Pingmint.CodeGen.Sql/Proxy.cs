@@ -144,6 +144,26 @@ public partial class Proxy
     private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
     private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
 
+    private static List<T> ExecuteCommand<T>(SqlCommand cmd, Func<SqlDataReader, int[]> ordinals, Func<SqlDataReader, int[], T> readRow)
+	{
+		var result = new List<T>();
+		using var reader = cmd.ExecuteReader();
+		if (!reader.Read()) { return result; }
+		var ords = ordinals(reader);
+		do { result.Add(readRow(reader, ords)); } while (reader.Read());
+		return result;
+	}
+
+    private static async Task<List<T>> ExecuteCommandAsync<T>(SqlCommand cmd, Func<SqlDataReader, int[]> ordinals, Func<SqlDataReader, int[], T> readRow)
+	{
+		var result = new List<T>();
+		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+		if (! await reader.ReadAsync().ConfigureAwait(false)) { return result; }
+		var ords = ordinals(reader);
+		do { result.Add(readRow(reader, ords)); } while (await reader.ReadAsync().ConfigureAwait(false));
+		return result;
+	}
+
 	private static int[] DmDescribeFirstResultSetOrdinals(SqlDataReader reader) => [
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("schema_id"),
@@ -175,18 +195,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlCommand cmd)
-	{
-		var result = new List<DmDescribeFirstResultSetRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = DmDescribeFirstResultSetOrdinals(reader);
-		do
-		{
-			result.Add(DmDescribeFirstResultSetReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlCommand cmd) => ExecuteCommand(cmd, DmDescribeFirstResultSetOrdinals, DmDescribeFirstResultSetReadRow);
 
 	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
 	{
@@ -194,18 +203,7 @@ public partial class Proxy
 		return DmDescribeFirstResultSet(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlCommand cmd)
-	{
-		var result = new List<DmDescribeFirstResultSetRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = DmDescribeFirstResultSetOrdinals(reader);
-		do
-		{
-			result.Add(DmDescribeFirstResultSetReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, DmDescribeFirstResultSetOrdinals, DmDescribeFirstResultSetReadRow);
 
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters)
 	{
@@ -243,18 +241,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlCommand cmd)
-	{
-		var result = new List<DmDescribeFirstResultSetForObjectRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = DmDescribeFirstResultSetForObjectOrdinals(reader);
-		do
-		{
-			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlCommand cmd) => ExecuteCommand(cmd, DmDescribeFirstResultSetForObjectOrdinals, DmDescribeFirstResultSetForObjectReadRow);
 
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
 	{
@@ -262,18 +249,7 @@ public partial class Proxy
 		return DmDescribeFirstResultSetForObject(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlCommand cmd)
-	{
-		var result = new List<DmDescribeFirstResultSetForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = DmDescribeFirstResultSetForObjectOrdinals(reader);
-		do
-		{
-			result.Add(DmDescribeFirstResultSetForObjectReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, DmDescribeFirstResultSetForObjectOrdinals, DmDescribeFirstResultSetForObjectReadRow);
 
 	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid)
 	{
@@ -315,18 +291,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetParametersForObjectRow> GetParametersForObject(SqlCommand cmd)
-	{
-		var result = new List<GetParametersForObjectRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetParametersForObjectOrdinals(reader);
-		do
-		{
-			result.Add(GetParametersForObjectReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetParametersForObjectRow> GetParametersForObject(SqlCommand cmd) => ExecuteCommand(cmd, GetParametersForObjectOrdinals, GetParametersForObjectReadRow);
 
 	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
 	{
@@ -334,18 +299,7 @@ public partial class Proxy
 		return GetParametersForObject(cmd);
 	}
 
-	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlCommand cmd)
-	{
-		var result = new List<GetParametersForObjectRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetParametersForObjectOrdinals(reader);
-		do
-		{
-			result.Add(GetParametersForObjectReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetParametersForObjectOrdinals, GetParametersForObjectReadRow);
 
 	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id)
 	{
@@ -378,18 +332,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlCommand cmd)
-	{
-		var result = new List<GetProcedureForSchemaRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetProcedureForSchemaOrdinals(reader);
-		do
-		{
-			result.Add(GetProcedureForSchemaReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlCommand cmd) => ExecuteCommand(cmd, GetProcedureForSchemaOrdinals, GetProcedureForSchemaReadRow);
 
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
 	{
@@ -397,18 +340,7 @@ public partial class Proxy
 		return GetProcedureForSchema(cmd);
 	}
 
-	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlCommand cmd)
-	{
-		var result = new List<GetProcedureForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetProcedureForSchemaOrdinals(reader);
-		do
-		{
-			result.Add(GetProcedureForSchemaReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetProcedureForSchemaOrdinals, GetProcedureForSchemaReadRow);
 
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc)
 	{
@@ -440,18 +372,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlCommand cmd)
-	{
-		var result = new List<GetProceduresForSchemaRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetProceduresForSchemaOrdinals(reader);
-		do
-		{
-			result.Add(GetProceduresForSchemaReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlCommand cmd) => ExecuteCommand(cmd, GetProceduresForSchemaOrdinals, GetProceduresForSchemaReadRow);
 
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
 	{
@@ -459,18 +380,7 @@ public partial class Proxy
 		return GetProceduresForSchema(cmd);
 	}
 
-	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlCommand cmd)
-	{
-		var result = new List<GetProceduresForSchemaRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetProceduresForSchemaOrdinals(reader);
-		do
-		{
-			result.Add(GetProceduresForSchemaReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetProceduresForSchemaOrdinals, GetProceduresForSchemaReadRow);
 
 	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema)
 	{
@@ -491,18 +401,7 @@ public partial class Proxy
 
 	public static SqlCommand GetSchemasCommand(SqlConnection connection) => CreateStatement(connection, "SELECT name, schema_id FROM sys.schemas");
 
-	public static List<GetSchemasRow> GetSchemas(SqlCommand cmd)
-	{
-		var result = new List<GetSchemasRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetSchemasOrdinals(reader);
-		do
-		{
-			result.Add(GetSchemasReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetSchemasRow> GetSchemas(SqlCommand cmd) => ExecuteCommand(cmd, GetSchemasOrdinals, GetSchemasReadRow);
 
 	public static List<GetSchemasRow> GetSchemas(SqlConnection connection)
 	{
@@ -510,18 +409,7 @@ public partial class Proxy
 		return GetSchemas(cmd);
 	}
 
-	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlCommand cmd)
-	{
-		var result = new List<GetSchemasRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetSchemasOrdinals(reader);
-		do
-		{
-			result.Add(GetSchemasReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetSchemasOrdinals, GetSchemasReadRow);
 
 	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection)
 	{
@@ -551,18 +439,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetSysTypeRow> GetSysType(SqlCommand cmd)
-	{
-		var result = new List<GetSysTypeRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetSysTypeOrdinals(reader);
-		do
-		{
-			result.Add(GetSysTypeReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetSysTypeRow> GetSysType(SqlCommand cmd) => ExecuteCommand(cmd, GetSysTypeOrdinals, GetSysTypeReadRow);
 
 	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
 	{
@@ -570,18 +447,7 @@ public partial class Proxy
 		return GetSysType(cmd);
 	}
 
-	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlCommand cmd)
-	{
-		var result = new List<GetSysTypeRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetSysTypeOrdinals(reader);
-		do
-		{
-			result.Add(GetSysTypeReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetSysTypeOrdinals, GetSysTypeReadRow);
 
 	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id)
 	{
@@ -632,18 +498,7 @@ public partial class Proxy
 
 	public static SqlCommand GetSysTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT   T.*,   S.name as [schema_name],   ISNULL(CAST(CASE WHEN S.name = 'sys' THEN 1 ELSE 0 END as bit), 0) AS [is_from_sys_schema] FROM sys.types T JOIN sys.schemas S ON (T.schema_id = S.schema_id)");
 
-	public static List<GetSysTypesRow> GetSysTypes(SqlCommand cmd)
-	{
-		var result = new List<GetSysTypesRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetSysTypesOrdinals(reader);
-		do
-		{
-			result.Add(GetSysTypesReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetSysTypesRow> GetSysTypes(SqlCommand cmd) => ExecuteCommand(cmd, GetSysTypesOrdinals, GetSysTypesReadRow);
 
 	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
 	{
@@ -651,18 +506,7 @@ public partial class Proxy
 		return GetSysTypes(cmd);
 	}
 
-	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlCommand cmd)
-	{
-		var result = new List<GetSysTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetSysTypesOrdinals(reader);
-		do
-		{
-			result.Add(GetSysTypesReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetSysTypesOrdinals, GetSysTypesReadRow);
 
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
 	{
@@ -700,18 +544,7 @@ public partial class Proxy
 		return cmd;
 	}
 
-	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlCommand cmd)
-	{
-		var result = new List<GetTableTypeColumnsRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetTableTypeColumnsOrdinals(reader);
-		do
-		{
-			result.Add(GetTableTypeColumnsReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlCommand cmd) => ExecuteCommand(cmd, GetTableTypeColumnsOrdinals, GetTableTypeColumnsReadRow);
 
 	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
 	{
@@ -719,18 +552,7 @@ public partial class Proxy
 		return GetTableTypeColumns(cmd);
 	}
 
-	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlCommand cmd)
-	{
-		var result = new List<GetTableTypeColumnsRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetTableTypeColumnsOrdinals(reader);
-		do
-		{
-			result.Add(GetTableTypeColumnsReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetTableTypeColumnsOrdinals, GetTableTypeColumnsReadRow);
 
 	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id)
 	{
@@ -759,18 +581,7 @@ public partial class Proxy
 
 	public static SqlCommand GetTableTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.schema_id, T.system_type_id, T.user_type_id FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
 
-	public static List<GetTableTypesRow> GetTableTypes(SqlCommand cmd)
-	{
-		var result = new List<GetTableTypesRow>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = GetTableTypesOrdinals(reader);
-		do
-		{
-			result.Add(GetTableTypesReadRow(reader, ords));
-		} while (reader.Read());
-		return result;
-	}
+	public static List<GetTableTypesRow> GetTableTypes(SqlCommand cmd) => ExecuteCommand(cmd, GetTableTypesOrdinals, GetTableTypesReadRow);
 
 	public static List<GetTableTypesRow> GetTableTypes(SqlConnection connection)
 	{
@@ -778,50 +589,12 @@ public partial class Proxy
 		return GetTableTypes(cmd);
 	}
 
-	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlCommand cmd)
-	{
-		var result = new List<GetTableTypesRow>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = GetTableTypesOrdinals(reader);
-		do
-		{
-			result.Add(GetTableTypesReadRow(reader, ords));
-		} while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
+	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlCommand cmd) => await ExecuteCommandAsync(cmd, GetTableTypesOrdinals, GetTableTypesReadRow);
 
 	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
 		return await GetTableTypesAsync(cmd);
-	}
-
-	public static SqlCommand SSBEndConversationCommand(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
-	{
-		SqlCommand cmd = CreateStoredProcedure(connection, "DATA_Broker.dbo.SSB_End_Conversation");
-		cmd.Parameters.AddRange([
-			CreateParameter("@Conversation_Handle", conversationHandle, SqlDbType.UniqueIdentifier),
-			CreateParameter("@Failure_Code", failureCode, SqlDbType.Int),
-			CreateParameter("@Failure_Description", failureDescription, SqlDbType.NVarChar, 6000),
-		]);
-		return cmd;
-	}
-
-	public static int SSBEndConversation(SqlCommand cmd) => cmd.ExecuteNonQuery();
-
-	public static int SSBEndConversation(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
-	{
-		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return SSBEndConversation(cmd);
-	}
-
-	public static async Task<int> SSBEndConversationAsync(SqlCommand cmd) => await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-	public static async Task<int> SSBEndConversationAsync(SqlConnection connection, Guid? conversationHandle, Int32? failureCode, String? failureDescription)
-	{
-		using var cmd = SSBEndConversationCommand(connection, conversationHandle, failureCode, failureDescription);
-		return await SSBEndConversationAsync(cmd);
 	}
 
 }
