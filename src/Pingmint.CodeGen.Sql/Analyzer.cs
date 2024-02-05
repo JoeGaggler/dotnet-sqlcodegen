@@ -123,62 +123,67 @@ public class Analyzer
     public async Task AnalyzeStatementAsync(String database, String name, String commandText, List<SqlStatementParameter> statementParameters)
     {
         WriteLine("Analyze Statement: {0}", name);
-
-        using var server = await OpenSqlConnectionAsync();
-
-        var methodParameters = new List<MethodParameter>();
-        var commandParameters = new List<CommandParameter>();
-        foreach (var procParam in statementParameters)
+        try
         {
-            var sysType = await GetSysTypeByNameAsync(server, procParam.Type);
-            var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, sysType.SystemTypeId, sysType.UserTypeId, sysType.MaxLength);
-            methodParameters.Add(methodParameter);
-            commandParameters.Add(commandParameter);
-        }
+            using var server = await OpenSqlConnectionAsync();
 
-        var methodSync = new Method
-        {
-            Name = GetPascalCase(name),
-            IsStoredProc = false,
-            CommandText = commandText,
-            CSharpParameters = methodParameters,
-            SqlParameters = commandParameters,
-        };
-
-        var recordColumns = new List<RecordProperty>();
-
-        var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
-        WriteLine("Proxy.DmDescribeFirstResultSetAsync");
-        var columnsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
-        if (columnsRows.Count == 0)
-        {
-            methodSync.HasResultSet = false;
-            methodSync.DataType = "int";
-        }
-        else
-        {
-            String recordName = GetUniqueName(GetPascalCase(name + "Row"), codeFile.TypeNames);
-            var record = new Record
+            var methodParameters = new List<MethodParameter>();
+            var commandParameters = new List<CommandParameter>();
+            foreach (var procParam in statementParameters)
             {
-                CSharpName = recordName,
-            };
-
-            foreach (var columnRow in columnsRows)
-            {
-                if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
-                {
-                    record.Properties.Add(recordProperty);
-                }
+                var sysType = await GetSysTypeByNameAsync(server, procParam.Type);
+                var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, sysType.SystemTypeId, sysType.UserTypeId, sysType.MaxLength);
+                methodParameters.Add(methodParameter);
+                commandParameters.Add(commandParameter);
             }
 
-            methodSync.HasResultSet = true;
-            methodSync.ResultSetRecord = record;
-            methodSync.DataType = $"List<{recordName}>";
-            codeFile.Records.Add(record);
-        }
-        codeFile.Methods.Add(methodSync);
+            var methodSync = new Method
+            {
+                Name = GetPascalCase(name),
+                IsStoredProc = false,
+                CommandText = commandText,
+                CSharpParameters = methodParameters,
+                SqlParameters = commandParameters,
+            };
 
-        WriteLine("Analyze Done: {0}", name);
+            var recordColumns = new List<RecordProperty>();
+
+            var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
+            var columnsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+            if (columnsRows.Count == 0)
+            {
+                methodSync.HasResultSet = false;
+                methodSync.DataType = "int";
+            }
+            else
+            {
+                String recordName = GetUniqueName(GetPascalCase(name + "Row"), codeFile.TypeNames);
+                var record = new Record
+                {
+                    CSharpName = recordName,
+                };
+
+                foreach (var columnRow in columnsRows)
+                {
+                    if (await AnalyzeResultAsync(server, columnRow) is { } recordProperty)
+                    {
+                        record.Properties.Add(recordProperty);
+                    }
+                }
+
+                methodSync.HasResultSet = true;
+                methodSync.ResultSetRecord = record;
+                methodSync.DataType = $"List<{recordName}>";
+                codeFile.Records.Add(record);
+            }
+            codeFile.Methods.Add(methodSync);
+            WriteLine("Analyze Done: {0}", name);
+        }
+        catch (Exception ex)
+        {
+            WriteLine("Analyze Error: {0}", name);
+            WriteLine(ex);
+        }
     }
 
     private async Task<(MethodParameter, CommandParameter)> AnalyzeParameterAsync(SqlConnection server, String Name, int SystemTypeId, int UserTypeId, short? maxLength)

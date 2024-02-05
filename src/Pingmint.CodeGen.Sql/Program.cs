@@ -27,126 +27,111 @@ internal sealed class Program
         // TODO: Add CancellationToken to all async methods
         // TODO: Add optional Transaction to all methods
 
-
-        // TODO: reenable ConsoleSynchronizationContext
-        // var sync = new ConsoleSynchronizationContext();
-        // sync.Go(async () =>
-        // {
-        var codeFile = new CodeFile();
-        codeFile.Namespace = config.CSharp.Namespace;
-        codeFile.ClassName = config.CSharp.ClassName;
-        codeFile.TypeKeyword = config.CSharp.TypeKeyword;
-
-        if (config.Databases?.Items is { } databases)
+        var sync = new ConsoleSynchronizationContext();
+        sync.Go(async () =>
         {
-            foreach (var database in databases)
+            var codeFile = new CodeFile();
+            codeFile.Namespace = config.CSharp.Namespace;
+            codeFile.ClassName = config.CSharp.ClassName;
+            codeFile.TypeKeyword = config.CSharp.TypeKeyword;
+
+            if (config.Databases?.Items is { } databases)
             {
-                var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
-                var analyzer = new Analyzer(databaseName, codeFile, config);
-
-                // TODO: reenable ConsoleSynchronizationContext
-                // var tasks = new Task<int>[chunkSize];
-                // for (int i = 0; i < tasks.Length; i++)
-                // {
-                //     tasks[i] = Task.FromResult(i);
-                // }
-
-                if (database.Statements?.Items is { } statements)
+                foreach (var database in databases)
                 {
-                    foreach (var statement in statements)
-                    {
-                        var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
-
-                        // TODO: reenable ConsoleSynchronizationContext
-                        // var index = await await Task.WhenAny(tasks);
-                        // tasks[index] = analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters).ContinueWith(_ => index);
-
-                        await analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters);
-                    }
-                }
-
-                if (database.Procedures?.Included is { } included)
-                {
-                    List<(String Schema, String Name)> excludeSchemaProcList = new();
-                    if (database.Procedures?.Excluded is { } excludeProcs)
-                    {
-                        foreach (var item in excludeProcs)
-                        {
-                            var (schema, procName) = ParseSchemaItem(item.Text);
-                            if (schema is not null && procName is not null)
-                            {
-                                excludeSchemaProcList.Add((schema, procName));
-                            }
-                        }
-                    }
-                    Boolean IsExcluded(String procSchema, String procName)
-                    {
-                        foreach (var (exSchema, exName) in excludeSchemaProcList)
-                        {
-                            if (procSchema != exSchema) continue;
-                            if (procName == exName) return true;
-                            if (exName == "*") return true;
-                        }
-                        return false;
-                    }
-
-                    var actualIncluded = new List<(String, String, Int32)>();
-                    foreach (var include in included)
-                    {
-                        if (String.IsNullOrEmpty(include.Text)) { continue; }
-                        using var sql = new SqlConnection(config.Connection.ConnectionString);
-                        await sql.OpenAsync();
-                        await sql.ChangeDatabaseAsync(databaseName);
-                        var (schema, procName) = ParseSchemaItem(include.Text);
-                        if (procName == "*")
-                        {
-                            foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
-                            {
-                                if (IsExcluded(schema, row.Name)) { continue; }
-                                var newProc = new Procedure();
-                                actualIncluded.Add((schema, row.Name, row.ObjectId));
-                            }
-                        }
-                        else
-                        {
-                            if (IsExcluded(schema, procName)) { continue; }
-                            WriteLine("Proxy.GetProcedureForSchemaAsync");
-                            if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
-                            actualIncluded.Add((schema, procName, row.ObjectId));
-                        }
-                    }
+                    var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
+                    var analyzer = new Analyzer(databaseName, codeFile, config);
 
                     // TODO: reenable ConsoleSynchronizationContext
-                    // for (int i = 0; i < tasks.Length; i++)
-                    // {
-                    //     tasks[i] = Task.FromResult(i);
-                    // }
-                    foreach (var (schema, procName, objectId) in actualIncluded)
+                    var tasks = new Task<int>[chunkSize];
+                    for (int i = 0; i < tasks.Length; i++)
                     {
-                        // TODO: reenable ConsoleSynchronizationContext
-                        // var index = await await Task.WhenAny(tasks);
-                        // tasks[index] = analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId).ContinueWith(_ => index);
-
-                        await analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId);
+                        tasks[i] = Task.FromResult(i);
                     }
+
+                    if (database.Statements?.Items is { } statements)
+                    {
+                        foreach (var statement in statements)
+                        {
+                            var parameters = statement.Parameters?.Items.Select(p => new SqlStatementParameter(p.Name, p.Type)).ToList() ?? new();
+
+                            var index = await await Task.WhenAny(tasks);
+                            tasks[index] = analyzer.AnalyzeStatementAsync(databaseName, statement.Name, statement.Text, parameters).ContinueWith(_ => index);
+                        }
+                    }
+
+                    if (database.Procedures?.Included is { } included)
+                    {
+                        List<(String Schema, String Name)> excludeSchemaProcList = new();
+                        if (database.Procedures?.Excluded is { } excludeProcs)
+                        {
+                            foreach (var item in excludeProcs)
+                            {
+                                var (schema, procName) = ParseSchemaItem(item.Text);
+                                if (schema is not null && procName is not null)
+                                {
+                                    excludeSchemaProcList.Add((schema, procName));
+                                }
+                            }
+                        }
+                        Boolean IsExcluded(String procSchema, String procName)
+                        {
+                            foreach (var (exSchema, exName) in excludeSchemaProcList)
+                            {
+                                if (procSchema != exSchema) continue;
+                                if (procName == exName) return true;
+                                if (exName == "*") return true;
+                            }
+                            return false;
+                        }
+
+                        var actualIncluded = new List<(String, String, Int32)>();
+                        foreach (var include in included)
+                        {
+                            if (String.IsNullOrEmpty(include.Text)) { continue; }
+                            using var sql = new SqlConnection(config.Connection.ConnectionString);
+                            await sql.OpenAsync();
+                            await sql.ChangeDatabaseAsync(databaseName);
+                            var (schema, procName) = ParseSchemaItem(include.Text);
+                            if (procName == "*")
+                            {
+                                foreach (var row in await Proxy.GetProceduresForSchemaAsync(sql, schema))
+                                {
+                                    if (IsExcluded(schema, row.Name)) { continue; }
+                                    var newProc = new Procedure();
+                                    actualIncluded.Add((schema, row.Name, row.ObjectId));
+                                }
+                            }
+                            else
+                            {
+                                if (IsExcluded(schema, procName)) { continue; }
+                                WriteLine("Proxy.GetProcedureForSchemaAsync");
+                                if ((await Proxy.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
+                                actualIncluded.Add((schema, procName, row.ObjectId));
+                            }
+                        }
+
+                        foreach (var (schema, procName, objectId) in actualIncluded)
+                        {
+                            var index = await await Task.WhenAny(tasks);
+                            tasks[index] = analyzer.AnalyzeProcedureAsync(databaseName, schema, procName, objectId).ContinueWith(_ => index);
+                        }
+                    }
+
+                    await Task.WhenAll(tasks);
                 }
-
-                // TODO: reenable ConsoleSynchronizationContext
-                // await Task.WhenAll(tasks);
             }
-        }
 
-        using TextWriter textWriter = args.Length switch
-        {
-            > 1 => new StreamWriter(args[1]),
-            _ => Console.Out
-        };
-        textWriter.Write(codeFile.GenerateCode());
-        await textWriter.FlushAsync();
-        textWriter.Close();
+            using TextWriter textWriter = args.Length switch
+            {
+                > 1 => new StreamWriter(args[1]),
+                _ => Console.Out
+            };
+            textWriter.Write(codeFile.GenerateCode());
+            await textWriter.FlushAsync();
+            textWriter.Close();
 
-        // TODO: reenable ConsoleSynchronizationContext
-        // });
+        });
 
         var t1 = DateTime.Now;
         Console.WriteLine($"Elapsed: {(t1 - t0).TotalSeconds:0.0} seconds");

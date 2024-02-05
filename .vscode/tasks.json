@@ -91,7 +91,10 @@
                 "build",
                 "dotnet run"
             ],
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "presentation": {
+                "clear": true
+            }
         }
     ]
 }
