@@ -36,6 +36,7 @@ public class CodeFile
         code.UsingNamespace("System.Threading");
         code.UsingNamespace("System.Threading.Tasks");
         code.UsingNamespace("Microsoft.Data.SqlClient");
+        code.Line($"using static {Namespace}.FileMethods;");
         code.Line();
 
         code.Line("#nullable enable");
@@ -51,12 +52,13 @@ public class CodeFile
             else { code.Line(); }
 
             string? rowClassName = record.CSharpName;
+            var tupleType = "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
 
             IDisposable recordClass = this.TypeKeyword switch
             {
-                "class" => code.PartialClass("public", rowClassName),
-                "record class" => code.PartialRecordClass("public", rowClassName),
-                "record struct" => code.PartialRecordStruct("public", rowClassName),
+                "class" => code.PartialClass("public", rowClassName, $"IReading<{rowClassName}, {tupleType}>"),
+                "record class" => code.PartialRecordClass("public", rowClassName, $"IReading<{rowClassName}, {tupleType}>"),
+                "record struct" => code.PartialRecordStruct("public", rowClassName), // TODO: implement IReading alternative for record struct
                 _ => throw new NotImplementedException("Unknown type keyword: " + this.TypeKeyword ?? "null" + ". Expected: 'class' or 'record class' or 'record struct'."),
             };
             using (recordClass)
@@ -64,6 +66,60 @@ public class CodeFile
                 foreach (var property in record.Properties)
                 {
                     code.Line("public required {0} {1} {{ get; init; }}", property.FieldType, property.FieldName);
+                }
+                code.Line();
+
+                code.StartMethod($"static", tupleType, $"IReading<{rowClassName}, {tupleType}>.Ordinals", "SqlDataReader reader");
+                code.Text($" => (");
+                code.Line();
+                code.Indent();
+                using (var it = record.Properties.GetEnumerator())
+                {
+                    if (it.MoveNext())
+                    {
+                        while (true)
+                        {
+                            code.StartLine();
+                            code.Text($"reader.GetOrdinal(\"{it.Current.ColumnName}\")");
+                            if (it.MoveNext())
+                            {
+                                code.Text(",");
+                                code.Line();
+                                continue;
+                            }
+                            code.Line();
+                            break;
+                        }
+                    }
+                }
+                code.Dedent();
+                code.Line(");");
+                code.Line();
+
+                code.StartLine();
+                code.Text($"static {rowClassName} IReading<{rowClassName}, {tupleType}>.Read(SqlDataReader reader, {tupleType} ordinals)");
+                code.Text($" => new {record.CSharpName}");
+                code.Line();
+                using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
+                {
+                    int i = 1;
+                    foreach (var property in record.Properties)
+                    {
+                        var fieldName = property.FieldName;
+                        var IsValueType = property.FieldTypeIsValueType;
+                        var ColumnIsNullable = property.ColumnIsNullable;
+                        var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                        var columnName = property.ColumnName;
+                        var ordinalVarName = $"ordinals.Item{i++}";
+                        var line = (IsValueType, ColumnIsNullable) switch
+                        {
+                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                        };
+                        code.Line(line);
+                    }
                 }
             }
             if (record.IsTableType)
@@ -107,13 +163,47 @@ public class CodeFile
                 }
             }
         }
-
         code.Line();
-        using (code.PartialClass("public", ClassName))
-        {
-            code.Text(
+
+        code.Text(
 """
-	private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
+file interface IReading<TRow, OrdinalsTuple>
+{
+    static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
+    static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
+}
+
+file static class FileMethods
+{
+    public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+	public static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+
+	public static List<TRow> ExecuteCommand<TRow, OrdinalsTuple>(SqlCommand cmd) where TRow : IReading<TRow, OrdinalsTuple>
+	{
+		var result = new List<TRow>();
+		using var reader = cmd.ExecuteReader();
+		if (!reader.Read()) { return result; }
+		var ords = TRow.Ordinals(reader);
+		do { result.Add(TRow.Read(reader, ords)); } while (reader.Read());
+		return result;
+	}
+
+	public static async Task<List<TRow>> ExecuteCommandAsync<TRow, OrdinalsTuple>(SqlCommand cmd) where TRow : IReading<TRow, OrdinalsTuple>
+	{
+		var result = new List<TRow>();
+		using var reader = await cmd.ExecuteReaderAsync();
+		if (!await reader.ReadAsync()) { return result; }
+		var ords = TRow.Ordinals(reader);
+		do { result.Add(TRow.Read(reader, ords)); } while (await reader.ReadAsync());
+		return result;
+	}
+
+	public static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
+	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
+
+	public static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
 	{
 		Size = size,
 		Direction = direction,
@@ -122,7 +212,7 @@ public class CodeFile
 		Value = value ?? DBNull.Value,
 	};
 
-	private static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
+	public static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, String typeName, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
 	{
 		Size = size,
 		Direction = direction,
@@ -131,37 +221,14 @@ public class CodeFile
 		ParameterName = parameterName,
 		Value = value ?? DBNull.Value,
 	};
+}
 
-	private static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-	private static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-	private static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
-	private static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+"""
+);
 
-	private static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text, };
-	private static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text, };
-
-	private static List<T> ExecuteCommand<T, O>(SqlCommand cmd, Func<SqlDataReader, O> ordinals, Func<SqlDataReader, O, T> readRow)
-	{
-		var result = new List<T>();
-		using var reader = cmd.ExecuteReader();
-		if (!reader.Read()) { return result; }
-		var ords = ordinals(reader);
-		do { result.Add(readRow(reader, ords)); } while (reader.Read());
-		return result;
-	}
-
-	private static async Task<List<T>> ExecuteCommandAsync<T, O>(SqlCommand cmd, Func<SqlDataReader, O> ordinals, Func<SqlDataReader, O, T> readRow)
-	{
-		var result = new List<T>();
-		using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-		if (!await reader.ReadAsync().ConfigureAwait(false)) { return result; }
-		var ords = ordinals(reader);
-		do { result.Add(readRow(reader, ords)); } while (await reader.ReadAsync().ConfigureAwait(false));
-		return result;
-	}
-
-""");
-            code.Line();
+        code.Line();
+        using (code.PartialClass("public", ClassName))
+        {
             var isFirstMethod = true;
             foreach (var method in Methods.OrderBy(i => i.Name))
             {
@@ -191,51 +258,6 @@ public class CodeFile
                     // Ordinals/ReadRow/Command, which are shared between sync and async methods
                     if (isFirst)
                     {
-                        if (method.ResultSetRecord is { } record)
-                        {
-                            var tuples = "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
-                            code.StartMethod($"private static", tuples, method.Name + "Ordinals", "SqlDataReader reader");
-                            code.Text($" => (");
-                            code.Line();
-                            code.Indent();
-                            var comma = "";
-                            foreach (var recordProperty in record.Properties)
-                            {
-                                code.Line($"{comma}reader.GetOrdinal(\"{recordProperty.ColumnName}\")");
-                                comma = ", ";
-                            }
-                            code.Dedent();
-                            code.Line(");");
-                            code.Line();
-
-                            code.StartMethod($"private static{asyncKeyword}", record.CSharpName, method.Name + "ReadRow", $"SqlDataReader reader, {tuples} ords");
-
-                            code.Text($" => new {record.CSharpName}");
-                            code.Line();
-                            using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
-                            {
-                                int i = 1;
-                                foreach (var property in record.Properties)
-                                {
-                                    var fieldName = property.FieldName;
-                                    var IsValueType = property.FieldTypeIsValueType;
-                                    var ColumnIsNullable = property.ColumnIsNullable;
-                                    var fieldTypeForGeneric = property.FieldTypeForGeneric;
-                                    var columnName = property.ColumnName;
-                                    var ordinalVarName = $"ords.Item{i++}";
-                                    var line = (IsValueType, ColumnIsNullable) switch
-                                    {
-                                        (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                        (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                                    };
-                                    code.Line(line);
-                                }
-                            }
-                            code.Line();
-                        }
-
                         // Command
                         var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
                         if (commandParameters.Count == 0)
@@ -281,8 +303,10 @@ public class CodeFile
                         if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
                         using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
                         {
+                            var rowType = method.ResultSetRecord.CSharpName;
+                            var tupleType = "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
                             code.Line($"using var cmd = {method.Name}Command({argumentsString});");
-                            code.Line("return " + (isAsync ? "await " : "") + "ExecuteCommand" + (isAsync ? "Async" : "") + "(cmd, " + method.Name + "Ordinals, " + method.Name + "ReadRow)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
+                            code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType},{tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
                         }
                         code.Line();
                     }
