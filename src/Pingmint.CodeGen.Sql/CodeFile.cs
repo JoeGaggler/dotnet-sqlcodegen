@@ -52,7 +52,7 @@ public class CodeFile
             else { code.Line(); }
 
             string? rowClassName = record.CSharpName;
-            var tupleType = "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
+            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
 
             IDisposable recordClass = this.TypeKeyword switch
             {
@@ -304,7 +304,7 @@ file static class FileMethods
                         using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
                         {
                             var rowType = method.ResultSetRecord.CSharpName;
-                            var tupleType = "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
+                            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";                            
                             code.Line($"using var cmd = {method.Name}Command({argumentsString});");
                             code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType},{tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
                         }
