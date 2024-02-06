@@ -52,7 +52,10 @@ public class CodeFile
             else { code.Line(); }
 
             string? rowClassName = record.CSharpName;
-            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
+            var (ordinalsArg, tupleType) = record.Properties.Count switch {
+                1 => ("ordinal", "int"),
+                _ => ("ordinals", "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")"),
+            };
 
             IDisposable recordClass = this.TypeKeyword switch
             {
@@ -97,7 +100,7 @@ public class CodeFile
                 code.Line();
 
                 code.StartLine();
-                code.Text($"static {rowClassName} IReading<{rowClassName}, {tupleType}>.Read(SqlDataReader reader, {tupleType} ordinals)");
+                code.Text($"static {rowClassName} IReading<{rowClassName}, {tupleType}>.Read(SqlDataReader reader, {tupleType} {ordinalsArg})");
                 code.Text($" => new {record.CSharpName}");
                 code.Line();
                 using (code.CreateBraceScope(preamble: null, withClosingBrace: ";"))
@@ -110,7 +113,7 @@ public class CodeFile
                         var ColumnIsNullable = property.ColumnIsNullable;
                         var fieldTypeForGeneric = property.FieldTypeForGeneric;
                         var columnName = property.ColumnName;
-                        var ordinalVarName = $"ordinals.Item{i++}";
+                        var ordinalVarName = record.Properties.Count == 1 ? ordinalsArg : $"{ordinalsArg}.Item{i++}";
                         var line = (IsValueType, ColumnIsNullable) switch
                         {
                             (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
