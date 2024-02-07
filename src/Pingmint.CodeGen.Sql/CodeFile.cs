@@ -206,6 +206,18 @@ file static class FileMethods
 
 	public static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
+    public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
+	{
+		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
+		cmd.Parameters.AddRange(parameters);
+		return cmd;
+	}
+	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text, SqlParameter[] parameters)
+    {
+		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
+		cmd.Parameters.AddRange(parameters);
+		return cmd;
+	}
 
 	public static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
 	{
@@ -270,9 +282,7 @@ file static class FileMethods
                         }
                         else
                         {
-                            using var _2 = code.Method($"private static", "SqlCommand", method.Name + "Command", parametersString);
-                            code.Line($"var cmd = {cmdMethod}(connection, \"{commandText}\");");
-                            code.Line($"cmd.Parameters.AddRange([");
+                            code.Line($"private static SqlCommand {method.Name}Command({parametersString}) => {cmdMethod}(connection, \"{commandText}\", [");
                             code.Indent();
                             foreach (var parameter in commandParameters)
                             {
@@ -295,7 +305,6 @@ file static class FileMethods
                             }
                             code.Dedent();
                             code.Line("]);");
-                            code.Return("cmd");
                         }
                         code.Line();
                     }

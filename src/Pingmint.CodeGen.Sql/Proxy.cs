@@ -353,6 +353,18 @@ file static class FileMethods
 
 	public static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
+    public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
+	{
+		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
+		cmd.Parameters.AddRange(parameters);
+		return cmd;
+	}
+	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text, SqlParameter[] parameters)
+    {
+		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
+		cmd.Parameters.AddRange(parameters);
+		return cmd;
+	}
 
 	public static SqlParameter CreateParameter(String parameterName, Object? value, SqlDbType sqlDbType, Int32 size = -1, ParameterDirection direction = ParameterDirection.Input) => new()
 	{
@@ -376,15 +388,10 @@ file static class FileMethods
 
 public partial class Proxy
 {
-	private static SqlCommand DmDescribeFirstResultSetCommand(SqlConnection connection, String? text, String? parameters)
-	{
-		var cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
-		cmd.Parameters.AddRange([
-			CreateParameter("@text", text, SqlDbType.NVarChar, 8000),
-			CreateParameter("@parameters", parameters, SqlDbType.NVarChar, 8000),
-		]);
-		return cmd;
-	}
+	private static SqlCommand DmDescribeFirstResultSetCommand(SqlConnection connection, String? text, String? parameters) => CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal", [
+		CreateParameter("@text", text, SqlDbType.NVarChar, 8000),
+		CreateParameter("@parameters", parameters, SqlDbType.NVarChar, 8000),
+	]);
 
 	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
 	{
@@ -398,14 +405,9 @@ public partial class Proxy
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetRow,(int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand DmDescribeFirstResultSetForObjectCommand(SqlConnection connection, Int32? objectid)
-	{
-		var cmd = CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal");
-		cmd.Parameters.AddRange([
-			CreateParameter("@objectid", objectid, SqlDbType.Int),
-		]);
-		return cmd;
-	}
+	private static SqlCommand DmDescribeFirstResultSetForObjectCommand(SqlConnection connection, Int32? objectid) => CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal", [
+		CreateParameter("@objectid", objectid, SqlDbType.Int),
+	]);
 
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
 	{
@@ -419,14 +421,9 @@ public partial class Proxy
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow,(int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id)
-	{
-		var cmd = CreateStatement(connection, "SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id");
-		cmd.Parameters.AddRange([
-			CreateParameter("@id", id, SqlDbType.Int),
-		]);
-		return cmd;
-	}
+	private static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id", [
+		CreateParameter("@id", id, SqlDbType.Int),
+	]);
 
 	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
 	{
@@ -440,15 +437,10 @@ public partial class Proxy
 		return await ExecuteCommandAsync<GetParametersForObjectRow,(int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc)
-	{
-		var cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name");
-		cmd.Parameters.AddRange([
-			CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
-			CreateParameter("@proc", proc, SqlDbType.VarChar, 8000),
-		]);
-		return cmd;
-	}
+	private static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name", [
+		CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
+		CreateParameter("@proc", proc, SqlDbType.VarChar, 8000),
+	]);
 
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
 	{
@@ -462,14 +454,9 @@ public partial class Proxy
 		return await ExecuteCommandAsync<GetProcedureForSchemaRow,(int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema)
-	{
-		var cmd = CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name");
-		cmd.Parameters.AddRange([
-			CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
-		]);
-		return cmd;
-	}
+	private static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name", [
+		CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
+	]);
 
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
 	{
@@ -497,14 +484,9 @@ public partial class Proxy
 		return await ExecuteCommandAsync<GetSchemasRow,(int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetSysTypeCommand(SqlConnection connection, Int32? id)
-	{
-		var cmd = CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id");
-		cmd.Parameters.AddRange([
-			CreateParameter("@id", id, SqlDbType.Int),
-		]);
-		return cmd;
-	}
+	private static SqlCommand GetSysTypeCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id", [
+		CreateParameter("@id", id, SqlDbType.Int),
+	]);
 
 	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
 	{
@@ -532,14 +514,9 @@ public partial class Proxy
 		return await ExecuteCommandAsync<GetSysTypesRow,(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetTableTypeColumnsCommand(SqlConnection connection, Int32? id)
-	{
-		var cmd = CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.schema_id, T.system_type_id, T.user_type_id from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id");
-		cmd.Parameters.AddRange([
-			CreateParameter("@id", id, SqlDbType.Int),
-		]);
-		return cmd;
-	}
+	private static SqlCommand GetTableTypeColumnsCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.schema_id, T.system_type_id, T.user_type_id from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id", [
+		CreateParameter("@id", id, SqlDbType.Int),
+	]);
 
 	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
 	{
