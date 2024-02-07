@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.33</Version>
+    <Version>0.34</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
-    <PackageReference Include="YamlDotNet" Version="13.7.1" />
+    <PackageReference Include="YamlDotNet" Version="15.1.1" />
   </ItemGroup>
 
 </Project>

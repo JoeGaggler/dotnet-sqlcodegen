@@ -15,6 +15,9 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "presentation": {
+                "clear": true
             }
         },
         {
@@ -54,6 +57,9 @@
             "problemMatcher": "$msCompile",
             "options": {
                 "cwd": "${workspaceFolder}/src/Pingmint.CodeGen.Sql"
+            },
+            "presentation": {
+                "clear": true
             }
         },
         {

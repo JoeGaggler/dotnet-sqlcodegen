@@ -62,7 +62,7 @@ public class CodeFile
             {
                 "class" => code.PartialClass("public", rowClassName, $"IReading<{rowClassName}, {tupleType}>"),
                 "record class" => code.PartialRecordClass("public", rowClassName, $"IReading<{rowClassName}, {tupleType}>"),
-                "record struct" => code.PartialRecordStruct("public", rowClassName), // TODO: implement IReading alternative for record struct
+                "record struct" => code.PartialRecordStruct("public", rowClassName, $"IReading<{rowClassName}, {tupleType}>"),
                 _ => throw new NotImplementedException("Unknown type keyword: " + this.TypeKeyword ?? "null" + ". Expected: 'class' or 'record class' or 'record struct'."),
             };
             using (recordClass)
