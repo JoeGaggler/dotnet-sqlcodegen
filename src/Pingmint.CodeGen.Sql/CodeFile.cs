@@ -52,7 +52,8 @@ public class CodeFile
             else { code.Line(); }
 
             string? rowClassName = record.CSharpName;
-            var (ordinalsArg, tupleType) = record.Properties.Count switch {
+            var (ordinalsArg, tupleType) = record.Properties.Count switch
+            {
                 1 => ("ordinal", "int"),
                 _ => ("ordinals", "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")"),
             };
@@ -301,38 +302,29 @@ file static class FileMethods
 
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
-                    if (method.HasResultSet)
+                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
                     {
-                        if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
-                        using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
+                        if (method.HasResultSet)
                         {
+                            if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
                             var rowType = method.ResultSetRecord.CSharpName;
-                            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";                            
+                            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
                             code.Line($"using var cmd = {method.Name}Command({argumentsString});");
                             code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType},{tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
                         }
-                        code.Line();
-                    }
-                    else if (method.HasResultSet == false)
-                    {
-                        if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
-
-                        String expressionBody;
-                        if (isAsync)
+                        else if (method.HasResultSet == false)
                         {
-                            expressionBody = $"await cmd.ExecuteNonQueryAsync().ConfigureAwait(false)";
+                            if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
+
+                            code.Line($"using var cmd = {method.Name}Command({argumentsString});");
+                            code.Line($"return {(isAsync ? "await " : "")}cmd.ExecuteNonQuery{(isAsync ? "Async" : "")}(){(isAsync ? ".ConfigureAwait(false)" : "")};");
                         }
                         else
                         {
-                            expressionBody = "cmd.ExecuteNonQuery()";
+                            throw new NotImplementedException("Unknown method return type: " + method.DataType ?? "null");
                         }
-                        code.MethodExpression($"private static{asyncKeyword}", returnType, actualMethodName, "SqlCommand cmd", expressionBody);
-                        code.Line();
                     }
-                    else
-                    {
-                        throw new NotImplementedException("Unknown method return type: " + method.DataType ?? "null");
-                    }
+                    code.Line();
                 }
             }
         }
