@@ -68,8 +68,8 @@ public class Analyzer
 
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
-        WriteLine("Proxy.GetParametersForObjectAsync");
-        foreach (var procParam in await Proxy.GetParametersForObjectAsync(server, procId))
+        WriteLine("Database.GetParametersForObjectAsync");
+        foreach (var procParam in await Database.GetParametersForObjectAsync(server, procId))
         {
             var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId, procParam.MaxLength);
             methodParameters.Add(methodParameter);
@@ -87,8 +87,8 @@ public class Analyzer
 
         var recordColumns = new List<RecordProperty>();
 
-        WriteLine("Proxy.DmDescribeFirstResultSetForObjectAsync");
-        var columnsRows = await Proxy.DmDescribeFirstResultSetForObjectAsync(server, procId);
+        WriteLine("Database.DmDescribeFirstResultSetForObjectAsync");
+        var columnsRows = await Database.DmDescribeFirstResultSetForObjectAsync(server, procId);
         if (columnsRows.Count == 0)
         {
             methodSync.HasResultSet = false;
@@ -149,7 +149,7 @@ public class Analyzer
             var recordColumns = new List<RecordProperty>();
 
             var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
-            var columnsRows = await Proxy.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+            var columnsRows = await Database.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
             if (columnsRows.Count == 0)
             {
                 methodSync.HasResultSet = false;
@@ -242,8 +242,8 @@ public class Analyzer
     private async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection server)
     {
         if (_sysTypes is not null) return _sysTypes;
-        WriteLine("Proxy.GetSysTypesAsync");
-        return _sysTypes ??= await Proxy.GetSysTypesAsync(server);
+        WriteLine("Database.GetSysTypesAsync");
+        return _sysTypes ??= await Database.GetSysTypesAsync(server);
     }
 
     private readonly SortedDictionary<String, GetSysTypesRow> _sysTypesByName = new();
@@ -251,7 +251,7 @@ public class Analyzer
     {
         if (_sysTypesByName.TryGetValue(typeName, out var sysType)) { return sysType; }
 
-        var xxx = Proxy.DmDescribeFirstResultSet(server, $"DECLARE @x {typeName}; SELECT @x AS x;", "");
+        var xxx = Database.DmDescribeFirstResultSet(server, $"DECLARE @x {typeName}; SELECT @x AS x;", "");
         if (xxx.Count != 1) throw new Exception("TODO: handle this");
         var yyy = xxx[0];
 
@@ -264,8 +264,8 @@ public class Analyzer
     private async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection server)
     {
         if (_tableTypes is not null) return _tableTypes;
-        WriteLine("Proxy.GetTableTypesAsync");
-        return _tableTypes ??= await Proxy.GetTableTypesAsync(server);
+        WriteLine("Database.GetTableTypesAsync");
+        return _tableTypes ??= await Database.GetTableTypesAsync(server);
     }
 
     private SortedDictionary<Int32, GetTableTypesRow>? _tableTypesByObjectId;
@@ -291,8 +291,8 @@ public class Analyzer
         var types = await GetTableTypesAsync(server);
         if (types.FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } tableType) { throw new InvalidOperationException($"Table type not found: {systemTypeId}, {userTypeId}"); }
 
-        WriteLine("Proxy.GetTableTypeColumnsAsync");
-        return await Proxy.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId);
+        WriteLine("Database.GetTableTypeColumnsAsync");
+        return await Database.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId);
     }
 
     private SortedDictionary<(Int32, Int32), GetSysTypesRow>? _sysTypesById;

@@ -1,7 +1,7 @@
 connection: Data Source=localhost;Initial Catalog=tempdb;Integrated Security=False;User ID=sa;Password=SqlServerIs#1;Encrypt=False;Application Name="Stored Procedure Data Context Generator"
 csharp:
   namespace: Pingmint.CodeGen.Sql
-  class: Proxy
+  class: Database
   row type: record class
 databases:
   - database: tempdb

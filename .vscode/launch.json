@@ -11,7 +11,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/src/Pingmint.CodeGen.Sql/bin/Debug/net8.0/Pingmint.CodeGen.Sql.dll",
-            "args": ["Database.yml", "Proxy.cs"],
+            "args": ["Database.yml", "Database.cs"],
             "cwd": "${workspaceFolder}/src/Pingmint.CodeGen.Sql",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

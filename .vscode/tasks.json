@@ -52,7 +52,7 @@
                 "run",
                 "--",
                 "Database.yml",
-                "Proxy.cs"
+                "Database.cs"
             ],
             "problemMatcher": "$msCompile",
             "options": {
