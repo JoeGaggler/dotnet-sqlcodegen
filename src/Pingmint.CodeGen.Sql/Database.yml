@@ -11,6 +11,10 @@ databases:
     #   exclude:
     #     - pingmint.*
     statements:
+      - name: ZTestSelect1
+        text: SELECT 1 AS [Blah]
+      - name: ZTestUpdate1
+        text: UPDATE sys.types SET name = 'blah'
       - name: GetSysTypes
         text: >
           SELECT

@@ -95,7 +95,7 @@ internal sealed class Program
                             var (schema, procName) = ParseSchemaItem(include.Text);
                             if (procName == "*")
                             {
-                                foreach (var row in await Database.GetProceduresForSchemaAsync(sql, schema))
+                                foreach (var row in await Database.GetProceduresForSchemaAsync(sql, schema, CancellationToken.None))
                                 {
                                     if (IsExcluded(schema, row.Name)) { continue; }
                                     var newProc = new Procedure();
@@ -106,7 +106,7 @@ internal sealed class Program
                             {
                                 if (IsExcluded(schema, procName)) { continue; }
                                 WriteLine("Database.GetProcedureForSchemaAsync");
-                                if ((await Database.GetProcedureForSchemaAsync(sql, schema, procName)).FirstOrDefault() is not { } row) { continue; }
+                                if ((await Database.GetProcedureForSchemaAsync(sql, schema, procName, CancellationToken.None)).FirstOrDefault() is not { } row) { continue; }
                                 actualIncluded.Add((schema, procName, row.ObjectId));
                             }
                         }

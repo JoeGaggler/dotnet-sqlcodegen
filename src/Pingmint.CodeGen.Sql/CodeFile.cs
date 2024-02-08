@@ -194,13 +194,13 @@ file static class FileMethods
 		return result;
 	}
 
-	public static async Task<List<TRow>> ExecuteCommandAsync<TRow, OrdinalsTuple>(SqlCommand cmd) where TRow : IReading<TRow, OrdinalsTuple>
+	public static async Task<List<TRow>> ExecuteCommandAsync<TRow, OrdinalsTuple>(SqlCommand cmd, CancellationToken cancellationToken) where TRow : IReading<TRow, OrdinalsTuple>
 	{
 		var result = new List<TRow>();
-		using var reader = await cmd.ExecuteReaderAsync();
-		if (!await reader.ReadAsync()) { return result; }
+		using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+		if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) { return result; }
 		var ords = TRow.Ordinals(reader);
-		do { result.Add(TRow.Read(reader, ords)); } while (await reader.ReadAsync());
+		do { result.Add(TRow.Read(reader, ords)); } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 		return result;
 	}
 
@@ -262,11 +262,19 @@ file static class FileMethods
                     firstFlag = false;
 
                     var methodParametersWithConnection = csharpParameters.ToList(); // NOTE THE COPY!
+                    var methodParametersWithConnectionWithCancellation = csharpParameters.ToList(); // NOTE THE COPY!
                     var methodParametersWithCommand = csharpParameters.ToList(); // NOTE THE COPY!
                     methodParametersWithConnection.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
+                    methodParametersWithConnectionWithCancellation.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
+                    methodParametersWithConnectionWithCancellation.Add(new MethodParameter() { CSharpType = "CancellationToken", CSharpName = "cancellationToken" });
                     methodParametersWithCommand.Insert(0, new MethodParameter() { CSharpType = "SqlCommand", CSharpName = "cmd" });
-                    var parametersString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpType} {i.CSharpName}"));
-                    var argumentsString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpName}"));
+
+                    var commandParametersString = String.Join(", ", methodParametersWithCommand.Select(i => $"{i.CSharpType} {i.CSharpName}"));
+                    var connectionParametersString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpType} {i.CSharpName}"));
+                    var connectionParametersWithCancellationString = String.Join(", ", methodParametersWithConnectionWithCancellation.Select(i => $"{i.CSharpType} {i.CSharpName}"));
+
+                    var connectionArgumentsString = String.Join(", ", methodParametersWithConnection.Select(i => $"{i.CSharpName}"));
+                    var connectionArgumentsWithCancellationString = String.Join(", ", methodParametersWithConnectionWithCancellation.Select(i => $"{i.CSharpName}"));
 
                     var asyncKeyword = isAsync ? " async" : "";
                     var returnType = isAsync ? $"Task<{method.DataType}>" : method.DataType;
@@ -278,11 +286,11 @@ file static class FileMethods
                         var cmdMethod = method.IsStoredProc ? "CreateStoredProcedure" : "CreateStatement";
                         if (commandParameters.Count == 0)
                         {
-                            code.MethodExpression($"private static", "SqlCommand", method.Name + "Command", parametersString, $"{cmdMethod}(connection, \"{commandText}\")");
+                            code.MethodExpression($"private static", "SqlCommand", method.Name + "Command", connectionParametersString, $"{cmdMethod}(connection, \"{commandText}\")");
                         }
                         else
                         {
-                            code.Line($"private static SqlCommand {method.Name}Command({parametersString}) => {cmdMethod}(connection, \"{commandText}\", [");
+                            code.Line($"private static SqlCommand {method.Name}Command({connectionParametersString}) => {cmdMethod}(connection, \"{commandText}\", [");
                             code.Indent();
                             foreach (var parameter in commandParameters)
                             {
@@ -311,22 +319,30 @@ file static class FileMethods
 
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
-                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, parametersString))
+                    var actualParamsString = isAsync ? connectionParametersWithCancellationString : connectionParametersString;
+                    using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, actualParamsString))
                     {
                         if (method.HasResultSet)
                         {
                             if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
                             var rowType = method.ResultSetRecord.CSharpName;
                             var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
-                            code.Line($"using var cmd = {method.Name}Command({argumentsString});");
-                            code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType}, {tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
+                            code.Line($"using var cmd = {method.Name}Command({connectionArgumentsString});");
+                            if (isAsync)
+                            {
+                                code.Line($"return await ExecuteCommandAsync<{rowType}, {tupleType}>(cmd, cancellationToken).ConfigureAwait(false);");
+                            }
+                            else
+                            {
+                                code.Line($"return ExecuteCommand<{rowType}, {tupleType}>(cmd);");
+                            }
                         }
                         else if (method.HasResultSet == false)
                         {
                             if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
 
-                            code.Line($"using var cmd = {method.Name}Command({argumentsString});");
-                            code.Line($"return {(isAsync ? "await " : "")}cmd.ExecuteNonQuery{(isAsync ? "Async" : "")}(){(isAsync ? ".ConfigureAwait(false)" : "")};");
+                            code.Line($"using var cmd = {method.Name}Command({connectionArgumentsString});");
+                            code.Line($"return {(isAsync ? "await " : "")}cmd.ExecuteNonQuery{(isAsync ? "Async" : "")}({(isAsync ? "cancellationToken" : "")}){(isAsync ? ".ConfigureAwait(false)" : "")};");
                         }
                         else
                         {

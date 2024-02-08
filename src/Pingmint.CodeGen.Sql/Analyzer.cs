@@ -69,7 +69,7 @@ public class Analyzer
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
         WriteLine("Database.GetParametersForObjectAsync");
-        foreach (var procParam in await Database.GetParametersForObjectAsync(server, procId))
+        foreach (var procParam in await Database.GetParametersForObjectAsync(server, procId, CancellationToken.None))
         {
             var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId, procParam.MaxLength);
             methodParameters.Add(methodParameter);
@@ -88,7 +88,7 @@ public class Analyzer
         var recordColumns = new List<RecordProperty>();
 
         WriteLine("Database.DmDescribeFirstResultSetForObjectAsync");
-        var columnsRows = await Database.DmDescribeFirstResultSetForObjectAsync(server, procId);
+        var columnsRows = await Database.DmDescribeFirstResultSetForObjectAsync(server, procId, CancellationToken.None);
         if (columnsRows.Count == 0)
         {
             methodSync.HasResultSet = false;
@@ -149,7 +149,7 @@ public class Analyzer
             var recordColumns = new List<RecordProperty>();
 
             var parametersText = String.Join(", ", statementParameters.Select(p => $"@{p.Name} {p.Type}"));
-            var columnsRows = await Database.DmDescribeFirstResultSetAsync(server, commandText, parametersText);
+            var columnsRows = await Database.DmDescribeFirstResultSetAsync(server, commandText, parametersText, CancellationToken.None);
             if (columnsRows.Count == 0)
             {
                 methodSync.HasResultSet = false;
@@ -243,7 +243,7 @@ public class Analyzer
     {
         if (_sysTypes is not null) return _sysTypes;
         WriteLine("Database.GetSysTypesAsync");
-        return _sysTypes ??= await Database.GetSysTypesAsync(server);
+        return _sysTypes ??= await Database.GetSysTypesAsync(server, CancellationToken.None);
     }
 
     private readonly SortedDictionary<String, GetSysTypesRow> _sysTypesByName = new();
@@ -265,7 +265,7 @@ public class Analyzer
     {
         if (_tableTypes is not null) return _tableTypes;
         WriteLine("Database.GetTableTypesAsync");
-        return _tableTypes ??= await Database.GetTableTypesAsync(server);
+        return _tableTypes ??= await Database.GetTableTypesAsync(server, CancellationToken.None);
     }
 
     private SortedDictionary<Int32, GetTableTypesRow>? _tableTypesByObjectId;
@@ -292,7 +292,7 @@ public class Analyzer
         if (types.FirstOrDefault(i => i.SystemTypeId == systemTypeId && i.UserTypeId == userTypeId) is not { } tableType) { throw new InvalidOperationException($"Table type not found: {systemTypeId}, {userTypeId}"); }
 
         WriteLine("Database.GetTableTypeColumnsAsync");
-        return await Database.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId);
+        return await Database.GetTableTypeColumnsAsync(server, tableType.TypeTableObjectId, CancellationToken.None);
     }
 
     private SortedDictionary<(Int32, Int32), GetSysTypesRow>? _sysTypesById;
