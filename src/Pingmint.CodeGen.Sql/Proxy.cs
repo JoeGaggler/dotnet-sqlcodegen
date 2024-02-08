@@ -320,13 +320,13 @@ public partial record class GetTableTypesRow : IReading<GetTableTypesRow, (int, 
 
 file interface IReading<TRow, OrdinalsTuple>
 {
-    static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
-    static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
+	static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
+	static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
 }
 
 file static class FileMethods
 {
-    public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+	public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
 	public static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
 	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
@@ -353,14 +353,14 @@ file static class FileMethods
 
 	public static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
-    public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
+	public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
 	{
 		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 		cmd.Parameters.AddRange(parameters);
 		return cmd;
 	}
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text, SqlParameter[] parameters)
-    {
+	{
 		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
 		cmd.Parameters.AddRange(parameters);
 		return cmd;
@@ -396,13 +396,13 @@ public partial class Proxy
 	public static List<DmDescribeFirstResultSetRow> DmDescribeFirstResultSet(SqlConnection connection, String? text, String? parameters)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
-		return ExecuteCommand<DmDescribeFirstResultSetRow,(int, int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<DmDescribeFirstResultSetRow, (int, int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
-		return await ExecuteCommandAsync<DmDescribeFirstResultSetRow,(int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<DmDescribeFirstResultSetRow, (int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand DmDescribeFirstResultSetForObjectCommand(SqlConnection connection, Int32? objectid) => CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set_for_object(@objectid, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal", [
@@ -412,13 +412,13 @@ public partial class Proxy
 	public static List<DmDescribeFirstResultSetForObjectRow> DmDescribeFirstResultSetForObject(SqlConnection connection, Int32? objectid)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
-		return ExecuteCommand<DmDescribeFirstResultSetForObjectRow,(int, int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<DmDescribeFirstResultSetForObjectRow, (int, int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
-		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow,(int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow, (int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id", [
@@ -428,13 +428,13 @@ public partial class Proxy
 	public static List<GetParametersForObjectRow> GetParametersForObject(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
-		return ExecuteCommand<GetParametersForObjectRow,(int, int, int, int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<GetParametersForObjectRow, (int, int, int, int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
-		return await ExecuteCommandAsync<GetParametersForObjectRow,(int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetParametersForObjectRow, (int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name", [
@@ -445,13 +445,13 @@ public partial class Proxy
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return ExecuteCommand<GetProcedureForSchemaRow,(int, int, int, int)>(cmd);
+		return ExecuteCommand<GetProcedureForSchemaRow, (int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return await ExecuteCommandAsync<GetProcedureForSchemaRow,(int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetProcedureForSchemaRow, (int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name", [
@@ -461,13 +461,13 @@ public partial class Proxy
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return ExecuteCommand<GetProceduresForSchemaRow,(int, int, int, int)>(cmd);
+		return ExecuteCommand<GetProceduresForSchemaRow, (int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return await ExecuteCommandAsync<GetProceduresForSchemaRow,(int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetProceduresForSchemaRow, (int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetSchemasCommand(SqlConnection connection) => CreateStatement(connection, "SELECT name, schema_id FROM sys.schemas");
@@ -475,13 +475,13 @@ public partial class Proxy
 	public static List<GetSchemasRow> GetSchemas(SqlConnection connection)
 	{
 		using var cmd = GetSchemasCommand(connection);
-		return ExecuteCommand<GetSchemasRow,(int, int)>(cmd);
+		return ExecuteCommand<GetSchemasRow, (int, int)>(cmd);
 	}
 
 	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection)
 	{
 		using var cmd = GetSchemasCommand(connection);
-		return await ExecuteCommandAsync<GetSchemasRow,(int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetSchemasRow, (int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetSysTypeCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT system_type_id, is_table_type, name FROM sys.types where system_type_id = @id", [
@@ -491,13 +491,13 @@ public partial class Proxy
 	public static List<GetSysTypeRow> GetSysType(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
-		return ExecuteCommand<GetSysTypeRow,(int, int, int)>(cmd);
+		return ExecuteCommand<GetSysTypeRow, (int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
-		return await ExecuteCommandAsync<GetSysTypeRow,(int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetSysTypeRow, (int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetSysTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT   T.*,   S.name as [schema_name],   ISNULL(CAST(CASE WHEN S.name = 'sys' THEN 1 ELSE 0 END as bit), 0) AS [is_from_sys_schema] FROM sys.types T JOIN sys.schemas S ON (T.schema_id = S.schema_id)");
@@ -505,13 +505,13 @@ public partial class Proxy
 	public static List<GetSysTypesRow> GetSysTypes(SqlConnection connection)
 	{
 		using var cmd = GetSysTypesCommand(connection);
-		return ExecuteCommand<GetSysTypesRow,(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<GetSysTypesRow, (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetSysTypesCommand(connection);
-		return await ExecuteCommandAsync<GetSysTypesRow,(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetSysTypesRow, (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetTableTypeColumnsCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT C.is_nullable, C.max_length, C.name, t.name as [Type_Name], T.schema_id, T.system_type_id, T.user_type_id from sys.columns as C join sys.types T ON (C.system_type_id = T.system_type_id) where C.object_id = @id and t.name <> 'sysname' order by c.column_id", [
@@ -521,13 +521,13 @@ public partial class Proxy
 	public static List<GetTableTypeColumnsRow> GetTableTypeColumns(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
-		return ExecuteCommand<GetTableTypeColumnsRow,(int, int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<GetTableTypeColumnsRow, (int, int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
-		return await ExecuteCommandAsync<GetTableTypeColumnsRow,(int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetTableTypeColumnsRow, (int, int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetTableTypesCommand(SqlConnection connection) => CreateStatement(connection, "SELECT T.name, T.type_table_object_id, S.name as [Schema_Name], T.schema_id, T.system_type_id, T.user_type_id FROM sys.table_types AS T INNER JOIN sys.schemas as S ON (T.schema_id = S.schema_id) ORDER BY S.name, T.name");
@@ -535,13 +535,13 @@ public partial class Proxy
 	public static List<GetTableTypesRow> GetTableTypes(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
-		return ExecuteCommand<GetTableTypesRow,(int, int, int, int, int, int)>(cmd);
+		return ExecuteCommand<GetTableTypesRow, (int, int, int, int, int, int)>(cmd);
 	}
 
 	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection)
 	{
 		using var cmd = GetTableTypesCommand(connection);
-		return await ExecuteCommandAsync<GetTableTypesRow,(int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetTableTypesRow, (int, int, int, int, int, int)>(cmd).ConfigureAwait(false);
 	}
 
 }

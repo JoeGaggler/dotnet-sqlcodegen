@@ -173,13 +173,13 @@ public class CodeFile
 """
 file interface IReading<TRow, OrdinalsTuple>
 {
-    static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
-    static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
+	static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
+	static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
 }
 
 file static class FileMethods
 {
-    public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
+	public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
 	public static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
 	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
 	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
@@ -206,14 +206,14 @@ file static class FileMethods
 
 	public static SqlCommand CreateStatement(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text) => new() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
-    public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
+	public static SqlCommand CreateStatement(SqlConnection connection, String text, SqlParameter[] parameters)
 	{
 		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.Text, CommandText = text };
 		cmd.Parameters.AddRange(parameters);
 		return cmd;
 	}
 	public static SqlCommand CreateStoredProcedure(SqlConnection connection, String text, SqlParameter[] parameters)
-    {
+	{
 		var cmd = new SqlCommand() { Connection = connection, CommandType = CommandType.StoredProcedure, CommandText = text };
 		cmd.Parameters.AddRange(parameters);
 		return cmd;
@@ -319,7 +319,7 @@ file static class FileMethods
                             var rowType = method.ResultSetRecord.CSharpName;
                             var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
                             code.Line($"using var cmd = {method.Name}Command({argumentsString});");
-                            code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType},{tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
+                            code.Line($"return {(isAsync ? "await " : "")}ExecuteCommand{(isAsync ? "Async" : "")}<{rowType}, {tupleType}>" + "(cmd)" + (isAsync ? ".ConfigureAwait(false)" : "") + ";");
                         }
                         else if (method.HasResultSet == false)
                         {
