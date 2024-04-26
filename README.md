@@ -67,3 +67,29 @@ var records1 = Proxy.MyProc(connection);
 var message2 = await Proxy.HelloAsync(connection, "Joe");
 var records2 = await Proxy.MyProcAsync(connection);
 ```
+
+# Features
+
+## Constants
+
+```yml
+databases:
+  - database: tempdb
+    constants:
+      - name: PeopleRecords
+        query: SELECT full_name as [name], id as [value] FROM People
+        attributes:
+          name: name
+          value: value
+```
+
+Output:
+```csharp
+public static partial class PeopleRecords
+{
+  public const Int32 Joe = 1;
+  public const Int32 Bob = 2;
+  public const Int32 Tim = 3;
+  // etc
+}
+```

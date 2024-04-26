@@ -1,3 +1,4 @@
+using Pingmint.CodeGen.Sql.Model.Yaml;
 using Pingmint.Yaml;
 using Model = Pingmint.CodeGen.Sql.Model.Yaml;
 
@@ -69,6 +70,7 @@ internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
     {
         "procedures" => new ProceduresSequence(m => this.Model.Procedures = new() { Included = m }),
         "statements" => new StatementsSequence(m => this.Model.Statements = m),
+        "constants" => new ConstantsSequence(m => this.Model.Constants = m),
         _ => null,
     };
 
@@ -133,6 +135,50 @@ internal sealed class ProcedureMapping : Mapping<Model.Procedure>
         }
     }
 }
+
+internal sealed class ConstantsSequence : Sequence<Model.DatabaseItemsConstants>
+{
+    public ConstantsSequence(Action<Model.DatabaseItemsConstants> callback) : base(callback, new() { Items = new() }) { }
+
+    protected override IMapping? StartMapping() => new ConstantMapping(m => this.Model.Items.Add(m));
+}
+
+internal sealed class ConstantMapping : Mapping<Model.Constant>
+{
+    public ConstantMapping(Action<Model.Constant> callback) : base(callback, new()) { }
+
+    protected override IMapping? StartMapping(string key) => key switch
+    {
+        "attributes" => new AttributesMapping(m => this.Model.Attributes = m),
+        _ => null,
+    };
+
+    protected override bool Add(string key, string value)
+    {
+        switch (key)
+        {
+            case "name": { this.Model.Name = value; return true; }
+            case "query": { this.Model.Query = value; return true; }
+            default: return false;
+        }
+    }
+}
+
+internal sealed class AttributesMapping : Mapping<Model.Attributes>
+{
+    public AttributesMapping(Action<Model.Attributes> callback) : base(callback, new()) { }
+
+    protected override bool Add(string key, string value)
+    {
+        switch (key)
+        {
+            case "name": { this.Model.Name = value; return true; }
+            case "value": { this.Model.Value = value; return true; }
+            default: return false;
+        }
+    }
+}
+
 
 internal sealed class StatementsSequence : Sequence<Model.DatabasesItemStatements>
 {

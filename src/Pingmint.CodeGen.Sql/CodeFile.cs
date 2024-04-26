@@ -23,6 +23,7 @@ public class CodeFile
 
     public List<Record> Records { get; } = new();
     public List<Method> Methods { get; } = new();
+    public List<Constant> Constants { get; } = new();
 
     public String TypeKeyword { get; set; } = "record class";
 
@@ -350,6 +351,18 @@ file static class FileMethods
                         }
                     }
                     code.Line();
+                }
+            }
+        }
+
+        code.Line();
+        foreach (var constant in Constants)
+        {
+            using (code.PartialClass("public static", constant.Name))
+            {
+                foreach (var item in constant.Items)
+                {
+                    code.Line(item);
                 }
             }
         }

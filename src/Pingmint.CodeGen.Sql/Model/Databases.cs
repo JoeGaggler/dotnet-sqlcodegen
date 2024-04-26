@@ -30,7 +30,7 @@ public class CSharp
     public String? Namespace { get; set; }
     public String? ClassName { get; set; }
     public String? TypeKeyword { get; set; }
-    
+
     // sequence
 }
 
@@ -71,6 +71,7 @@ public class DatabasesItem
     public String? SqlName { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
+    public DatabaseItemsConstants? Constants { get; set; }
 
     // sequence
 }
@@ -98,6 +99,39 @@ public class Procedure
 
     // meta
     public List<Column>? Columns { get; set; }
+}
+
+public class DatabaseItemsConstants
+{
+    // scalar
+
+    // mapping
+
+    // sequence
+    public List<Constant>? Items { get; set; }
+}
+
+public class Constant
+{
+    // scalar
+
+    // mapping
+    public String? Name { get; set; }
+    public String? Query { get; set; }
+    public Attributes? Attributes { get; set; }
+
+    // sequence
+}
+
+public class Attributes
+{
+    // scalar
+
+    // mapping
+    public String? Name { get; set; }
+    public String? Value { get; set; }
+
+    // sequence
 }
 
 public class DatabasesItemStatements

@@ -120,6 +120,94 @@ public class Analyzer
         WriteLine("Analyze Done: {0}.{1}.{2} ({3:0.0}s)", database, schema, proc, (DateTime.UtcNow - t0).TotalSeconds);
     }
 
+    public async Task AnalyzeConstantAsync(string databaseName, string constName, string query, string nameAttr, string valueAttr)
+    {
+        await Task.CompletedTask;
+        WriteLine("Analyze Constant: {0}", constName);
+        try
+        {
+            using var server = await OpenSqlConnectionAsync();
+
+            var constant = new Constant
+            {
+                Name = GetUniqueName(GetPascalCase(constName), codeFile.TypeNames),
+            };
+
+            var columnsRows = await Database.DmDescribeFirstResultSetAsync(server, query, null, CancellationToken.None);
+
+            // TODO: error handling: no rows, wrong number of rows
+
+            foreach (var columnRow in columnsRows)
+            {
+                WriteLine("Column: {0} {1}", columnRow.Name, columnRow.SqlTypeName);
+            }
+
+            if (columnsRows.FirstOrDefault(r => r.Name == nameAttr) is not { } nameRow)
+            {
+                WriteLine("Name column not found: {0}", nameAttr);
+                return;
+            }
+
+            if (columnsRows.FirstOrDefault(r => r.Name == valueAttr) is not { } valueRow)
+            {
+                WriteLine("Value column not found: {0}", valueAttr);
+                return;
+            }
+
+            if (await AnalyzeResultAsync(server, nameRow) is not { } nameProperty)
+            {
+                WriteLine("Name column not valid: {0}", nameAttr);
+                return;
+            }
+            WriteLine("Constant Name Property: {0} {1}", nameProperty.FieldName, nameProperty.FieldType);
+
+            if (await AnalyzeResultAsync(server, valueRow) is not { } valueProperty)
+            {
+                WriteLine("Value column not valid: {0}", valueAttr);
+                return;
+            }
+            WriteLine("Constant Value Property: {0} {1}", valueProperty.FieldName, valueProperty.FieldType);
+
+            var cmd = server.CreateCommand();
+            cmd.CommandText = query;
+            cmd.CommandType = CommandType.Text;
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                WriteLine("No rows returned: {0}", constName);
+                return;
+            }
+            var ordName = reader.GetOrdinal(nameAttr);
+            var ordValue = reader.GetOrdinal(valueAttr);
+            var uniqueHashSet = new HashSet<String>();
+            do
+            {
+                var nameResult = reader.GetString(ordName);
+                var valueResult = reader.GetValue(ordValue);
+
+                var nameSetter = GetUniqueName(GetPascalCase(nameResult), uniqueHashSet);
+                var valueSetter = valueProperty.FieldType switch
+                {
+                    "String" => $"\"{valueResult}\"",
+                    "Int32" => $"{valueResult}",
+                    "Boolean" => $"{valueResult}",
+                    _ => throw new NotImplementedException("Unknown constant type: " + valueProperty.FieldType),
+                };
+
+                var adding = $"public const {valueProperty.FieldType} {nameSetter} = {valueSetter};";
+                WriteLine("Adding: " + adding);
+                constant.Items.Add(adding);
+            } while (await reader.ReadAsync());
+
+            codeFile.Constants.Add(constant);
+        }
+        catch (Exception ex)
+        {
+            WriteLine("Analyze Error: {0}", constName);
+            WriteLine(ex);
+        }
+    }
+
     public async Task AnalyzeStatementAsync(String database, String name, String commandText, List<SqlStatementParameter> statementParameters)
     {
         WriteLine("Analyze Statement: {0}", name);

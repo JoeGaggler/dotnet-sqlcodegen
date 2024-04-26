@@ -49,6 +49,15 @@ internal sealed class Program
                         tasks[i] = Task.FromResult(i);
                     }
 
+                    if (database.Constants?.Items is { } constants)
+                    {
+                        foreach (var constant in constants)
+                        {
+                            var index = await await Task.WhenAny(tasks);
+                            tasks[index] = analyzer.AnalyzeConstantAsync(databaseName, constant.Name, constant.Query, constant.Attributes.Name, constant.Attributes.Value).ContinueWith(_ => index);
+                        }
+                    }
+
                     if (database.Statements?.Items is { } statements)
                     {
                         foreach (var statement in statements)

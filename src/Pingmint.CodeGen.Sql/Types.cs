@@ -6,6 +6,19 @@ namespace Pingmint.CodeGen.Sql;
 
 public record class SqlStatementParameter(String Name, String Type);
 
+public class Constant
+{
+    public String Name { get; set; }
+    public List<String> Items { get; set; } = new();
+}
+
+// public class ConstantItem
+// {
+//     public String Name { get; set; }
+//     public String Query { get; set; }
+//     public ConstantAttributes Attributes { get; set; } = new();
+// }
+
 public class Method
 {
     /// <summary>
