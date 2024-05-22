@@ -79,7 +79,7 @@ public class CodeFile
             var (ordinalsArg, tupleType) = record.Properties.Count switch
             {
                 1 => ("ordinal", "int"),
-                _ => ("ordinals", "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")"),
+                _ => ("ordinals", $"Ordinals{record.Properties.Count}"),
             };
 
             IDisposable recordClass = this.TypeKeyword switch
