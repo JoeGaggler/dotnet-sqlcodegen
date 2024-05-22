@@ -328,15 +328,15 @@ public partial record class GetTableTypesRow : IReading<GetTableTypesRow, Ordina
 	};
 }
 
-public partial record class ZTestSelect1Row : IReading<ZTestSelect1Row, int>
+public partial record class ZTestSelect1Row : IReading<ZTestSelect1Row, Ordinals1>
 {
 	public required Int32 Blah { get; init; }
 
-	static int IReading<ZTestSelect1Row, int>.Ordinals(SqlDataReader reader) => (
+	static Ordinals1 IReading<ZTestSelect1Row, Ordinals1>.Ordinals(SqlDataReader reader) => (
 		reader.GetOrdinal("Blah")
 	);
 
-	static ZTestSelect1Row IReading<ZTestSelect1Row, int>.Read(SqlDataReader reader, int ordinal) => new ZTestSelect1Row
+	static ZTestSelect1Row IReading<ZTestSelect1Row, Ordinals1>.Read(SqlDataReader reader, Ordinals1 ordinal) => new ZTestSelect1Row
 	{
 		Blah = RequiredValue<Int32>(reader, ordinal),
 	};

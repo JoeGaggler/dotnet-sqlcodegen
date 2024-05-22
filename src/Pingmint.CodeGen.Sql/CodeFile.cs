@@ -78,7 +78,7 @@ public class CodeFile
             string? rowClassName = record.CSharpName;
             var (ordinalsArg, tupleType) = record.Properties.Count switch
             {
-                1 => ("ordinal", "int"),
+                1 => ("ordinal", "Ordinals1"), // redundant, but wanted to note that this is just an "int"
                 _ => ("ordinals", $"Ordinals{record.Properties.Count}"),
             };
 
