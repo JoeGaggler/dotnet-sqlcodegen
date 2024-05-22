@@ -64,8 +64,8 @@ var message1 = Proxy.Hello(connection, "Joe");
 var records1 = Proxy.MyProc(connection);
 
 // asynchronous
-var message2 = await Proxy.HelloAsync(connection, "Joe");
-var records2 = await Proxy.MyProcAsync(connection);
+var message2 = await Proxy.HelloAsync(connection, "Joe", cancellationToken);
+var records2 = await Proxy.MyProcAsync(connection, cancellationToken);
 ```
 
 # Features
@@ -76,20 +76,21 @@ var records2 = await Proxy.MyProcAsync(connection);
 databases:
   - database: tempdb
     constants:
-      - name: PeopleRecords
-        query: SELECT full_name as [name], id as [value] FROM People
+      - name: StatusCodes
+        query: SELECT id, status FROM Status_Codes
         attributes:
-          name: name
-          value: value
+          name: status
+          value: id
 ```
 
 Output:
 ```csharp
-public static partial class PeopleRecords
+public static partial class StatusCodes
 {
-  public const Int32 Joe = 1;
-  public const Int32 Bob = 2;
-  public const Int32 Tim = 3;
+  public const Int32 Created = 1;
+  public const Int32 Loading = 2;
+  public const Int32 Visible = 3;
+  public const Int32 Deleted = 4;
   // etc
 }
 ```

@@ -25,6 +25,8 @@ public class CodeFile
     public List<Method> Methods { get; } = new();
     public List<Constant> Constants { get; } = new();
 
+    public SortedSet<int> OrdinalAliases { get; } = new();
+
     public String TypeKeyword { get; set; } = "record class";
 
     public String GenerateCode()
@@ -38,6 +40,27 @@ public class CodeFile
         code.UsingNamespace("System.Threading.Tasks");
         code.UsingNamespace("Microsoft.Data.SqlClient");
         code.Line($"using static {Namespace}.FileMethods;");
+        code.Line();
+
+        if (OrdinalAliases.Count > 0)
+        {
+            if (OrdinalAliases.Remove(1))
+            {
+                code.Line("using Ordinals1 = int;");
+            }
+            foreach (var ordinal in OrdinalAliases)
+            {
+                code.StartLine();
+                code.Text($"using Ordinals{ordinal} = (int");
+                for (int i = 1; i < ordinal; i++)
+                {
+                    code.Text(", int");
+                }
+                code.Text(");");
+                code.Line();
+            }
+            code.Line();
+        }
         code.Line();
 
         code.Line("#nullable enable");
@@ -327,7 +350,7 @@ file static class FileMethods
                         {
                             if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
                             var rowType = method.ResultSetRecord.CSharpName;
-                            var tupleType = record.Properties.Count == 1 ? "int" : "(" + String.Join(", ", record.Properties.Select(i => "int")) + ")";
+                            var tupleType = $"Ordinals{record.Properties.Count}";
                             code.Line($"using var cmd = {method.Name}Command({connectionArgumentsString});");
                             if (isAsync)
                             {

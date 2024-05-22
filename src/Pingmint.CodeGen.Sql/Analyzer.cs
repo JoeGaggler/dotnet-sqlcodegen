@@ -114,6 +114,7 @@ public class Analyzer
             methodSync.ResultSetRecord = record;
             methodSync.DataType = $"List<{recordName}>";
             codeFile.Records.Add(record);
+            if (record.Properties.Count > 0) { this.codeFile.OrdinalAliases.Add(record.Properties.Count); }
         }
         codeFile.Methods.Add(methodSync);
 
@@ -263,6 +264,7 @@ public class Analyzer
                 methodSync.ResultSetRecord = record;
                 methodSync.DataType = $"List<{recordName}>";
                 codeFile.Records.Add(record);
+                if (record.Properties.Count > 0) { this.codeFile.OrdinalAliases.Add(record.Properties.Count); }
             }
             codeFile.Methods.Add(methodSync);
             WriteLine("Analyze Done: {0}", name);
@@ -595,6 +597,7 @@ public class Analyzer
                 record.Properties.Add(recordProperty);
             }
             this.codeFile.Records.Add(record);
+            if (record.Properties.Count > 0) { this.codeFile.OrdinalAliases.Add(record.Properties.Count); }
 
             var listName = $"List<{rowCSharpTypeName}>";
             return new()
