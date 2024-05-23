@@ -423,7 +423,7 @@ public partial class Database
 		return ExecuteCommand<DmDescribeFirstResultSetRow, Ordinals7>(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters, CancellationToken cancellationToken)
+	public static async Task<List<DmDescribeFirstResultSetRow>> DmDescribeFirstResultSetAsync(SqlConnection connection, String? text, String? parameters, CancellationToken cancellationToken = default)
 	{
 		using var cmd = DmDescribeFirstResultSetCommand(connection, text, parameters);
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetRow, Ordinals7>(cmd, cancellationToken).ConfigureAwait(false);
@@ -439,7 +439,7 @@ public partial class Database
 		return ExecuteCommand<DmDescribeFirstResultSetForObjectRow, Ordinals7>(cmd);
 	}
 
-	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid, CancellationToken cancellationToken)
+	public static async Task<List<DmDescribeFirstResultSetForObjectRow>> DmDescribeFirstResultSetForObjectAsync(SqlConnection connection, Int32? objectid, CancellationToken cancellationToken = default)
 	{
 		using var cmd = DmDescribeFirstResultSetForObjectCommand(connection, objectid);
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow, Ordinals7>(cmd, cancellationToken).ConfigureAwait(false);
@@ -455,7 +455,7 @@ public partial class Database
 		return ExecuteCommand<GetParametersForObjectRow, Ordinals9>(cmd);
 	}
 
-	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken)
+	public static async Task<List<GetParametersForObjectRow>> GetParametersForObjectAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetParametersForObjectCommand(connection, id);
 		return await ExecuteCommandAsync<GetParametersForObjectRow, Ordinals9>(cmd, cancellationToken).ConfigureAwait(false);
@@ -472,7 +472,7 @@ public partial class Database
 		return ExecuteCommand<GetProcedureForSchemaRow, Ordinals4>(cmd);
 	}
 
-	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc, CancellationToken cancellationToken)
+	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
 		return await ExecuteCommandAsync<GetProcedureForSchemaRow, Ordinals4>(cmd, cancellationToken).ConfigureAwait(false);
@@ -488,7 +488,7 @@ public partial class Database
 		return ExecuteCommand<GetProceduresForSchemaRow, Ordinals4>(cmd);
 	}
 
-	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema, CancellationToken cancellationToken)
+	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
 		return await ExecuteCommandAsync<GetProceduresForSchemaRow, Ordinals4>(cmd, cancellationToken).ConfigureAwait(false);
@@ -502,7 +502,7 @@ public partial class Database
 		return ExecuteCommand<GetSchemasRow, Ordinals2>(cmd);
 	}
 
-	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection, CancellationToken cancellationToken)
+	public static async Task<List<GetSchemasRow>> GetSchemasAsync(SqlConnection connection, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetSchemasCommand(connection);
 		return await ExecuteCommandAsync<GetSchemasRow, Ordinals2>(cmd, cancellationToken).ConfigureAwait(false);
@@ -518,7 +518,7 @@ public partial class Database
 		return ExecuteCommand<GetSysTypeRow, Ordinals3>(cmd);
 	}
 
-	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken)
+	public static async Task<List<GetSysTypeRow>> GetSysTypeAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetSysTypeCommand(connection, id);
 		return await ExecuteCommandAsync<GetSysTypeRow, Ordinals3>(cmd, cancellationToken).ConfigureAwait(false);
@@ -532,7 +532,7 @@ public partial class Database
 		return ExecuteCommand<GetSysTypesRow, Ordinals17>(cmd);
 	}
 
-	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
+	public static async Task<List<GetSysTypesRow>> GetSysTypesAsync(SqlConnection connection, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetSysTypesCommand(connection);
 		return await ExecuteCommandAsync<GetSysTypesRow, Ordinals17>(cmd, cancellationToken).ConfigureAwait(false);
@@ -548,7 +548,7 @@ public partial class Database
 		return ExecuteCommand<GetTableTypeColumnsRow, Ordinals7>(cmd);
 	}
 
-	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken)
+	public static async Task<List<GetTableTypeColumnsRow>> GetTableTypeColumnsAsync(SqlConnection connection, Int32? id, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetTableTypeColumnsCommand(connection, id);
 		return await ExecuteCommandAsync<GetTableTypeColumnsRow, Ordinals7>(cmd, cancellationToken).ConfigureAwait(false);
@@ -562,7 +562,7 @@ public partial class Database
 		return ExecuteCommand<GetTableTypesRow, Ordinals6>(cmd);
 	}
 
-	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection, CancellationToken cancellationToken)
+	public static async Task<List<GetTableTypesRow>> GetTableTypesAsync(SqlConnection connection, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetTableTypesCommand(connection);
 		return await ExecuteCommandAsync<GetTableTypesRow, Ordinals6>(cmd, cancellationToken).ConfigureAwait(false);
@@ -576,7 +576,7 @@ public partial class Database
 		return ExecuteCommand<ZTestSelect1Row, Ordinals1>(cmd);
 	}
 
-	public static async Task<List<ZTestSelect1Row>> ZTestSelect1Async(SqlConnection connection, CancellationToken cancellationToken)
+	public static async Task<List<ZTestSelect1Row>> ZTestSelect1Async(SqlConnection connection, CancellationToken cancellationToken = default)
 	{
 		using var cmd = ZTestSelect1Command(connection);
 		return await ExecuteCommandAsync<ZTestSelect1Row, Ordinals1>(cmd, cancellationToken).ConfigureAwait(false);
@@ -590,7 +590,7 @@ public partial class Database
 		return cmd.ExecuteNonQuery();
 	}
 
-	public static async Task<int> ZTestUpdate1Async(SqlConnection connection, CancellationToken cancellationToken)
+	public static async Task<int> ZTestUpdate1Async(SqlConnection connection, CancellationToken cancellationToken = default)
 	{
 		using var cmd = ZTestUpdate1Command(connection);
 		return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);

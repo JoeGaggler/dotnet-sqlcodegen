@@ -290,7 +290,7 @@ file static class FileMethods
                     var methodParametersWithCommand = csharpParameters.ToList(); // NOTE THE COPY!
                     methodParametersWithConnection.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
                     methodParametersWithConnectionWithCancellation.Insert(0, new MethodParameter() { CSharpType = "SqlConnection", CSharpName = "connection" });
-                    methodParametersWithConnectionWithCancellation.Add(new MethodParameter() { CSharpType = "CancellationToken", CSharpName = "cancellationToken" });
+                    methodParametersWithConnectionWithCancellation.Add(new MethodParameter() { CSharpType = "CancellationToken", CSharpName = "cancellationToken = default" }); // HACK: sneaking default value into the name
                     methodParametersWithCommand.Insert(0, new MethodParameter() { CSharpType = "SqlCommand", CSharpName = "cmd" });
 
                     var commandParametersString = String.Join(", ", methodParametersWithCommand.Select(i => $"{i.CSharpType} {i.CSharpName}"));
