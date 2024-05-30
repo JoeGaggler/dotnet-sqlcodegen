@@ -409,7 +409,7 @@ file static class FileMethods
 	};
 }
 
-public partial class Database
+public static partial class Database
 {
 	private static SqlCommand DmDescribeFirstResultSetCommand(SqlConnection connection, String? text, String? parameters) => CreateStatement(connection, "SELECT D.name, T.schema_id, T.system_type_id, T.user_type_id, D.is_nullable, D.column_ordinal, T.name as [sql_type_name] FROM sys.dm_exec_describe_first_result_set(@text, @parameters, NULL) AS D JOIN sys.types AS T ON (D.system_type_id = T.system_type_id AND T.user_type_id = ISNULL(D.user_type_id, D.system_type_id)) ORDER BY D.column_ordinal", [
 		CreateParameter("@text", text, SqlDbType.NVarChar, 8000),

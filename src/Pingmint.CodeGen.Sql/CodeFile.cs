@@ -273,7 +273,7 @@ file static class FileMethods
 );
 
         code.Line();
-        using (code.PartialClass("public", ClassName))
+        using (code.PartialClass("public static", ClassName))
         {
             var isFirstMethod = true;
             foreach (var method in Methods.OrderBy(i => i.Name))
