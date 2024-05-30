@@ -42,6 +42,12 @@ public class CodeFile
         code.Line($"using static {Namespace}.FileMethods;");
         code.Line();
 
+        code.Line("#nullable enable");
+        code.Line();
+
+        code.FileNamespace(Namespace);
+        code.Line();
+
         if (OrdinalAliases.Count > 0)
         {
             if (OrdinalAliases.Remove(1))
@@ -51,23 +57,16 @@ public class CodeFile
             foreach (var ordinal in OrdinalAliases)
             {
                 code.StartLine();
-                code.Text($"using Ordinals{ordinal} = (int");
-                for (int i = 1; i < ordinal; i++)
+                code.Text($"record struct Ordinals{ordinal}(int Item1");
+                for (int i = 2; i <= ordinal; i++)
                 {
-                    code.Text(", int");
+                    code.Text($", int Item{i}");
                 }
                 code.Text(");");
                 code.Line();
             }
             code.Line();
         }
-        code.Line();
-
-        code.Line("#nullable enable");
-        code.Line();
-
-        code.FileNamespace(Namespace);
-        code.Line();
 
         var isFirstRecord = true;
         foreach (var record in Records.OrderBy(i => i.CSharpName).ThenBy(i => i.TableTypeCSharpName))
@@ -98,7 +97,14 @@ public class CodeFile
                 code.Line();
 
                 code.StartMethod($"static", tupleType, $"IReading<{rowClassName}, {tupleType}>.Ordinals", "SqlDataReader reader");
-                code.Text($" => (");
+                if (record.Properties.Count == 1)
+                {
+                    code.Text($" => (");
+                }
+                else
+                {
+                    code.Text($" => new(");
+                }
                 code.Line();
                 code.Indent();
                 using (var it = record.Properties.GetEnumerator())

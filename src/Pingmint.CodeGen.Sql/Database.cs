@@ -6,19 +6,18 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using static Pingmint.CodeGen.Sql.FileMethods;
 
-using Ordinals1 = int;
-using Ordinals2 = (int, int);
-using Ordinals3 = (int, int, int);
-using Ordinals4 = (int, int, int, int);
-using Ordinals6 = (int, int, int, int, int, int);
-using Ordinals7 = (int, int, int, int, int, int, int);
-using Ordinals9 = (int, int, int, int, int, int, int, int, int);
-using Ordinals17 = (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int);
-
-
 #nullable enable
 
 namespace Pingmint.CodeGen.Sql;
+
+using Ordinals1 = int;
+record struct Ordinals2(int Item1, int Item2);
+record struct Ordinals3(int Item1, int Item2, int Item3);
+record struct Ordinals4(int Item1, int Item2, int Item3, int Item4);
+record struct Ordinals6(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6);
+record struct Ordinals7(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6, int Item7);
+record struct Ordinals9(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6, int Item7, int Item8, int Item9);
+record struct Ordinals17(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6, int Item7, int Item8, int Item9, int Item10, int Item11, int Item12, int Item13, int Item14, int Item15, int Item16, int Item17);
 
 public partial record class DmDescribeFirstResultSetForObjectRow : IReading<DmDescribeFirstResultSetForObjectRow, Ordinals7>
 {
@@ -30,7 +29,7 @@ public partial record class DmDescribeFirstResultSetForObjectRow : IReading<DmDe
 	public required Int32? ColumnOrdinal { get; init; }
 	public required String SqlTypeName { get; init; }
 
-	static Ordinals7 IReading<DmDescribeFirstResultSetForObjectRow, Ordinals7>.Ordinals(SqlDataReader reader) => (
+	static Ordinals7 IReading<DmDescribeFirstResultSetForObjectRow, Ordinals7>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("schema_id"),
 		reader.GetOrdinal("system_type_id"),
@@ -62,7 +61,7 @@ public partial record class DmDescribeFirstResultSetRow : IReading<DmDescribeFir
 	public required Int32? ColumnOrdinal { get; init; }
 	public required String SqlTypeName { get; init; }
 
-	static Ordinals7 IReading<DmDescribeFirstResultSetRow, Ordinals7>.Ordinals(SqlDataReader reader) => (
+	static Ordinals7 IReading<DmDescribeFirstResultSetRow, Ordinals7>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("schema_id"),
 		reader.GetOrdinal("system_type_id"),
@@ -96,7 +95,7 @@ public partial record class GetParametersForObjectRow : IReading<GetParametersFo
 	public required Boolean IsTableType { get; init; }
 	public required String TypeName { get; init; }
 
-	static Ordinals9 IReading<GetParametersForObjectRow, Ordinals9>.Ordinals(SqlDataReader reader) => (
+	static Ordinals9 IReading<GetParametersForObjectRow, Ordinals9>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("parameter_id"),
 		reader.GetOrdinal("schema_id"),
 		reader.GetOrdinal("system_type_id"),
@@ -129,7 +128,7 @@ public partial record class GetProcedureForSchemaRow : IReading<GetProcedureForS
 	public required String SchemaName { get; init; }
 	public required String? ObsoleteMessage { get; init; }
 
-	static Ordinals4 IReading<GetProcedureForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => (
+	static Ordinals4 IReading<GetProcedureForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("object_id"),
 		reader.GetOrdinal("Schema_Name"),
@@ -152,7 +151,7 @@ public partial record class GetProceduresForSchemaRow : IReading<GetProceduresFo
 	public required String SchemaName { get; init; }
 	public required String? ObsoleteMessage { get; init; }
 
-	static Ordinals4 IReading<GetProceduresForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => (
+	static Ordinals4 IReading<GetProceduresForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("object_id"),
 		reader.GetOrdinal("Schema_Name"),
@@ -173,7 +172,7 @@ public partial record class GetSchemasRow : IReading<GetSchemasRow, Ordinals2>
 	public required String Name { get; init; }
 	public required Int32 SchemaId { get; init; }
 
-	static Ordinals2 IReading<GetSchemasRow, Ordinals2>.Ordinals(SqlDataReader reader) => (
+	static Ordinals2 IReading<GetSchemasRow, Ordinals2>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("schema_id")
 	);
@@ -191,7 +190,7 @@ public partial record class GetSysTypeRow : IReading<GetSysTypeRow, Ordinals3>
 	public required Boolean IsTableType { get; init; }
 	public required String Name { get; init; }
 
-	static Ordinals3 IReading<GetSysTypeRow, Ordinals3>.Ordinals(SqlDataReader reader) => (
+	static Ordinals3 IReading<GetSysTypeRow, Ordinals3>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("system_type_id"),
 		reader.GetOrdinal("is_table_type"),
 		reader.GetOrdinal("name")
@@ -225,7 +224,7 @@ public partial record class GetSysTypesRow : IReading<GetSysTypesRow, Ordinals17
 	public required String SchemaName { get; init; }
 	public required Boolean IsFromSysSchema { get; init; }
 
-	static Ordinals17 IReading<GetSysTypesRow, Ordinals17>.Ordinals(SqlDataReader reader) => (
+	static Ordinals17 IReading<GetSysTypesRow, Ordinals17>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("system_type_id"),
 		reader.GetOrdinal("user_type_id"),
@@ -277,7 +276,7 @@ public partial record class GetTableTypeColumnsRow : IReading<GetTableTypeColumn
 	public required Byte SystemTypeId { get; init; }
 	public required Int32 UserTypeId { get; init; }
 
-	static Ordinals7 IReading<GetTableTypeColumnsRow, Ordinals7>.Ordinals(SqlDataReader reader) => (
+	static Ordinals7 IReading<GetTableTypeColumnsRow, Ordinals7>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("is_nullable"),
 		reader.GetOrdinal("max_length"),
 		reader.GetOrdinal("name"),
@@ -308,7 +307,7 @@ public partial record class GetTableTypesRow : IReading<GetTableTypesRow, Ordina
 	public required Byte SystemTypeId { get; init; }
 	public required Int32 UserTypeId { get; init; }
 
-	static Ordinals6 IReading<GetTableTypesRow, Ordinals6>.Ordinals(SqlDataReader reader) => (
+	static Ordinals6 IReading<GetTableTypesRow, Ordinals6>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("type_table_object_id"),
 		reader.GetOrdinal("Schema_Name"),
