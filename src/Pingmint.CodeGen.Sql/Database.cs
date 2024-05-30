@@ -351,8 +351,8 @@ file static class FileMethods
 {
 	public static T? OptionalClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
 	public static T? OptionalValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<T>(ordinal);
-	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
-	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.IsDBNull(ordinal) ? throw new NullReferenceException() : reader.GetFieldValue<T>(ordinal);
+	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.GetFieldValue<T>(ordinal);
+	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.GetFieldValue<T>(ordinal);
 
 	public static List<TRow> ExecuteCommand<TRow, OrdinalsTuple>(SqlCommand cmd) where TRow : IReading<TRow, OrdinalsTuple>
 	{
