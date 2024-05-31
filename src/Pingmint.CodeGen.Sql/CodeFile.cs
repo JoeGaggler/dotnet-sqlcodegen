@@ -28,6 +28,7 @@ public class CodeFile
     public SortedSet<int> OrdinalAliases { get; } = new();
 
     public String TypeKeyword { get; set; } = "record class";
+    public Boolean AllowAsync { get; set; } = true;
 
     public String GenerateCode()
     {
@@ -352,13 +353,18 @@ file static class FileMethods
                     var actualParamsString = isAsync ? connectionParametersWithCancellationString : connectionParametersString;
                     using (var _2 = code.Method($"public static{asyncKeyword}", returnType, actualMethodName, actualParamsString))
                     {
+                        if (isAsync && !AllowAsync)
+                        {
+                            // no-op await suppresses warning
+                            code.Line("await Task.CompletedTask; // sqlclient.async: false");
+                        }
                         if (method.HasResultSet)
                         {
                             if (method.ResultSetRecord is not { } record) { throw new InvalidOperationException("Method has result set but no record type."); }
                             var rowType = method.ResultSetRecord.CSharpName;
                             var tupleType = $"Ordinals{record.Properties.Count}";
                             code.Line($"using var cmd = {method.Name}Command({connectionArgumentsString});");
-                            if (isAsync)
+                            if (isAsync && AllowAsync)
                             {
                                 code.Line($"return await ExecuteCommandAsync<{rowType}, {tupleType}>(cmd, cancellationToken).ConfigureAwait(false);");
                             }
@@ -372,7 +378,7 @@ file static class FileMethods
                             if (method.DataType != "int") { throw new InvalidOperationException("Method has no result set but return type is not 'int'."); }
 
                             code.Line($"using var cmd = {method.Name}Command({connectionArgumentsString});");
-                            code.Line($"return {(isAsync ? "await " : "")}cmd.ExecuteNonQuery{(isAsync ? "Async" : "")}({(isAsync ? "cancellationToken" : "")}){(isAsync ? ".ConfigureAwait(false)" : "")};");
+                            code.Line($"return {(isAsync && AllowAsync ? "await " : "")}cmd.ExecuteNonQuery{(isAsync && AllowAsync ? "Async" : "")}({(isAsync && AllowAsync ? "cancellationToken" : "")}){(isAsync && AllowAsync ? ".ConfigureAwait(false)" : "")};");
                         }
                         else
                         {

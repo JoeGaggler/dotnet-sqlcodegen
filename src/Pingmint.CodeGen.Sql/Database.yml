@@ -3,6 +3,8 @@ csharp:
   namespace: Pingmint.CodeGen.Sql
   class: Database
   row type: record class
+sqlclient:
+  async: true
 databases:
   - database: tempdb
     # procedures:

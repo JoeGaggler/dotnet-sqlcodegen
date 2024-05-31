@@ -20,6 +20,7 @@ internal sealed class ConfigMapping : Mapping<Model.Config> // passthrough
     protected override IMapping? StartMapping(string key) => key switch
     {
         "csharp" => new CSharpMapping(m => this.Model.CSharp = m),
+        "sqlclient" => new SqlClientMapping(m => this.Model.SqlClient = m),
         _ => null,
     };
 
@@ -50,6 +51,20 @@ internal sealed class CSharpMapping : Mapping<Model.CSharp>
             case "namespace": this.Model.Namespace = value; return true;
             case "class": this.Model.ClassName = value; return true;
             case "row type": this.Model.TypeKeyword = value; return true;
+            default: return false;
+        }
+    }
+}
+
+internal sealed class SqlClientMapping : Mapping<Model.SqlClient>
+{
+    public SqlClientMapping(Action<Model.SqlClient> callback) : base(callback, new()) { }
+
+    protected override bool Add(string key, string value)
+    {
+        switch (key)
+        {
+            case "async": this.Model.Async = value; return true;
             default: return false;
         }
     }

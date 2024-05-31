@@ -7,6 +7,7 @@ public class Config
     // mapping
     public Connection? Connection { get; set; }
     public CSharp? CSharp { get; set; }
+    public SqlClient? SqlClient { get; set; }
     public Databases? Databases { get; set; }
 
     // sequence
@@ -30,6 +31,16 @@ public class CSharp
     public String? Namespace { get; set; }
     public String? ClassName { get; set; }
     public String? TypeKeyword { get; set; }
+
+    // sequence
+}
+
+public class SqlClient
+{
+    // scalar
+
+    // mapping
+    public String? Async { get; set; }
 
     // sequence
 }

@@ -93,4 +93,18 @@ public static partial class StatusCodes
   public const Int32 Deleted = 4;
   // etc
 }
+
+```
+
+## SqlClient options
+
+Some versions of [SqlClient](https://github.com/dotnet/SqlClient) have known issues that require mitigations via different code generation, which are controllable via the `sqlclient` section in the `database.yml` file.
+
+### `async`
+
+Set `async: false` to avoid using the async methods of the `SqlClient` package, while still generating the async API methods. This is useful when you want to use async methods in calling code, but want to temporarily avoid the known issues in `SqlClient`:
+
+```yml
+sqlclient:
+  async: false
 ```
