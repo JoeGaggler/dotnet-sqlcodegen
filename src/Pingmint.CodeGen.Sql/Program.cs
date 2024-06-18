@@ -17,8 +17,15 @@ internal sealed class Program
             throw new InvalidOperationException(); // TODO: print help message
         }
 
-        var yaml = File.ReadAllText(args[0]);
+        string path = args[0];
+        if (!File.Exists(path))
+        {
+            throw new InvalidOperationException($"File not found: {path}");
+        }
+        var yaml = File.ReadAllText(path);
+
         var config = ParseYaml(yaml);
+        if (config is not { CSharp: { Namespace: { Length: > 0 } } }) { throw new InvalidOperationException("Failed to parse YAML."); }
 
         var t0 = DateTime.Now;
 

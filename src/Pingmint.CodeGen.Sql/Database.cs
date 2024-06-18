@@ -341,10 +341,10 @@ public partial record class ZTestSelect1Row : IReading<ZTestSelect1Row, Ordinals
 	};
 }
 
-file interface IReading<TRow, OrdinalsTuple>
+file interface IReading<TRow, TOrds>
 {
-	static abstract TRow Read(SqlDataReader reader, OrdinalsTuple ordinals);
-	static abstract OrdinalsTuple Ordinals(SqlDataReader reader);
+	static abstract TRow Read(SqlDataReader reader, TOrds ordinals);
+	static abstract TOrds Ordinals(SqlDataReader reader);
 }
 
 file static class FileMethods
@@ -354,7 +354,7 @@ file static class FileMethods
 	public static T RequiredClass<T>(SqlDataReader reader, int ordinal) where T : class => reader.GetFieldValue<T>(ordinal);
 	public static T RequiredValue<T>(SqlDataReader reader, int ordinal) where T : struct => reader.GetFieldValue<T>(ordinal);
 
-	public static List<TRow> ExecuteCommand<TRow, OrdinalsTuple>(SqlCommand cmd) where TRow : IReading<TRow, OrdinalsTuple>
+	public static List<TRow> ExecuteCommand<TRow, TOrds>(SqlCommand cmd) where TRow : IReading<TRow, TOrds>
 	{
 		var result = new List<TRow>();
 		using var reader = cmd.ExecuteReader();
@@ -364,7 +364,7 @@ file static class FileMethods
 		return result;
 	}
 
-	public static async Task<List<TRow>> ExecuteCommandAsync<TRow, OrdinalsTuple>(SqlCommand cmd, CancellationToken cancellationToken) where TRow : IReading<TRow, OrdinalsTuple>
+	public static async Task<List<TRow>> ExecuteCommandAsync<TRow, TOrds>(SqlCommand cmd, CancellationToken cancellationToken) where TRow : IReading<TRow, TOrds>
 	{
 		var result = new List<TRow>();
 		using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
