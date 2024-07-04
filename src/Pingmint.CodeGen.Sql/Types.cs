@@ -113,7 +113,7 @@ public class RecordProperty
     /// </summary>
     public String FieldType { get; set; }
 
-    public String FieldTypeForGeneric { get; set; }
+    public String FieldTypeWithoutNullable { get; set; }
 
     /// <summary>
     /// Name of the SQL column in the recordset

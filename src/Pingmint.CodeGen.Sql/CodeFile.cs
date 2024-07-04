@@ -143,15 +143,15 @@ public class CodeFile
                         var fieldName = property.FieldName;
                         var IsValueType = property.FieldTypeIsValueType;
                         var ColumnIsNullable = property.ColumnIsNullable;
-                        var fieldTypeForGeneric = property.FieldTypeForGeneric;
+                        var fieldTypeWithoutNullable = property.FieldTypeWithoutNullable;
                         var columnName = property.ColumnName;
                         var ordinalVarName = record.Properties.Count == 1 ? ordinalsArg : $"{ordinalsArg}.Item{i++}";
                         var line = (IsValueType, ColumnIsNullable) switch
                         {
-                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
-                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeForGeneric),
+                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
+                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
+                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
+                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
                         };
                         code.Line(line);
                     }
@@ -172,7 +172,7 @@ public class CodeFile
                     {
                         var allowDbNull = col.ColumnIsNullable ? "true" : "false";
                         var maxLength = (col.MaxLength is short s && col.FieldType?.ToLowerInvariant() == "string") ? $", MaxLength = {s}" : String.Empty; // the default is already "-1", so we do not have to emit this in code.
-                        var propertyTypeName = col.FieldTypeForGeneric;
+                        var propertyTypeName = col.FieldTypeWithoutNullable;
                         code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, propertyTypeName, allowDbNull, maxLength);
                     }
                     using (code.ForEach("var row in rows"))

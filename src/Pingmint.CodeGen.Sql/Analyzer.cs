@@ -183,11 +183,12 @@ public class Analyzer
             var uniqueHashSet = new HashSet<String>();
             do
             {
+                if (reader.IsDBNull(ordName) || reader.IsDBNull(ordValue)) { continue; }
                 var nameResult = reader.GetString(ordName);
                 var valueResult = reader.GetValue(ordValue);
 
                 var nameSetter = GetUniqueName(GetPascalCase(nameResult), uniqueHashSet);
-                var valueSetter = valueProperty.FieldType switch
+                var valueSetter = valueProperty.FieldTypeWithoutNullable switch
                 {
                     "String" => $"\"{valueResult}\"",
                     "Int32" => $"{valueResult}",
@@ -318,7 +319,7 @@ public class Analyzer
         {
             FieldName = propertyName,
             FieldType = propertyType,
-            FieldTypeForGeneric = propertyTypeWithoutNullable,
+            FieldTypeWithoutNullable = propertyTypeWithoutNullable,
             FieldTypeIsValueType = isValueType,
             ColumnName = columnName,
             ColumnIsNullable = isNullable,
@@ -588,7 +589,7 @@ public class Analyzer
                 {
                     FieldName = propertyName,
                     FieldType = propertyType,
-                    FieldTypeForGeneric = propertyTypeWithoutNullable,
+                    FieldTypeWithoutNullable = propertyTypeWithoutNullable,
                     FieldTypeIsValueType = isValueType,
                     ColumnName = columnName,
                     ColumnIsNullable = isNullable,
