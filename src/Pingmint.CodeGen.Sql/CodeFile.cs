@@ -391,7 +391,7 @@ file static class FileMethods
         }
 
         code.Line();
-        foreach (var constant in Constants)
+        foreach (var constant in Constants.OrderBy(c => c.Name))
         {
             using (code.PartialClass("public static", constant.Name))
             {
