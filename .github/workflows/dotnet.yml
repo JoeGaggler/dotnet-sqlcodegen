@@ -17,8 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 7.x
-        dotnet-quality: preview
+        dotnet-version: 9.x
     - name: Version (release)
       run: |
         OLD=$(yq ".Project.PropertyGroup[0].Version" -p xml -o xml src/Pingmint.CodeGen.Sql/Pingmint.CodeGen.Sql.csproj)
