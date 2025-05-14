@@ -96,6 +96,22 @@ public static partial class StatusCodes
 
 ```
 
+## Multiple connection strings
+
+Each database can have its own connection string. Add a `connection` property to an item in the `databases` list to override the default connection string.
+
+```yml
+connection: > # default connection string
+  Server=localhost;
+  Database=db2;
+databases:
+  - database: db1
+    connection: > # connection string override
+      Server=localhost;
+      Database=db1;
+  - database: db2 # uses default
+```
+
 ## SqlClient options
 
 Some versions of [SqlClient](https://github.com/dotnet/SqlClient) have known issues that require mitigations via different code generation, which are controllable via the `sqlclient` section in the `database.yml` file.

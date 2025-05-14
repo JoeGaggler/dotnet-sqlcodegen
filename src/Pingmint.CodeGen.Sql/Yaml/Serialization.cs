@@ -100,6 +100,7 @@ internal sealed class DatabaseMapping : Mapping<Model.DatabasesItem>
         switch (key)
         {
             case "database": { this.Model.SqlName = value; return true; }
+            case "connection": this.Model.Connection = new() { ConnectionString = value }; return true;
             default: return false;
         }
     }

@@ -43,12 +43,12 @@ internal sealed class Program
             codeFile.TypeKeyword = config.CSharp.TypeKeyword;
             codeFile.AllowAsync = config?.SqlClient?.Async != "false";
 
-            if (config.Databases?.Items is { } databases)
+            if (config?.Databases?.Items is { } databases)
             {
                 foreach (var database in databases)
                 {
                     var databaseName = database.SqlName ?? throw new InvalidOperationException("Database name is required.");
-                    var analyzer = new Analyzer(databaseName, codeFile, config);
+                    var analyzer = new Analyzer(databaseName, codeFile, config, database.Connection?.ConnectionString ?? config.Connection?.ConnectionString);
 
                     // TODO: reenable ConsoleSynchronizationContext
                     var tasks = new Task<int>[chunkSize];

@@ -15,13 +15,13 @@ public class Analyzer
     private String database;
     private String connectionString;
 
-    public Analyzer(String database, CodeFile codeFile, Config config)
+    public Analyzer(String database, CodeFile codeFile, Config config, String connectionString)
     {
         this.database = database;
         this.codeFile = codeFile;
         this.config = config;
 
-        this.connectionString = config.Connection.ConnectionString;
+        this.connectionString = connectionString;
     }
 
     // TODO: remove stats

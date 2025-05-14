@@ -80,6 +80,7 @@ public class DatabasesItem
 
     // mapping
     public String? SqlName { get; set; }
+    public Connection? Connection { get; set; }
     public DatabasesItemProcedures? Procedures { get; set; }
     public DatabasesItemStatements? Statements { get; set; }
     public DatabaseItemsConstants? Constants { get; set; }
