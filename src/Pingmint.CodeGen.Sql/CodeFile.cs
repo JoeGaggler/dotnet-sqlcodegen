@@ -348,6 +348,11 @@ file static class FileMethods
                         code.Line();
                     }
 
+                    if (method.ObsoleteMessage is { Length: > 0 } obsoleteMessage)
+                    {
+                        code.Line($"[Obsolete(\"{obsoleteMessage}\")]");
+                    }
+
                     var actualMethodName = isAsync ? $"{method.Name}Async" : method.Name;
 
                     var actualParamsString = isAsync ? connectionParametersWithCancellationString : connectionParametersString;

@@ -69,6 +69,16 @@ public class Analyzer
         var methodParameters = new List<MethodParameter>();
         var commandParameters = new List<CommandParameter>();
         WriteLine("Database.GetParametersForObjectAsync");
+
+        // future: users may have a different extended property for "Obsolete"
+        if ((await Database.GetMetaForObjectAsync(server, procId, "Obsolete", CancellationToken.None)).FirstOrDefault() is not
+            {
+                ObsoleteMessage: { Length: > 0 } obsoleteMessage
+            })
+        {
+            obsoleteMessage = null;
+        }
+
         foreach (var procParam in await Database.GetParametersForObjectAsync(server, procId, CancellationToken.None))
         {
             var (methodParameter, commandParameter) = await AnalyzeParameterAsync(server, procParam.Name, procParam.SystemTypeId, procParam.UserTypeId, procParam.MaxLength);
@@ -83,6 +93,7 @@ public class Analyzer
             CommandText = commandText,
             CSharpParameters = methodParameters,
             SqlParameters = commandParameters,
+            ObsoleteMessage = obsoleteMessage,
         };
 
         var recordColumns = new List<RecordProperty>();

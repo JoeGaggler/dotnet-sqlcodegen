@@ -48,6 +48,11 @@ public class Method
     /// Type of recordset
     /// </summary>
     public Record? ResultSetRecord { get; internal set; }
+
+    /// <summary>
+    /// Attaches an Obsolete attribute to the method if not null
+    /// </summary>
+    public String? ObsoleteMessage { get; set; }
 }
 
 public class MethodParameter

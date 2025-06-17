@@ -13,7 +13,6 @@ namespace Pingmint.CodeGen.Sql;
 using Ordinals1 = int;
 record struct Ordinals2(int Item1, int Item2);
 record struct Ordinals3(int Item1, int Item2, int Item3);
-record struct Ordinals4(int Item1, int Item2, int Item3, int Item4);
 record struct Ordinals6(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6);
 record struct Ordinals7(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6, int Item7);
 record struct Ordinals9(int Item1, int Item2, int Item3, int Item4, int Item5, int Item6, int Item7, int Item8, int Item9);
@@ -83,6 +82,20 @@ public partial record class DmDescribeFirstResultSetRow : IReading<DmDescribeFir
 	};
 }
 
+public partial record class GetMetaForObjectRow : IReading<GetMetaForObjectRow, Ordinals1>
+{
+	public required String? ObsoleteMessage { get; init; }
+
+	static Ordinals1 IReading<GetMetaForObjectRow, Ordinals1>.Ordinals(SqlDataReader reader) => (
+		reader.GetOrdinal("Obsolete_Message")
+	);
+
+	static GetMetaForObjectRow IReading<GetMetaForObjectRow, Ordinals1>.Read(SqlDataReader reader, Ordinals1 ordinal) => new GetMetaForObjectRow
+	{
+		ObsoleteMessage = OptionalClass<String>(reader, ordinal),
+	};
+}
+
 public partial record class GetParametersForObjectRow : IReading<GetParametersForObjectRow, Ordinals9>
 {
 	public required Int32 ParameterId { get; init; }
@@ -121,49 +134,43 @@ public partial record class GetParametersForObjectRow : IReading<GetParametersFo
 	};
 }
 
-public partial record class GetProcedureForSchemaRow : IReading<GetProcedureForSchemaRow, Ordinals4>
+public partial record class GetProcedureForSchemaRow : IReading<GetProcedureForSchemaRow, Ordinals3>
 {
 	public required String Name { get; init; }
 	public required Int32 ObjectId { get; init; }
 	public required String SchemaName { get; init; }
-	public required String? ObsoleteMessage { get; init; }
 
-	static Ordinals4 IReading<GetProcedureForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => new(
+	static Ordinals3 IReading<GetProcedureForSchemaRow, Ordinals3>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("object_id"),
-		reader.GetOrdinal("Schema_Name"),
-		reader.GetOrdinal("Obsolete_Message")
+		reader.GetOrdinal("Schema_Name")
 	);
 
-	static GetProcedureForSchemaRow IReading<GetProcedureForSchemaRow, Ordinals4>.Read(SqlDataReader reader, Ordinals4 ordinals) => new GetProcedureForSchemaRow
+	static GetProcedureForSchemaRow IReading<GetProcedureForSchemaRow, Ordinals3>.Read(SqlDataReader reader, Ordinals3 ordinals) => new GetProcedureForSchemaRow
 	{
 		Name = RequiredClass<String>(reader, ordinals.Item1),
 		ObjectId = RequiredValue<Int32>(reader, ordinals.Item2),
 		SchemaName = RequiredClass<String>(reader, ordinals.Item3),
-		ObsoleteMessage = OptionalClass<String>(reader, ordinals.Item4),
 	};
 }
 
-public partial record class GetProceduresForSchemaRow : IReading<GetProceduresForSchemaRow, Ordinals4>
+public partial record class GetProceduresForSchemaRow : IReading<GetProceduresForSchemaRow, Ordinals3>
 {
 	public required String Name { get; init; }
 	public required Int32 ObjectId { get; init; }
 	public required String SchemaName { get; init; }
-	public required String? ObsoleteMessage { get; init; }
 
-	static Ordinals4 IReading<GetProceduresForSchemaRow, Ordinals4>.Ordinals(SqlDataReader reader) => new(
+	static Ordinals3 IReading<GetProceduresForSchemaRow, Ordinals3>.Ordinals(SqlDataReader reader) => new(
 		reader.GetOrdinal("name"),
 		reader.GetOrdinal("object_id"),
-		reader.GetOrdinal("Schema_Name"),
-		reader.GetOrdinal("Obsolete_Message")
+		reader.GetOrdinal("Schema_Name")
 	);
 
-	static GetProceduresForSchemaRow IReading<GetProceduresForSchemaRow, Ordinals4>.Read(SqlDataReader reader, Ordinals4 ordinals) => new GetProceduresForSchemaRow
+	static GetProceduresForSchemaRow IReading<GetProceduresForSchemaRow, Ordinals3>.Read(SqlDataReader reader, Ordinals3 ordinals) => new GetProceduresForSchemaRow
 	{
 		Name = RequiredClass<String>(reader, ordinals.Item1),
 		ObjectId = RequiredValue<Int32>(reader, ordinals.Item2),
 		SchemaName = RequiredClass<String>(reader, ordinals.Item3),
-		ObsoleteMessage = OptionalClass<String>(reader, ordinals.Item4),
 	};
 }
 
@@ -444,6 +451,23 @@ public static partial class Database
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow, Ordinals7>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
+	private static SqlCommand GetMetaForObjectCommand(SqlConnection connection, Int32? id, String? obsoleteName) => CreateStatement(connection, "SELECT   CAST(E1.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P LEFT OUTER JOIN sys.extended_properties AS E1 ON (P.object_id = E1.major_id AND E1.Name = @obsolete_name) WHERE P.object_id = @id", [
+		CreateParameter("@id", id, SqlDbType.Int),
+		CreateParameter("@obsolete_name", obsoleteName, SqlDbType.VarChar, 8000),
+	]);
+
+	public static List<GetMetaForObjectRow> GetMetaForObject(SqlConnection connection, Int32? id, String? obsoleteName)
+	{
+		using var cmd = GetMetaForObjectCommand(connection, id, obsoleteName);
+		return ExecuteCommand<GetMetaForObjectRow, Ordinals1>(cmd);
+	}
+
+	public static async Task<List<GetMetaForObjectRow>> GetMetaForObjectAsync(SqlConnection connection, Int32? id, String? obsoleteName, CancellationToken cancellationToken = default)
+	{
+		using var cmd = GetMetaForObjectCommand(connection, id, obsoleteName);
+		return await ExecuteCommandAsync<GetMetaForObjectRow, Ordinals1>(cmd, cancellationToken).ConfigureAwait(false);
+	}
+
 	private static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id", [
 		CreateParameter("@id", id, SqlDbType.Int),
 	]);
@@ -460,7 +484,7 @@ public static partial class Database
 		return await ExecuteCommandAsync<GetParametersForObjectRow, Ordinals9>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema AND P.name = @proc ORDER BY P.name", [
+	private static SqlCommand GetProcedureForSchemaCommand(SqlConnection connection, String? schema, String? proc) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) WHERE S.name = @schema AND P.name = @proc ORDER BY P.name", [
 		CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
 		CreateParameter("@proc", proc, SqlDbType.VarChar, 8000),
 	]);
@@ -468,29 +492,29 @@ public static partial class Database
 	public static List<GetProcedureForSchemaRow> GetProcedureForSchema(SqlConnection connection, String? schema, String? proc)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return ExecuteCommand<GetProcedureForSchemaRow, Ordinals4>(cmd);
+		return ExecuteCommand<GetProcedureForSchemaRow, Ordinals3>(cmd);
 	}
 
 	public static async Task<List<GetProcedureForSchemaRow>> GetProcedureForSchemaAsync(SqlConnection connection, String? schema, String? proc, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetProcedureForSchemaCommand(connection, schema, proc);
-		return await ExecuteCommandAsync<GetProcedureForSchemaRow, Ordinals4>(cmd, cancellationToken).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetProcedureForSchemaRow, Ordinals3>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name], CAST(E.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) LEFT OUTER JOIN sys.extended_properties AS E ON (P.object_id = E.major_id AND E.Name = 'Obsolete') WHERE S.name = @schema ORDER BY P.name", [
+	private static SqlCommand GetProceduresForSchemaCommand(SqlConnection connection, String? schema) => CreateStatement(connection, "SELECT P.name, P.object_id, S.name as [Schema_Name] FROM sys.procedures AS P INNER JOIN sys.schemas as S ON (P.schema_id = S.schema_id) WHERE S.name = @schema ORDER BY P.name", [
 		CreateParameter("@schema", schema, SqlDbType.VarChar, 8000),
 	]);
 
 	public static List<GetProceduresForSchemaRow> GetProceduresForSchema(SqlConnection connection, String? schema)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return ExecuteCommand<GetProceduresForSchemaRow, Ordinals4>(cmd);
+		return ExecuteCommand<GetProceduresForSchemaRow, Ordinals3>(cmd);
 	}
 
 	public static async Task<List<GetProceduresForSchemaRow>> GetProceduresForSchemaAsync(SqlConnection connection, String? schema, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetProceduresForSchemaCommand(connection, schema);
-		return await ExecuteCommandAsync<GetProceduresForSchemaRow, Ordinals4>(cmd, cancellationToken).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetProceduresForSchemaRow, Ordinals3>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetSchemasCommand(SqlConnection connection) => CreateStatement(connection, "SELECT name, schema_id FROM sys.schemas");

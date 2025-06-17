@@ -124,3 +124,31 @@ Set `async: false` to avoid using the async methods of the `SqlClient` package, 
 sqlclient:
   async: false
 ```
+
+## Extended properties
+
+Extended properties may be added to database objects to include metadata in the generated code.
+
+### Obsolete
+
+Add `Obsolete` to a procedure to attach `ObsoleteAttribute` to generated methods:
+
+```sql
+EXEC sp_addextendedproperty
+  @name = N'Obsolete',
+  @value = N'This procedure is obsolete. Migrate to MyProc2.',
+  @level0type = N'SCHEMA',
+  @level0name = 'dbo',
+  @level1type = N'PROCEDURE',
+  @level1name = 'MyProc';
+```
+
+Results in the following generated code:
+
+```csharp
+[Obsolete("This procedure is obsolete. Migrate to MyProc2.")]
+public static int MyProc()...
+```
+
+
+
