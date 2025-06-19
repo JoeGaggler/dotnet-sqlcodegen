@@ -53,6 +53,11 @@ public class Method
     /// Attaches an Obsolete attribute to the method if not null
     /// </summary>
     public String? ObsoleteMessage { get; set; }
+
+    /// <summary>
+    /// Attaches a MS_Description attribute to the method if not null
+    /// </summary>
+    public String? MSDescription { get; set; }
 }
 
 public class MethodParameter

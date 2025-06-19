@@ -82,17 +82,20 @@ public partial record class DmDescribeFirstResultSetRow : IReading<DmDescribeFir
 	};
 }
 
-public partial record class GetMetaForObjectRow : IReading<GetMetaForObjectRow, Ordinals1>
+public partial record class GetMetaForObjectRow : IReading<GetMetaForObjectRow, Ordinals2>
 {
 	public required String? ObsoleteMessage { get; init; }
+	public required String? MSDescription { get; init; }
 
-	static Ordinals1 IReading<GetMetaForObjectRow, Ordinals1>.Ordinals(SqlDataReader reader) => (
-		reader.GetOrdinal("Obsolete_Message")
+	static Ordinals2 IReading<GetMetaForObjectRow, Ordinals2>.Ordinals(SqlDataReader reader) => new(
+		reader.GetOrdinal("Obsolete_Message"),
+		reader.GetOrdinal("MS_Description")
 	);
 
-	static GetMetaForObjectRow IReading<GetMetaForObjectRow, Ordinals1>.Read(SqlDataReader reader, Ordinals1 ordinal) => new GetMetaForObjectRow
+	static GetMetaForObjectRow IReading<GetMetaForObjectRow, Ordinals2>.Read(SqlDataReader reader, Ordinals2 ordinals) => new GetMetaForObjectRow
 	{
-		ObsoleteMessage = OptionalClass<String>(reader, ordinal),
+		ObsoleteMessage = OptionalClass<String>(reader, ordinals.Item1),
+		MSDescription = OptionalClass<String>(reader, ordinals.Item2),
 	};
 }
 
@@ -451,7 +454,7 @@ public static partial class Database
 		return await ExecuteCommandAsync<DmDescribeFirstResultSetForObjectRow, Ordinals7>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
-	private static SqlCommand GetMetaForObjectCommand(SqlConnection connection, Int32? id, String? obsoleteName) => CreateStatement(connection, "SELECT   CAST(E1.value as VARCHAR(MAX)) AS [Obsolete_Message] FROM sys.procedures AS P LEFT OUTER JOIN sys.extended_properties AS E1 ON (P.object_id = E1.major_id AND E1.Name = @obsolete_name) WHERE P.object_id = @id", [
+	private static SqlCommand GetMetaForObjectCommand(SqlConnection connection, Int32? id, String? obsoleteName) => CreateStatement(connection, "SELECT   CAST(E1.value as VARCHAR(MAX)) AS [Obsolete_Message],   CAST(E2.value as VARCHAR(MAX)) AS [MS_Description] FROM sys.procedures AS P LEFT OUTER JOIN sys.extended_properties AS E1 ON (P.object_id = E1.major_id AND E1.Name = @obsolete_name) LEFT OUTER JOIN sys.extended_properties AS E2 ON (P.object_id = E2.major_id AND E2.Name = 'MS_Description') WHERE P.object_id = @id", [
 		CreateParameter("@id", id, SqlDbType.Int),
 		CreateParameter("@obsolete_name", obsoleteName, SqlDbType.VarChar, 8000),
 	]);
@@ -459,13 +462,13 @@ public static partial class Database
 	public static List<GetMetaForObjectRow> GetMetaForObject(SqlConnection connection, Int32? id, String? obsoleteName)
 	{
 		using var cmd = GetMetaForObjectCommand(connection, id, obsoleteName);
-		return ExecuteCommand<GetMetaForObjectRow, Ordinals1>(cmd);
+		return ExecuteCommand<GetMetaForObjectRow, Ordinals2>(cmd);
 	}
 
 	public static async Task<List<GetMetaForObjectRow>> GetMetaForObjectAsync(SqlConnection connection, Int32? id, String? obsoleteName, CancellationToken cancellationToken = default)
 	{
 		using var cmd = GetMetaForObjectCommand(connection, id, obsoleteName);
-		return await ExecuteCommandAsync<GetMetaForObjectRow, Ordinals1>(cmd, cancellationToken).ConfigureAwait(false);
+		return await ExecuteCommandAsync<GetMetaForObjectRow, Ordinals2>(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
 	private static SqlCommand GetParametersForObjectCommand(SqlConnection connection, Int32? id) => CreateStatement(connection, "SELECT P.parameter_id, T.schema_id, P.system_type_id, P.user_type_id, P.name, P.is_output, P.max_length, T.is_table_type, T.name as [Type_Name] FROM sys.parameters AS P JOIN sys.types AS T ON (P.system_type_id = T.system_type_id AND P.user_type_id = T.user_type_id) WHERE P.object_id = @id", [

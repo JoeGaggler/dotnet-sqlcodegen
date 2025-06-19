@@ -71,9 +71,11 @@ databases:
       - name: GetMetaForObject
         text: |
           SELECT
-            CAST(E1.value as VARCHAR(MAX)) AS [Obsolete_Message]
+            CAST(E1.value as VARCHAR(MAX)) AS [Obsolete_Message],
+            CAST(E2.value as VARCHAR(MAX)) AS [MS_Description]
           FROM sys.procedures AS P
           LEFT OUTER JOIN sys.extended_properties AS E1 ON (P.object_id = E1.major_id AND E1.Name = @obsolete_name)
+          LEFT OUTER JOIN sys.extended_properties AS E2 ON (P.object_id = E2.major_id AND E2.Name = 'MS_Description')
           WHERE P.object_id = @id
         parameters:
           - name: id

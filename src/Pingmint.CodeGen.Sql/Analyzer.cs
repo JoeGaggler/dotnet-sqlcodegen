@@ -73,10 +73,12 @@ public class Analyzer
         // future: users may have a different extended property for "Obsolete"
         if ((await Database.GetMetaForObjectAsync(server, procId, "Obsolete", CancellationToken.None)).FirstOrDefault() is not
             {
-                ObsoleteMessage: { Length: > 0 } obsoleteMessage
+                ObsoleteMessage: var obsoleteMessage,
+                MSDescription: var msDescription,
             })
         {
             obsoleteMessage = null;
+            msDescription = null;
         }
 
         foreach (var procParam in await Database.GetParametersForObjectAsync(server, procId, CancellationToken.None))
@@ -94,6 +96,7 @@ public class Analyzer
             CSharpParameters = methodParameters,
             SqlParameters = commandParameters,
             ObsoleteMessage = obsoleteMessage,
+            MSDescription = msDescription,
         };
 
         var recordColumns = new List<RecordProperty>();

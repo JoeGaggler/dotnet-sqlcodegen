@@ -348,6 +348,12 @@ file static class FileMethods
                         code.Line();
                     }
 
+                    if (method.MSDescription is { Length: > 0 } msDescription)
+                    {
+                        code.Line($"/// <summary>");
+                        code.Line($"/// {msDescription}");
+                        code.Line($"/// </summary>");
+                    }
                     if (method.ObsoleteMessage is { Length: > 0 } obsoleteMessage)
                     {
                         code.Line($"[Obsolete(\"{obsoleteMessage}\")]");

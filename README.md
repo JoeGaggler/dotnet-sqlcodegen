@@ -129,26 +129,34 @@ sqlclient:
 
 Extended properties may be added to database objects to include metadata in the generated code.
 
-### Obsolete
-
-Add `Obsolete` to a procedure to attach `ObsoleteAttribute` to generated methods:
+Adding a property to a procedure:
 
 ```sql
 EXEC sp_addextendedproperty
   @name = N'Obsolete',
-  @value = N'This procedure is obsolete. Migrate to MyProc2.',
+  @value = N'This procedure is obsolete.',
   @level0type = N'SCHEMA',
   @level0name = 'dbo',
   @level1type = N'PROCEDURE',
   @level1name = 'MyProc';
 ```
 
-Results in the following generated code:
+### Obsolete
+
+Add `Obsolete` to a procedure to attach `ObsoleteAttribute` to generated methods, using the value as the message:
 
 ```csharp
 [Obsolete("This procedure is obsolete. Migrate to MyProc2.")]
 public static int MyProc()...
 ```
 
+### MS_Description
 
+Add `MS_Description` to a procedure to attach code comments to generated methods, using the value as the comment:
 
+```csharp
+/// <summary>
+/// The value of the MS_Description extended property for this procedure appears here.
+/// </summary>
+public static int MyProc()...
+```
