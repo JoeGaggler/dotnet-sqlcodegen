@@ -158,10 +158,10 @@ public class CodeFile
                         var ordinalVarName = record.Properties.Count == 1 ? ordinalsArg : $"{ordinalsArg}.Item{i++}";
                         var line = (IsValueType, ColumnIsNullable) switch
                         {
-                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}){2},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
-                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}){2},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
-                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}){2},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
-                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}){2},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
                         };
                         code.Line(line);
                     }
