@@ -140,6 +140,7 @@ public class CodeFile
                     int i = 1;
                     foreach (var property in record.Properties)
                     {
+                        code.Line($"// {property}");
                         var fieldName = property.FieldName;
                         var IsValueType = property.FieldTypeIsValueType;
                         var ColumnIsNullable = property.ColumnIsNullable;

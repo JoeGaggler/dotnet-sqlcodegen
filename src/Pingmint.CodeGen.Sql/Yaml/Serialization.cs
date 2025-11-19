@@ -65,6 +65,7 @@ internal sealed class SqlClientMapping : Mapping<Model.SqlClient>
         switch (key)
         {
             case "async": this.Model.Async = value; return true;
+            case "trimChar": this.Model.TrimChar = value?.ToUpperInvariant() == "TRUE"; return true;
             default: return false;
         }
     }

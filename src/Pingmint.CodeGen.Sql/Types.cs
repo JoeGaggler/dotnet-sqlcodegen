@@ -132,4 +132,5 @@ public class RecordProperty
     public bool FieldTypeIsValueType { get; internal set; }
     public bool ColumnIsNullable { get; internal set; }
     public short? MaxLength { get; init; }
+    public SqlDbType? SqlDbType { get; init; }
 }
