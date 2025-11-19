@@ -328,6 +328,7 @@ public class Analyzer
         var propertyType = isNullable ? csharpTypeInfo.TypeRefNullable : csharpTypeInfo.TypeRef;
         var propertyTypeWithoutNullable = csharpTypeInfo.TypeRef;
         var isValueType = csharpTypeInfo.IsValueType;
+        var sqlDbType = csharpTypeInfo.SqlDbType;
 
         var recordProperty = new RecordProperty
         {
@@ -337,6 +338,7 @@ public class Analyzer
             FieldTypeIsValueType = isValueType,
             ColumnName = columnName,
             ColumnIsNullable = isNullable,
+            SqlDbType = sqlDbType,
         };
         return recordProperty;
     }

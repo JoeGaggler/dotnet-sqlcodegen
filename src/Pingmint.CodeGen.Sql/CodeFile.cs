@@ -29,6 +29,7 @@ public class CodeFile
 
     public String TypeKeyword { get; set; } = "record class";
     public Boolean AllowAsync { get; set; } = true;
+    public Boolean TrimChar { get; set; } = false;
 
     public String GenerateCode()
     {
@@ -140,6 +141,15 @@ public class CodeFile
                     int i = 1;
                     foreach (var property in record.Properties)
                     {
+                        String trim = String.Empty;
+                        if (TrimChar && property.SqlDbType == SqlDbType.Char)
+                        {
+                            trim = ".TrimEnd()";
+                            if (property.ColumnIsNullable)
+                            {
+                                trim = "?" + trim;
+                            }
+                        }
                         var fieldName = property.FieldName;
                         var IsValueType = property.FieldTypeIsValueType;
                         var ColumnIsNullable = property.ColumnIsNullable;
@@ -148,10 +158,10 @@ public class CodeFile
                         var ordinalVarName = record.Properties.Count == 1 ? ordinalsArg : $"{ordinalsArg}.Item{i++}";
                         var line = (IsValueType, ColumnIsNullable) switch
                         {
-                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
-                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
-                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
-                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}),", fieldName, ordinalVarName, fieldTypeWithoutNullable),
+                            (false, true) => String.Format("{0} = OptionalClass<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (true, true) => String.Format("{0} = OptionalValue<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (false, false) => String.Format("{0} = RequiredClass<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
+                            (true, false) => String.Format("{0} = RequiredValue<{2}>(reader, {1}){3},", fieldName, ordinalVarName, fieldTypeWithoutNullable, trim),
                         };
                         code.Line(line);
                     }

@@ -41,6 +41,7 @@ public class SqlClient
 
     // mapping
     public String? Async { get; set; }
+    public String? TrimChar { get; set; }
 
     // sequence
 }
