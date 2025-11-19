@@ -173,11 +173,9 @@ public class CodeFile
 
                 using var tableClass = code.PartialClass("public sealed", dataTableClassName, "DataTable");
                 code.Line("public {0}() : this(new List<{1}>()) {{ }}", dataTableClassName, rowClassName);
-                code.Line("public {0}(List<{1}> rows) : base()", dataTableClassName, rowClassName);
+                code.Line("public {0}(List<{1}>? rows) : base()", dataTableClassName, rowClassName);
                 using (code.CreateBraceScope())
                 {
-                    code.Line("if (rows is null) { rows = []; }");
-                    code.Line();
                     foreach (var col in record.Properties)
                     {
                         var allowDbNull = col.ColumnIsNullable ? "true" : "false";
@@ -185,7 +183,7 @@ public class CodeFile
                         var propertyTypeName = col.FieldTypeWithoutNullable;
                         code.Line("base.Columns.Add(new DataColumn() {{ ColumnName = \"{0}\", DataType = typeof({1}), AllowDBNull = {2}{3} }});", col.ColumnName, propertyTypeName, allowDbNull, maxLength);
                     }
-                    using (code.ForEach("var row in rows"))
+                    using (code.ForEach("var row in rows ?? []"))
                     {
                         var parameterBuilder = String.Empty;
                         foreach (var col in record.Properties)
