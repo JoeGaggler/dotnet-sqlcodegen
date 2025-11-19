@@ -29,6 +29,7 @@ public class CodeFile
 
     public String TypeKeyword { get; set; } = "record class";
     public Boolean AllowAsync { get; set; } = true;
+    public Boolean TrimChar { get; set; } = false;
 
     public String GenerateCode()
     {
@@ -140,7 +141,10 @@ public class CodeFile
                     int i = 1;
                     foreach (var property in record.Properties)
                     {
-                        code.Line($"// {property}");
+                        if (property.SqlDbType == SqlDbType.Char)
+                        {
+                            code.Line($"// {TrimChar} {property}");
+                        }
                         var fieldName = property.FieldName;
                         var IsValueType = property.FieldTypeIsValueType;
                         var ColumnIsNullable = property.ColumnIsNullable;

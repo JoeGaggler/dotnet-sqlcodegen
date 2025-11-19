@@ -42,6 +42,7 @@ internal sealed class Program
             codeFile.ClassName = config.CSharp.ClassName;
             codeFile.TypeKeyword = config.CSharp.TypeKeyword;
             codeFile.AllowAsync = config?.SqlClient?.Async != "false";
+            codeFile.TrimChar = config?.SqlClient?.TrimChar?.ToUpperInvariant() == "TRUE";
 
             if (config?.Databases?.Items is { } databases)
             {
