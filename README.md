@@ -125,6 +125,10 @@ sqlclient:
   async: false
 ```
 
+### `trim char`
+
+Set `trim char: true` to remove trailing spaces on CHAR(n) columns.
+
 ## Extended properties
 
 Extended properties may be added to database objects to include metadata in the generated code.

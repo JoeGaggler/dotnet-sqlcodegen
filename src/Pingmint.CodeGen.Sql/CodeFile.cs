@@ -144,7 +144,7 @@ public class CodeFile
                         String trim = String.Empty;
                         if (TrimChar && property.SqlDbType == SqlDbType.Char)
                         {
-                            trim = ".Trim()";
+                            trim = ".TrimEnd()";
                             if (property.ColumnIsNullable)
                             {
                                 trim = "?" + trim;
