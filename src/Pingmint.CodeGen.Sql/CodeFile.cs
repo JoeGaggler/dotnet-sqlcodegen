@@ -176,7 +176,7 @@ public class CodeFile
                 code.Line("public {0}(List<{1}> rows) : base()", dataTableClassName, rowClassName);
                 using (code.CreateBraceScope())
                 {
-                    code.Line("ArgumentNullException.ThrowIfNull(rows);");
+                    code.Line("if (rows is null) { rows = []; }");
                     code.Line();
                     foreach (var col in record.Properties)
                     {
