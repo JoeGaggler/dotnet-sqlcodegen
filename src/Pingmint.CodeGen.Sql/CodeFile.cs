@@ -41,6 +41,7 @@ public class CodeFile
         code.UsingNamespace("System.Threading");
         code.UsingNamespace("System.Threading.Tasks");
         code.UsingNamespace("Microsoft.Data.SqlClient");
+        code.UsingNamespace("Microsoft.Data.SqlTypes");
         code.Line($"using static {Namespace}.FileMethods;");
         code.Line();
 

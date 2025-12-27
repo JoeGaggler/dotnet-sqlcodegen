@@ -466,6 +466,8 @@ public class Analyzer
                     "xml" => SqlDbType.Xml,
                     "uniqueidentifier" => SqlDbType.UniqueIdentifier,
                     "image" => SqlDbType.Image,
+                    "vector" => SqlDbType.Vector,
+                    "json" => SqlDbType.Json,
 
                     _ => (SqlDbType?)null,
                 } is not { } value)
@@ -502,7 +504,8 @@ public class Analyzer
         SqlDbType.NVarChar or
         SqlDbType.Text or
         SqlDbType.VarChar or
-        SqlDbType.Xml
+        SqlDbType.Xml or
+        SqlDbType.Json
         => typeof(String),
 
         SqlDbType.DateTimeOffset => typeof(DateTimeOffset),
@@ -557,6 +560,18 @@ public class Analyzer
         if (await GetSysTypeAsync(server, systemTypeId, userTypeId) is not { } foundSysType)
         {
             throw new InvalidOperationException("Could not find sys.types row for " + systemTypeId + ", " + userTypeId);
+        }
+
+        if (foundSysType.Name == "vector")
+        {
+            _csharpTypeInfosById[(systemTypeId, userTypeId)] = cachedValue = new()
+            {
+                TypeRef = "SqlVector<float>",
+                TypeRefNullable = "SqlVector<float>?",
+                IsValueType = true,
+                SqlDbType = SqlDbType.Vector,
+            };
+            return cachedValue;
         }
 
         if (!foundSysType.IsUserDefined)
