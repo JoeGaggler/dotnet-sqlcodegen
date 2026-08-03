@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.50</Version>
+    <Version>0.51</Version>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -35,9 +35,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Data.SqlClient.Extensions.Azure" Version="1.0.0" />
-    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.SqlClient.Extensions.Azure" />
+    <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 
 </Project>

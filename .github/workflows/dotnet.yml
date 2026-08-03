@@ -11,9 +11,16 @@ on:
 
 jobs:
   build:
+    permissions:
+      id-token: write  # enable GitHub OIDC token issuance for this job
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }}
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -45,5 +52,5 @@ jobs:
     - name: Push
       run: dotnet nuget push ./nupkg/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key $NUGET_API_KEY
       env:
-        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        NUGET_API_KEY: ${{steps.login.outputs.NUGET_API_KEY}}
       #if: github.ref == 'refs/heads/main'
