@@ -12,6 +12,8 @@ internal sealed class Program
 {
     internal static async Task Main(string[] args)
     {
+        AppContext.SetSwitch("Switch.Microsoft.Data.SqlClient.UseConnectionPoolV2", true);
+        
         if (args.Length < 1)
         {
             throw new InvalidOperationException(); // TODO: print help message
