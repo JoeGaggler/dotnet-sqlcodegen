@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
-    - name: NuGet login (OIDC → temp API key)
+    - name: NuGet login
       uses: NuGet/login@v1.2.0
       id: login
       with:
